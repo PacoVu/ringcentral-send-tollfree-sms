@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>RingCentral Toll-Free SMS</title>
+        <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="shortcut icon">
+        <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="icon">
+        <script src="./js/jquery-3.1.0.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+        <link rel="stylesheet" href="./css/bootstrap.min.css">
+
+        <link rel="stylesheet" type="text/css" href="./css/main.css">
+        <link rel="stylesheet" type="text/css" href="./css/ui.css">
+        <script>
+          window.RC_AUTHORIZE_URI= '<%- authorize_uri %>'
+          window.RC_APP_REDIRECT_URL= '<%- redirect_uri %>'
+        </script>
+        <script src="./js/login.js"></script>
+    </head>
+    <body onload="login()">
+      <nav class="navbar navbar-default no-border">
+        <span class="left-middle-align">
+          <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="35"></a></span>&nbsp;&nbsp;
+          <span class="title">Toll-Free SMS</span>
+        </span>
+        <ul class="nav navbar-nav navbar-right middle-align">
+          <li><a href="/about">About</a></li>
+        </ul>
+      </nav>
+      <section id='content'>
+      <div align="center">
+        <h1>Loading...</h1>
+        <img src='./img/loading.gif' id="logginIcon" style='width:80px;height:80px;display: block'></img>
+        <h1>Please wait!</h1>
+      </div>
+      </section>
+      <%- include('_footer') %>
+    </body>
+</html>

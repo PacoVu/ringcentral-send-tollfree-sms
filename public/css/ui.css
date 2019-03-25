@@ -1,0 +1,146 @@
+/*
+* {
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  position: relative;
+  min-height: 100%;
+  overflow: auto;
+}
+*/
+/*
+table {
+  display: table;
+  border-collapse: separate;
+  border-spacing: 2px;
+  border-color: grey;
+}
+
+thead {
+  display: table-header-group;
+  vertical-align: middle;
+  border-color: inherit;
+}
+*/
+.left-middle-align {
+  margin: 0;
+  height: 50px;
+  width: 370px;
+  display: block;
+  position: relative;
+  float: left;
+}
+
+.left-middle-align span {
+  display: inline-block;
+}
+
+.left-middle-align .rclogo {
+  position: absolute;
+  top: 50%;
+  margin-top: -12px;
+  height: 25px;
+}
+
+.left-middle-align .rclogo img {
+  height: 25px;
+  width: auto;
+}
+
+.left-middle-align .title {
+  position: absolute;
+  top: 50%;
+  left: 180px;
+  margin-top: -15px;
+  font-size: 20px;
+  color: #0684bd;
+}
+
+.left-middle-align .title.orange {
+  color: #f9971d;
+}
+
+.left-align-nav {
+  height: 50px;
+  line-height: 50px;
+}
+
+.left-align-nav li {
+  height: 50px;
+  line-height: 50px;
+  font-size: 13px;
+  margin-left: 30px;
+}
+
+.left-align-nav li.active {
+  position: relative;
+}
+
+.left-align-nav li.active::after {
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  width: 100%;
+  content: ' ';
+  background: #0684bd;
+  border-bottom: solid 1px #0684bd;
+}
+
+.left-align-nav li a {
+  line-height: 50px;
+  color: #777777!important;
+  font-size: 13px;
+}
+
+.middle-align {
+  height: 50px;
+  margin: 0 30px;
+}
+
+.middle-align li {
+  height: 50px;
+  line-height: 50px;
+  font-size: 13px;
+}
+
+.middle-align li a {
+  line-height: 50px;
+  color: #777777!important;
+  font-size: 13px;
+}
+
+.navbar.no-border {
+  padding: 0 10px;
+  border-bottom: none!important;
+  box-shadow: 0 1px 3px 0 #cccccc;
+}
+/*
+.btn-rc {
+  border: none;
+  border-radius: 3px;
+  padding: 0 16px;
+  height: 32px;
+  line-height: 32px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.rc-login-footer {
+  font-size: 10px;
+  padding: 10px 30px;
+  position: absolute;
+  bottom: 10px;
+}
+*/
+
+.scrollable_calllist {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
