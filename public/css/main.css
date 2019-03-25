@@ -107,60 +107,7 @@ body {
   max-height: 100px;
   overflow: scroll;
 }
-/*
-input, select {
-    color: black;
-    margin-bottom:9px;
-}
 
-.form-control{
-  height: 25px !important;
-}
-*/
-/*
-table {
-  display: table;
-  border-collapse: separate;
-  border-spacing: 2px;
-  border-color: grey;
-}
-*/
-/*
-thead {
-  display: table-header-group;
-  vertical-align: middle;
-  border-color: inherit;
-}
-*/
-.td-active {
-
-}
-
-tr:hover{
-  cursor: pointer;
-  background-color: #e0f1f9;
-}
-
-
-.tr-active {
-
-}
-
-.tr-inactive {
-  background-color: #BAC7CA;
-}
-
-.divider {
-  border-top: 2px solid #0572B8 !important;
-}
-/*
-.td-inactive {
-  align: "left";
-  vertical-align: "middle";
-  font-size: 0.9em;
-  border-bottom: 1px solid #f7f7f9;
-}
-*/
 /* Navbar stuff*/
 .navbar-default .navbar-nav > li > a:hover, .navbar-default .navbar-nav > li > a:focus {
   color: #000;  /*Sets the text hover color on navbar*/
