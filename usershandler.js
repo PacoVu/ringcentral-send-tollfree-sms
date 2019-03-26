@@ -119,15 +119,20 @@ var engine = User.prototype = {
             var jsonObj =response.json();
             var count = jsonObj.records.length
             for (var record of jsonObj.records){
-                //console.log("recordid: " + JSON.stringify(record))
+                console.log("recordid: " + JSON.stringify(record))
                 if (record.paymentType == "TollFree") {
                 //if (record.usageType == "DirectNumber"){
                   if (record.type == "VoiceFax"){
-                    var item = {
-                      "number": record.phoneNumber,
-                      "type": "TollFree Number"
+                    for (var feature of record.features){
+                      if (feature == "SmsSender"){
+                        var item = {
+                          "number": record.phoneNumber,
+                          "type": "TollFree Number"
+                        }
+                        thisUser.phoneNumbers.push(item)
+                        break;
+                      }
                     }
-                    thisUser.phoneNumbers.push(item)
                   }
                 }
                 else if (record.usageType == "DirectNumber" /*&& record.extension.id == thisUser.getExtensionId()*/){
