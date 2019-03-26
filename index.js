@@ -79,6 +79,15 @@ app.get('/getresult', function (req, res) {
   router.getSendSMSResult(req, res)
 })
 
+app.get('/downloadreport', function (req, res) {
+  router.downloadSendSMSResult(req, res)
+})
+app.get('/downloads', function(req, res){
+  console.log(req.query)
+  var file = req.query.filename;
+  res.download(file); // Set disposition and send it.
+});
+
 app.get('/oauth2callback', function(req, res){
   console.log("callback redirected")
   router.login(req, res)

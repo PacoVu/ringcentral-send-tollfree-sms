@@ -85,7 +85,8 @@ body {
   margin-bottom: 10px;
 }
 .label-input {
-  min-width: 220px;
+  min-width: 180px;
+  width: 180px;
 }
 .text-input {
   margin-top: 10px;;
@@ -95,6 +96,9 @@ body {
 }
 .hide {
   display: none;
+}
+#progress {
+  margin: 20px;
 }
 #success{
   color: green;

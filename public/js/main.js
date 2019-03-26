@@ -18,12 +18,10 @@ function pollResult(){
       }, 1000)
     }else{
       disableInputs(false)
-      //$("#sms-form").prop("disabled", false);
-      //$("#send-message").prop("disabled", false);
-      //$("#logginIcon").css('display', 'none');
     }
     $("#success").html(res.successCount)
     $("#failure").html(res.failedCount)
+    /*
     if (res.failedCount.length > 0) {
       var htmlStr = ""
       for (var item of res['invalidNumbers']) {
@@ -31,6 +29,7 @@ function pollResult(){
       }
       $('#invalid-numbers').html(htmlStr)
     }
+    */
   });
 }
 
@@ -40,12 +39,25 @@ function disableInputs(flag){
   $("#message").prop("disabled", flag);
   $("#attachment").prop("disabled", flag);
   $("#send-message").prop("disabled", flag);
-  if (flag)
-    $("#logginIcon").css('display', 'inline');
-  else
-    $("#logginIcon").css('display', 'none');
+  if (flag){
+    $("#sendingAni").css('display', 'inline');
+    $("#download").toggleClass("hide")
+  }else{
+    $("#sendingAni").css('display', 'none');
+    $("#download").toggleClass("show")
+  }
 }
 
+function downloadReport(){
+  var url = "downloadreport"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      window.location.href = res.message
+    else
+      alert(res.message)
+  });
+}
 function logout(){
   window.location.href = "index?n=1"
 }

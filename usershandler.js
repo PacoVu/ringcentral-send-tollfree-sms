@@ -11,17 +11,19 @@ function User(id, mode) {
   this.extIndex = 0
   this.token_json = {};
   this.userName = ""
+  this.phoneNumbers = []
   this.sendReport = {
       "sendInProgress": false,
       "successCount": "Sending 0/0",
       "failedCount" : "",
       "failedNumbers" : []
   }
+  this.detailedReport = []
   this.rc_platform = new RCPlatform(this, mode)
   return this
 }
 
-User.prototype = {
+var engine = User.prototype = {
     setExtensionId: function(id) {
       this.extensionId = id
     },
@@ -55,6 +57,7 @@ User.prototype = {
     loadSendSMSPage: function(req, res){
       res.render('sendsmspage', {
           userName: this.getUserName(),
+          phoneNumbers: this.phoneNumbers,
           sendReport: this.sendReport
         })
     },
@@ -70,17 +73,21 @@ User.prototype = {
             req.session.extensionId = extensionId;
             callback(null, extensionId)
             var thisRes = res
+            console.log("Read extension")
             var p = thisUser.getPlatform()
             p.get('/account/~/extension/~/')
               .then(function(response) {
+                //console.log(response)
                 var jsonObj = response.json();
+                //console.log(JSON.stringify(jsonObj))
                 thisUser.rc_platform.setAccountId(jsonObj.account.id)
-                thisRes.send('login success');
+                //thisRes.send('login success');
                 if (jsonObj.permissions.admin.enabled){
                   thisUser.setAdmin(true)
                 }
                 var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                 thisUser.setUserName(fullName)
+                engine.readPhoneNumber(thisUser, callback, thisRes)
               })
               .catch(function(e) {
                 console.log("Failed")
@@ -96,6 +103,60 @@ User.prototype = {
         res.send('No Auth code');
         callback("error", null)
       }
+    },
+    readPhoneNumber: function(thisUser, callback, thisRes){
+        var p = thisUser.getPlatform()
+        thisUser.phoneNumbers = []
+        var endpoint = '/account/~/extension/~/phone-number'
+        if (thisUser.isAdmin())
+          endpoint = '/account/~/phone-number'
+        p.get(endpoint, {
+          "perPage": 1000,
+          "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
+        })
+          .then(function(response) {
+            //console.log(response)
+            var jsonObj =response.json();
+            var count = jsonObj.records.length
+            for (var record of jsonObj.records){
+                console.log("recordid: " + JSON.stringify(record))
+                if (record.paymentType == "TollFree") {
+                //if (record.usageType == "DirectNumber"){
+                  if (record.type == "VoiceOnly"){
+                    var item = {
+                      "number": record.phoneNumber,
+                      "type": "TollFree Number"
+                    }
+                    thisUser.phoneNumbers.push(item)
+                  }
+                }
+                else if (record.usageType == "DirectNumber" &&
+                         record.extension.id == thisUser.getExtensionId()){
+                  if (record.type == "VoiceFax"){
+                    var item = {
+                      "number": record.phoneNumber,
+                      "type": "Direct Number"
+                    }
+                    thisUser.phoneNumbers.push(item)
+                  }
+                }
+                else if (record.usageType == "CompanyNumber"){
+                  if (record.type == "VoiceFax"){
+                    var item = {
+                      "number": record.phoneNumber,
+                      "type": "Company Number"
+                    }
+                    thisUser.phoneNumbers.push(item)
+                  }
+                }
+              }
+            thisRes.send('login success');
+          })
+          .catch(function(e) {
+            console.log("Failed")
+            console.error(e.message);
+            thisRes.send('login success');
+          });
     },
     sendSMSMessageAsync: function(req, res){
         var recipientArr = []
@@ -127,6 +188,7 @@ User.prototype = {
         }
         res.render('sendsmspage', {
             userName: this.getUserName(),
+            phoneNumbers: this.phoneNumbers,
             sendReport: this.sendReport
           })
         var fromNumber = req.body.fromNumber
@@ -193,7 +255,6 @@ User.prototype = {
         }else{
           recipientArr = req.body.recipients.split(";")
         }
-        var sendCount = 0
         var totalCount = recipientArr.length
         if (recipientArr.length > 0){
           this.sendReport = {
@@ -205,6 +266,7 @@ User.prototype = {
         }
         res.render('sendsmspage', {
             userName: this.getUserName(),
+            phoneNumbers: this.phoneNumbers,
             sendReport: this.sendReport
           })
         var fromNumber = req.body.fromNumber
@@ -215,8 +277,8 @@ User.prototype = {
         var thisUser = this
         var sendCount = 0
         var failedCount = 0
-        var totalCount = recipientArr.length
         var index = 0
+        this.detailedReport = []
         var interval = setInterval(function() {
             var recipient = recipientArr[index].trim()
             var p = thisUser.rc_platform.getPlatform()
@@ -227,6 +289,19 @@ User.prototype = {
             }
             p.post('/account/~/extension/~/sms', params)
               .then(function (response) {
+                //console.log(response)
+                var jsonObj = response.json()
+                var item = {
+                  "id": jsonObj.id,
+                  "uri": jsonObj.uri,
+                  "creationTime": jsonObj.creationTime,
+                  "from": jsonObj.from,
+                  "status": jsonObj.messageStatus,
+                  "smsDeliveryTime": jsonObj.smsDeliveryTime,
+                  "smsSendingAttemptsCount": jsonObj.smsSendingAttemptsCount,
+                  "to": jsonObj.to
+                }
+                thisUser.detailedReport.push(item)
                 sendCount++
                 thisUser.sendReport['successCount'] = "Sent " + sendCount + " out of " + totalCount
                 console.log(thisUser.sendReport['successCount'])
@@ -239,14 +314,16 @@ User.prototype = {
                 //console.log(e.message)
                 failedCount++
                 thisUser.sendReport['failedCount'] = "Failed " + failedCount
-                console.log(thisUser.sendReport['failedCount'])
+                var reason = ""
                 if (e.message.indexOf("Parameter [to.phoneNumber] value") != -1){
+                  reason = "Invalid recipient number."
                   var item = {
                     "number": recipient,
-                    "reason": "Invalid recipient number."
+                    "reason": reason
                   }
                   thisUser.sendReport['invalidNumbers'].push(item)
                 }else if (e.message.indexOf("Parameter [from] value") != -1){
+                  reason = "Invalid sender number."
                   var item = {
                     "number": fromNumber,
                     "reason": "Invalid sender number."
@@ -258,12 +335,24 @@ User.prototype = {
                   thisUser.sendReport['sendInProgress'] = false
                   return
                 }else{
+                  reason = e.message
                   var item = {
                     "number": "N/A",
-                    "reason": e.message
+                    "reason": reason
                   }
                   thisUser.sendReport['invalidNumbers'].push(item)
                 }
+                var item = {
+                  "id": 0,
+                  "uri": "",
+                  "creationTime": new Date().toISOString(),
+                  "from": fromNumber,
+                  "status": reason,
+                  "smsDeliveryTime": "",
+                  "smsSendingAttemptsCount": 0,
+                  "to": recipient
+                }
+                thisUser.detailedReport.push(item)
                 if (index >= totalCount){
                   console.log('DONE SEND MESSAGE!');
                   //thisUser.sendReport['sendInProgress'] = false
@@ -280,6 +369,25 @@ User.prototype = {
     },
     getSendSMSResult: function(req, res){
       res.send(this.sendReport)
+    },
+    downloadSendSMSResult: function(req, res){
+      var fs = require('fs')
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId() + '.json'
+      console.log(fullNamePath)
+      var content = JSON.stringify(this.detailedReport)
+      try{
+        fs.writeFileSync('./'+ fullNamePath, content)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+        //res.send(link)
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+      }
     },
     logout: function(req, res, callback){
       console.log("LOGOUT FUNC")

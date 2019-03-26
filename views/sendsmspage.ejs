@@ -36,8 +36,12 @@
     <div id="credentials_bar" class="form-inline">
       <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
         <label class="label-input" for="from-number">From number</label>
-          <input type="text" size="20" id="from-number" name="fromNumber" class="form-control text-input"></input></br>
-        <label class="label-input" for="secret_access_key">To numbers (separated by a ;)</label>
+          <select size="20" id="from-number" name="fromNumber" class="selectpicker filter-select">
+            <% for (var item of phoneNumbers) { %>
+              <option value="<%- item.number %>"><%= item.number %> - <%= item.type %></option>
+            <% } %>
+          </select></br>
+        <label class="label-input" for="secret_access_key">To numbers (separated by a semi-colon)</label>
           <textarea rows="6" cols="50" id="to-numbers" name="recipients" class="form-control text-input" ></textarea>&nbsp;&nbsp;
           <span class="msg-label">Upload CSV file</span>
           <input type="file" size="30" id="attachment" name=attachment style="display:inline"></input>
@@ -45,16 +49,18 @@
         <label class="label-input" for="message">Message</label>
           <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" ></textarea></br></br>
         <button type="submit" id="send-message" class="btn-rc" style="display:inline">Send</button>
-        <img src='./img/loading.gif' id="logginIcon" style='width:30px;height:30px;display: none'></img>
       </form>
     </div>
-
     <div id="progress" class="hide">
-      <h2>Send report</h2>
+      <span><b>Sending SMS progress</b></span>&nbsp;&nbsp;
+      <img src='./img/sendprogress.gif' id="sendingAni" style='width:50px;height:30px;display: none'></img>
       <div id="success"></div>
       <div id="failure"></div>
-      <div><b>Failure details:</b></div>
-      <div id="invalid-numbers"></div>
+      <a id="download" href="javascript:downloadReport()" style="display: none">Download Report</a>
+      <!--
+      <span><b>Failure details:</b></span>
+      <div id="invalid-numbers" style="display:inline"></div>
+      -->
     </div>
   </section>
   <%- include('_footer') %>

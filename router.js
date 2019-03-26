@@ -105,6 +105,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getSendSMSResult(req, res)
   },
+  downloadSendSMSResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadSendSMSResult(req, res)
+  },
   sendSMSMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
