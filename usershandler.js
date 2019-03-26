@@ -108,8 +108,8 @@ var engine = User.prototype = {
         var p = thisUser.getPlatform()
         thisUser.phoneNumbers = []
         var endpoint = '/account/~/extension/~/phone-number'
-        if (thisUser.isAdmin())
-          endpoint = '/account/~/phone-number'
+        //if (thisUser.isAdmin())
+        //  endpoint = '/account/~/phone-number'
         p.get(endpoint, {
           "perPage": 1000,
           "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
@@ -119,7 +119,7 @@ var engine = User.prototype = {
             var jsonObj =response.json();
             var count = jsonObj.records.length
             for (var record of jsonObj.records){
-                console.log("recordid: " + JSON.stringify(record))
+                //console.log("recordid: " + JSON.stringify(record))
                 if (record.paymentType == "TollFree") {
                 //if (record.usageType == "DirectNumber"){
                   if (record.type == "VoiceOnly"){
@@ -130,9 +130,8 @@ var engine = User.prototype = {
                     thisUser.phoneNumbers.push(item)
                   }
                 }
-                else if (record.usageType == "DirectNumber" &&
-                         record.extension.id == thisUser.getExtensionId()){
-                  if (record.type == "VoiceFax"){
+                else if (record.usageType == "DirectNumber" /*&& record.extension.id == thisUser.getExtensionId()*/){
+                  if (record.type != "FaxOnly"){
                     var item = {
                       "number": record.phoneNumber,
                       "type": "Direct Number"
@@ -140,6 +139,7 @@ var engine = User.prototype = {
                     thisUser.phoneNumbers.push(item)
                   }
                 }
+                /*
                 else if (record.usageType == "CompanyNumber"){
                   if (record.type == "VoiceFax"){
                     var item = {
@@ -149,6 +149,7 @@ var engine = User.prototype = {
                     thisUser.phoneNumbers.push(item)
                   }
                 }
+                */
               }
             thisRes.send('login success');
           })
