@@ -119,10 +119,10 @@ var engine = User.prototype = {
             var jsonObj =response.json();
             var count = jsonObj.records.length
             for (var record of jsonObj.records){
-                //console.log("recordid: " + JSON.stringify(record))
+                console.log("recordid: " + JSON.stringify(record))
                 if (record.paymentType == "TollFree") {
                 //if (record.usageType == "DirectNumber"){
-                  if (record.type == "VoiceOnly"){
+                  if (record.type == "VoiceFax"){
                     var item = {
                       "number": record.phoneNumber,
                       "type": "TollFree Number"
@@ -365,7 +365,7 @@ var engine = User.prototype = {
               console.log('ALL RECIPIENT!');
               thisUser.sendReport['sendInProgress'] = false
             }
-        }, 2000);
+        }, 500);
         console.log("CONTINUE PROSESSING")
     },
     getSendSMSResult: function(req, res){
