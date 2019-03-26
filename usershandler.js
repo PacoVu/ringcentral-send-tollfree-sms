@@ -159,89 +159,6 @@ var engine = User.prototype = {
             thisRes.send('login success');
           });
     },
-    sendSMSMessageAsync: function(req, res){
-        var recipientArr = []
-        if (req.file != undefined){
-          var currentFolder = process.cwd();
-          var tempFile = currentFolder + "/" + req.file.path
-          //console.log(tempFile)
-          var fs = require('fs');
-          var content = fs.readFileSync(tempFile, 'utf8');
-          content = content.trim();
-          recipientArr = content.split("\n")
-          recipientArr.shift()
-          //for (var rec of recipientArr)
-          //  console.log("number: " + rec)
-          fs.unlinkSync(tempFile);
-          //console.log(recipientArr.length)
-        }else{
-          recipientArr = req.body.recipients.split(";")
-        }
-        var sendCount = 0
-        var totalCount = recipientArr.length
-        if (recipientArr.length > 0){
-          this.sendReport = {
-            "sendInProgress": true,
-            "successCount": "Sent 0/" + totalCount,
-            "failedCount" : "Failed 0",
-            "invalidNumbers": []
-          }
-        }
-        res.render('sendsmspage', {
-            userName: this.getUserName(),
-            phoneNumbers: this.phoneNumbers,
-            sendReport: this.sendReport
-          })
-        var fromNumber = req.body.fromNumber
-        var message = req.body.message
-        if (message.length == 0){
-          return this.sendReport['sendInProgress'] = false
-        }
-        var thisUser = this
-          async.each(recipientArr,
-            function(recipient, callback){
-              recipient = recipient.trim()
-              console.log("recipient: " + recipient)
-              setTimeout(function(){
-                var p = thisUser.rc_platform.getPlatform()
-                var params = {
-                  from: {'phoneNumber': fromNumber},
-                  to: [{'phoneNumber': recipient }],
-                  text: message
-                }
-                p.post('/account/~/extension/~/sms', params)
-                  .then(function (response) {
-                    sendCount++
-                    thisUser.sendReport['successCount'] = "Sending " + sendCount + "/" + totalCount
-                    callback(null, response)
-                    /*
-                    setTimeout(function(){
-                      console.log("send successfully to " + recipient)
-                      return callback(null, response)
-                    }, 10000)
-                    */
-                  })
-                  .catch(function(e){
-                    var fail = {
-                      "reason" : e.message.replace("[to.phoneNumber]", recipient)
-                    }
-                    console.log(JSON.stringify(fail))
-                    thisUser.sendReport['failedCount'].push(fail)
-                    callback(null, "Failed")
-                    /*
-                    setTimeout(function(){
-                      console.log("send failed.")
-                      return callback(null, "Failed")
-                    }, 10000)
-                    */
-                  })
-              }, 3000)
-            },
-            function (err){
-              console.log("DONE SEND")
-              thisUser.sendReport['sendInProgress'] = false
-            })
-    },
     sendSMSMessageSync: function(req, res){
         var recipientArr = []
         if (req.file != undefined){
@@ -365,7 +282,7 @@ var engine = User.prototype = {
               console.log('ALL RECIPIENT!');
               thisUser.sendReport['sendInProgress'] = false
             }
-        }, 500);
+        }, 2);
         console.log("CONTINUE PROSESSING")
     },
     getSendSMSResult: function(req, res){
