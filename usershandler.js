@@ -16,7 +16,7 @@ function User(id, mode) {
       "sendInProgress": false,
       "successCount": "Sending 0/0",
       "failedCount" : "",
-      "failedNumbers" : []
+      "invalidNumbers" : []
   }
   this.detailedReport = []
   this.rc_platform = new RCPlatform(this, mode)
@@ -244,14 +244,14 @@ var engine = User.prototype = {
                     "number": recipient,
                     "reason": reason
                   }
-                  thisUser.sendReport['invalidNumbers'].push(item)
+                  //thisUser.sendReport['invalidNumbers'].push(item)
                 }else if (e.message.indexOf("Parameter [from] value") != -1){
                   reason = "Invalid sender number."
                   var item = {
                     "number": fromNumber,
                     "reason": "Invalid sender number."
                   }
-                  thisUser.sendReport['invalidNumbers'].push(item)
+                  //thisUser.sendReport['invalidNumbers'].push(item)
                   console.log('STOP SENDING BECAUSE OF INVALID FROM NUMBER!');
                   clearInterval(interval);
                   console.log('ALL RECIPIENT!');
@@ -263,7 +263,7 @@ var engine = User.prototype = {
                     "number": "N/A",
                     "reason": reason
                   }
-                  thisUser.sendReport['invalidNumbers'].push(item)
+                  //thisUser.sendReport['invalidNumbers'].push(item)
                 }
                 var item = {
                   "id": 0,
