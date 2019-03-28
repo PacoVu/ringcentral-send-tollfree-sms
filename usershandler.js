@@ -287,7 +287,7 @@ var engine = User.prototype = {
               console.log('ALL RECIPIENT!');
               thisUser.sendReport['sendInProgress'] = false
             }
-        }, 2);
+        }, 60000);
         console.log("CONTINUE PROSESSING")
     },
     getSendSMSResult: function(req, res){
