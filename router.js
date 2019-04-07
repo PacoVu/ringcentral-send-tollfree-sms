@@ -131,5 +131,29 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadSendSMSPage(req, res)
-  }
+  },
+  setDelayInterVal: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].setDelayInterVal(req, res)
+  },
+  pauseMessageSending: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].pauseMessageSending(req, res)
+  },
+  resumeMessageSending: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].resumeMessageSending(req, res)
+  },
+  cancelMessageSending: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].cancelMessageSending(req, res)
+  },
 }

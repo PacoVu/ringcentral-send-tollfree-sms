@@ -93,6 +93,22 @@ app.get('/oauth2callback', function(req, res){
   router.login(req, res)
 })
 
+app.get('/setdelay', function (req, res) {
+  router.setDelayInterVal(req, res)
+})
+
+app.get('/pause', function (req, res) {
+  router.pauseMessageSending(req, res)
+})
+
+app.get('/resume', function (req, res) {
+  router.resumeMessageSending(req, res)
+})
+
+app.get('/cancel', function (req, res) {
+  router.cancelMessageSending(req, res)
+})
+
 app.post('/sendmessage', upload.single('attachment'), function (req, res) {
    console.log("Send a message");
    router.sendSMSMessage(req, res)

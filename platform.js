@@ -61,7 +61,19 @@ RCPlatform.prototype = {
   logout: function(){
     this.platform.logout()
   },
-  getPlatform: function(){
+  getSDKPlatform: function(){
+      return this.platform
+  },
+  getPlatform: function(callback){
+    if (this.platform.loggedIn()){
+        callback(null, this.platform)
+    }else{
+        console.log("BOTH TOKEN TOKENS EXPIRED")
+        console.log("CAN'T REFRESH: " + e.message)
+        callback("Login", null)
+    }
+  },
+  getPlatform_old: function(){
     var token = this.token_json
     if (token == null)
       return this.platform

@@ -1,9 +1,10 @@
+var canPoll = false
 function init(){
   if (report.sendInProgress){
     $("#progress").toggleClass("show")
-    //$("#sms-form").prop("disabled", false);
-    //$("#send-message").prop("disabled", true);
-    //$("#logginIcon").css('display', 'inline');
+    //$("#control_panel").toggleClass("show")
+    $("#control_panel").css('display', 'block');
+
     disableInputs(true)
     pollResult()
   }
@@ -11,10 +12,12 @@ function init(){
 function pollResult(){
   var url = "getresult"
   var getting = $.get( url );
+  canPoll = true
   getting.done(function( res ) {
     if (res.sendInProgress == true) {
       window.setTimeout(function(){
-        pollResult()
+        if (canPoll)
+          pollResult()
       }, 1000)
     }else{
       disableInputs(false)
@@ -45,7 +48,74 @@ function disableInputs(flag){
   }else{
     $("#sendingAni").css('display', 'none');
     $("#download").toggleClass("show")
+    //$("#control_panel").toggleClass("hide")
+    $("#control_panel").css('display', 'none');
   }
+}
+
+function setDelayInterVal(){
+  var url = "setdelay"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      alert(res.message)
+    else
+      alert(res.message)
+  });
+}
+
+function pause_resume(){
+  var title = $("#pause_resume").text()
+  if (title == "Pause"){
+    $("#pause_resume").text("Resume")
+    $("#sendingAni").css('display', 'none');
+    pauseMessageSending()
+  }else{
+    $("#pause_resume").text("Pause")
+    resumeMessageSending()
+  }
+}
+
+function pauseMessageSending(){
+  var url = "pause"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      canPoll = false
+      //alert(res.message)
+    else
+      alert(res.message)
+  });
+}
+
+function resumeMessageSending(){
+  var url = "resume"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      $("#sendingAni").css('display', 'inline');
+      pollResult()
+    }else
+      alert(res.message)
+  });
+}
+function confirmCancel(){
+  var r = confirm("Do you really want to cancel sending message?");
+  if (r == true) {
+    cancelMessageSending()
+  }
+}
+function cancelMessageSending(){
+  var url = "cancel"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      canPoll = false
+      disableInputs(false)
+      //alert(res.message)
+    }else
+      alert(res.message)
+  });
 }
 
 function downloadReport(){

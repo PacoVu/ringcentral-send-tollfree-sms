@@ -47,9 +47,19 @@
           <input type="file" size="30" id="attachment" name=attachment style="display:inline"></input>
         </br>
         <label class="label-input" for="message">Message</label>
-          <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" ></textarea></br></br>
+          <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" ></textarea>&nbsp;&nbsp;
         <button type="submit" id="send-message" class="btn-rc" style="display:inline">Send</button>
       </form>
+    </div>
+    </br>
+    <div id="control_panel" style="display: none">
+    <!--
+      <input type="number" size="3" id="time_interval" style="display:inline"></input>&nbsp;&nbsp;
+      <button id="increase_time_interval" class="btn-rc" onclick="pause_resume()" style="display:inline">Pause</button>&nbsp;&nbsp;
+    -->
+      <button id="pause_resume" class="btn-rc" onclick="pause_resume()" style="display:inline">Pause</button>
+      &nbsp;&nbsp;
+      <button id="cancel" class="btn-rc" onclick="confirmCancel()" style="display:inline">Cancel</button>
     </div>
     <div id="progress" class="hide">
       <span><b>Send SMS progress</b></span>&nbsp;&nbsp;

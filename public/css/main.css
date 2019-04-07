@@ -100,6 +100,9 @@ body {
 #progress {
   margin: 20px;
 }
+#control_panel {
+  margin: 20px;
+}
 #success{
   color: green;
 }
