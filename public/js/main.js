@@ -1,5 +1,6 @@
 var canPoll = false
 function init(){
+  switchMessageInput()
   if (report.sendInProgress){
     $("#progress").toggleClass("show")
     //$("#control_panel").toggleClass("show")
@@ -116,6 +117,28 @@ function cancelMessageSending(){
     }else
       alert(res.message)
   });
+}
+
+function switchMessageInput(){
+  var selectType = $("#campaign_type").val()
+  if (selectType == "announcement"){
+    $("#survey_type").hide()
+    $("#announcement_type").show()
+  }else{
+    $("#survey_type").show()
+    $("#announcement_type").hide()
+  }
+}
+
+function addChoice(){
+    //var parent = $("#choice_list")
+    $("#choice_list").append("</br>");
+    var $choice_number = $("<input>", {name: "value_2", type: "number", min: 0, max: 10, class: "choice_number"});
+    //$div.click(function(){ /* ... */ });
+    $("#choice_list").append($choice_number);
+    $("#choice_list").append("&nbsp;&nbsp;");
+    var $choice_text = $("<input>", {name: "text_2", type: "text", value:"answer 2", class: "choice_text"});
+    $("#choice_list").append($choice_text);
 }
 
 function downloadReport(){

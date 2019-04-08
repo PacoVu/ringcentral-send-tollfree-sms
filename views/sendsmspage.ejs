@@ -40,14 +40,34 @@
             <% for (var item of phoneNumbers) { %>
               <option value="<%- item.number %>"><%= item.number %> - <%= item.type %></option>
             <% } %>
-          </select></br>
-        <label class="label-input" for="secret_access_key">To numbers (separated by a semi-colon)</label>
-          <textarea rows="6" cols="50" id="to-numbers" name="recipients" class="form-control text-input" ></textarea>&nbsp;&nbsp;
-          <span class="msg-label">Or, upload CSV file</span>
+          </select>&nbsp;&nbsp;
+        <label class="label-input" for="secret_access_key">To numbers (.CSV file)</label>
           <input type="file" size="30" id="attachment" name=attachment style="display:inline"></input>
         </br>
-        <label class="label-input" for="message">Message</label>
-          <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" ></textarea>&nbsp;&nbsp;
+        <div>
+          <label for="campaign_type"  class="label-input">Type</label>
+          <select size="20" id="campaign_type" name="campaignType" class="selectpicker filter-select" onchange="switchMessageInput()">
+            <option value="survey" selected>Survey</option>
+            <option value="announcement">Announcement</option>
+          </select>&nbsp;&nbsp;
+        </div>
+        <div id="survey_type">
+          <label class="label-input" for="message">Message</label>
+            <textarea rows="2" cols="50" id="message" name="message" class="form-control text-input" ></textarea>&nbsp;&nbsp;
+            </br>
+          <label class="label-input" for="choices">Choices</label>
+          <input type="button" onclick="addChoice()" value="+"></input>
+          <div id="choice_list">
+            <input type="number" min="0" max="10" name="value_1" value="1" style="display: inline"></input>&nbsp;
+            <input type="text" name="text_1" value="" style="display: inline"></input>
+          </div>
+
+        </div>
+        <div id="announcement_type">
+          <label class="label-input" for="message">Message</label>
+            <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" ></textarea>
+        </div>
+      </br></br>
         <button type="submit" id="send-message" class="btn-rc" style="display:inline">Send</button>
       </form>
     </div>

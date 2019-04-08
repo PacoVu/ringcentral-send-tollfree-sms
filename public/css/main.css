@@ -103,6 +103,15 @@ body {
 #control_panel {
   margin: 20px;
 }
+#choice_list {
+  margin-left: 185px;
+}
+.choice_number {
+  display: inline;
+}
+.choice_text {
+  display: inline;
+}
 #success{
   color: green;
 }
