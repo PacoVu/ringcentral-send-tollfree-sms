@@ -326,23 +326,21 @@ var engine = User.prototype = {
               thisUser.sendReport['sendInProgress'] = false
               return
             }
-            console.log("index: " + thisUser.index)
+            //console.log("index: " + thisUser.index)
             //console.log("recipient: " + thisUser.recipientArr[thisUser.index])
             var recipient = thisUser.recipientArr[thisUser.index].trim()
             var unsentCount = totalCount - thisUser.index
             var remainMinutesToSend = (unsentCount * (thisUser.delayInterval/1000)) / 60
-            console.log(remainMinutesToSend + " mins")
             var timeLeft = "00 hour, "
             if (remainMinutesToSend >= 60){
               timeLeft = Math.floor((remainMinutesToSend / 60)) + " hours and "
               remainMinutesToSend %= 60
-              console.log(remainMinutesToSend)
               timeLeft += Math.ceil(remainMinutesToSend).toString() + " minutes."
             }else if (remainMinutesToSend < 1){
               var round = Number(remainMinutesToSend).toFixed(2);
               timeLeft = (round * 60) + " seconds."
             }else{
-              timeLeft = remainMinutesToSend.toString() + " minutes."
+              timeLeft = Math.ceil(remainMinutesToSend).toString() + " minutes."
             }
 
             thisUser.rc_platform.getPlatform(function(err, p){
@@ -402,6 +400,11 @@ var engine = User.prototype = {
                         console.log('ALL RECIPIENT!');
                         thisUser.sendReport['sendInProgress'] = false
                         return
+                      }else if (e.message.indexOf("Account limits exceeded. Cannot send the message.") != -1){
+                        if (thisUser.intervalTimer != null){
+                          console.log("Force to pause sending due to exceeding limits!")
+                          clearInterval(thisUser.intervalTimer);
+                        }
                       }else{
                         reason = e.message
                         var item = {
@@ -450,16 +453,17 @@ var engine = User.prototype = {
       if (this.intervalTimer != null){
         console.log("pauseMessageSending")
         clearInterval(this.intervalTimer);
-        //this.intervalTimer = null
-      }
-      res.send({"status":"ok", "message":"pause timer"})
+        res.send({"status":"ok", "message":"pause sending"})
+      }else
+        res.send({"status":"failed", "message":"cannot pause sending"})
     },
     resumeMessageSending: function(req, res){
       if (this.intervalTimer != null){
         console.log("resumeMessageSending")
         engine.sendMessages(this)
-      }
-      res.send({"status":"ok", "message":"pause timer"})
+        res.send({"status":"ok", "message":"resume sending"})
+      }else
+        res.send({"status":"failed", "message":"cannot resume sending"})
     },
     cancelMessageSending: function(req, res){
       if (this.intervalTimer != null){
