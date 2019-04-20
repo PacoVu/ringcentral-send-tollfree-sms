@@ -426,17 +426,8 @@ var engine = User.prototype = {
                       thisUser.detailedReport.push(item)
                       if (thisUser.index >= totalCount){
                         console.log('DONE SEND MESSAGE!');
-                        //thisUser.sendReport['sendInProgress'] = false
                       }
                     })
-                  //thisUser.index++
-                  /*
-                  if (thisUser.index >= totalCount){
-                    clearInterval(interval);
-                    console.log('ALL RECIPIENT!');
-                    thisUser.sendReport['sendInProgress'] = false
-                  }
-                  */
                 }
             })
           }
