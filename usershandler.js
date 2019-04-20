@@ -25,7 +25,7 @@ function User(id, mode) {
   this.sendCount = 0
   this.failedCount = 0
   this.index = 0
-  this.delayInterval = 5000
+  this.delayInterval = 1000
   this.intervalTimer = null
   this.rc_platform = new RCPlatform(this, mode)
   return this
