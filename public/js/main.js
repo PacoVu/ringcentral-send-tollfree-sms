@@ -22,6 +22,7 @@ function pollResult(){
     }else{
       disableInputs(false)
     }
+    $("#time").html(res.sentInfo)
     $("#success").html(res.successCount)
     $("#failure").html(res.failedCount)
     /*

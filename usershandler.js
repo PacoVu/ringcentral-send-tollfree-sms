@@ -25,7 +25,7 @@ function User(id, mode) {
   this.sendCount = 0
   this.failedCount = 0
   this.index = 0
-  this.delayInterval = 5000
+  this.delayInterval = 1200
   this.intervalTimer = null
   this.rc_platform = new RCPlatform(this, mode)
   return this
@@ -314,6 +314,7 @@ var engine = User.prototype = {
     sendMessages: function(thisUser){
       var currentIndex = thisUser.index
       var totalCount = thisUser.recipientArr.length
+
       thisUser.intervalTimer = setInterval(function() {
           if (currentIndex == thisUser.index){
             // this will prevent sending a new message while the previous message was not sent
@@ -326,8 +327,24 @@ var engine = User.prototype = {
               return
             }
             console.log("index: " + thisUser.index)
-            console.log("recipient: " + thisUser.recipientArr[thisUser.index])
+            //console.log("recipient: " + thisUser.recipientArr[thisUser.index])
             var recipient = thisUser.recipientArr[thisUser.index].trim()
+            var unsentCount = totalCount - thisUser.index
+            var remainMinutesToSend = (unsentCount * (thisUser.delayInterval/1000)) / 60
+            console.log(remainMinutesToSend + " mins")
+            var timeLeft = "00 hour, "
+            if (remainMinutesToSend >= 60){
+              timeLeft = Math.floor((remainMinutesToSend / 60)) + " hours and "
+              remainMinutesToSend %= 60
+              console.log(remainMinutesToSend)
+              timeLeft += Math.ceil(remainMinutesToSend).toString() + " minutes."
+            }else if (remainMinutesToSend < 1){
+              var round = Number(remainMinutesToSend).toFixed(2);
+              timeLeft = (round * 60) + " seconds."
+            }else{
+              timeLeft = remainMinutesToSend.toString() + " minutes."
+            }
+
             thisUser.rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   var params = {
@@ -352,6 +369,7 @@ var engine = User.prototype = {
                       thisUser.sendCount++
                       thisUser.index++
                       thisUser.sendReport['successCount'] = "Sent " + thisUser.sendCount + " out of " + totalCount
+                      thisUser.sendReport['sentInfo'] = "Estimated to finish in " + timeLeft
                       console.log(thisUser.sendReport['successCount'])
                       if (thisUser.index >= totalCount){
                         console.log('DONE SEND MESSAGE!');
@@ -362,6 +380,7 @@ var engine = User.prototype = {
                       thisUser.index++
                       thisUser.failedCount++
                       thisUser.sendReport['failedCount'] = "Failed " + thisUser.failedCount
+                      thisUser.sendReport['sentInfo'] = "Estimated time to finish " + timeLeft
                       var reason = ""
                       if (e.message.indexOf("Parameter [to.phoneNumber] value") != -1){
                         reason = "Invalid recipient number."
