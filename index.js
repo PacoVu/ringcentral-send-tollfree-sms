@@ -118,3 +118,8 @@ app.post('/sendsms', function (req, res) {
   console.log("sendsms")
   router.sendSMSMessage(req, res)
 })
+
+app.post('/sendfeedback', function (req, res) {
+  console.log("sendfeedback")
+  router.postFeedbackToGlip(req, res)
+})

@@ -25,7 +25,7 @@ function User(id, mode) {
   this.sendCount = 0
   this.failedCount = 0
   this.index = 0
-  this.delayInterval = 1200
+  this.delayInterval = 1510
   this.intervalTimer = null
   this.rc_platform = new RCPlatform(this, mode)
   return this
@@ -182,6 +182,7 @@ var engine = User.prototype = {
                           for (var feature of record.features){
                             if (feature == "SmsSender"){
                               var item = {
+                                "format": formatPhoneNumber(record.phoneNumber),
                                 "number": record.phoneNumber,
                                 "type": "TollFree Number"
                               }
@@ -194,6 +195,7 @@ var engine = User.prototype = {
                       else if (record.usageType == "DirectNumber" /*&& record.extension.id == thisUser.getExtensionId()*/){
                         if (record.type != "FaxOnly"){
                           var item = {
+                            "format": formatPhoneNumber(record.phoneNumber),
                             "number": record.phoneNumber,
                             "type": "Direct Number"
                           }
@@ -215,64 +217,6 @@ var engine = User.prototype = {
         })
 
     },
-    readPhoneNumber_old: function(thisUser, callback, thisRes){
-        var p = thisUser.getPlatform()
-        thisUser.phoneNumbers = []
-        var endpoint = '/account/~/extension/~/phone-number'
-        p.get(endpoint, {
-          "perPage": 1000,
-          "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
-        })
-          .then(function(response) {
-            //console.log(response)
-            var jsonObj =response.json();
-            var count = jsonObj.records.length
-            for (var record of jsonObj.records){
-                console.log("recordid: " + JSON.stringify(record))
-                if (record.paymentType == "TollFree") {
-                //if (record.usageType == "DirectNumber"){
-                  if (record.type == "VoiceFax"){
-                    for (var feature of record.features){
-                      if (feature == "SmsSender"){
-                        var item = {
-                          "number": record.phoneNumber,
-                          "type": "TollFree Number"
-                        }
-                        thisUser.phoneNumbers.push(item)
-                        break;
-                      }
-                    }
-                  }
-                }
-                else if (record.usageType == "DirectNumber" /*&& record.extension.id == thisUser.getExtensionId()*/){
-                  if (record.type != "FaxOnly"){
-                    var item = {
-                      "number": record.phoneNumber,
-                      "type": "Direct Number"
-                    }
-                    thisUser.phoneNumbers.push(item)
-                  }
-                }
-                /*
-                else if (record.usageType == "CompanyNumber"){
-                  if (record.type == "VoiceFax"){
-                    var item = {
-                      "number": record.phoneNumber,
-                      "type": "Company Number"
-                    }
-                    thisUser.phoneNumbers.push(item)
-                  }
-                }
-                */
-              }
-            thisRes.send('login success');
-          })
-          .catch(function(e) {
-            console.log("Failed")
-            console.error(e.message);
-            thisRes.send('login success');
-          });
-    },
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
         if (req.file != undefined){
@@ -285,21 +229,22 @@ var engine = User.prototype = {
           this.recipientArr.shift()
           fs.unlinkSync(tempFile);
         }else{
-          this.recipientArr = req.body.recipients.split(";")
+          this.recipientArr = req.body.recipients.split("\r\n")
         }
+
         this.fromNumber = req.body.fromNumber
         this.sendMessage = req.body.message
         this.sendCount = 0
         this.failedCount = 0
         this.index = 0
         this.detailedReport = []
-        //var totalCount = recipientArr.length
+
         if (this.recipientArr.length > 0){
           this.sendReport = {
-            "sendInProgress": true,
-            "successCount": "Sent 0/" + this.recipientArr.length,
-            "failedCount" : "Failed 0",
-            "invalidNumbers": []
+            sendInProgress: true,
+            successCount: "Sent 0/" + this.recipientArr.length,
+            failedCount : "Failed 0",
+            invalidNumbers: []
           }
         }
         res.render('sendsmspage', {
@@ -308,7 +253,6 @@ var engine = User.prototype = {
             sendReport: this.sendReport
           })
         console.log("CONTINUE PROSESSING")
-        //console.log(JSON.stringify(this.recipientArr))
         engine.sendMessages(this)
     },
     sendMessages: function(thisUser){
@@ -330,6 +274,9 @@ var engine = User.prototype = {
             //console.log("recipient: " + thisUser.recipientArr[thisUser.index])
             var recipient = thisUser.recipientArr[thisUser.index].trim()
             var unsentCount = totalCount - thisUser.index
+
+            var timeLeft = formatEstimatedTimeLeft(unsentCount * (thisUser.delayInterval/1000))
+            /*
             var remainMinutesToSend = (unsentCount * (thisUser.delayInterval/1000)) / 60
             var timeLeft = "00 hour, "
             if (remainMinutesToSend >= 60){
@@ -342,7 +289,7 @@ var engine = User.prototype = {
             }else{
               timeLeft = Math.ceil(remainMinutesToSend).toString() + " minutes."
             }
-
+            */
             thisUser.rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   var params = {
@@ -352,22 +299,37 @@ var engine = User.prototype = {
                   }
                   p.post('/account/~/extension/~/sms', params)
                     .then(function (response) {
+                      var jsonObj = response.response().headers
+                      /*
+                      console.log("limitLimit " + jsonObj['_headers']['x-rate-limit-limit'][0])
+                      console.log("limitRemaining " + jsonObj['_headers']['x-rate-limit-remaining'][0])
+                      console.log("limitWindow" + jsonObj['_headers']['x-rate-limit-window'][0])
+                      var limitLimit = parseInt(jsonObj['_headers']['x-rate-limit-limit'][0])
+                      var limitRemaining = parseInt(jsonObj['_headers']['x-rate-limit-remaining'][0])
+                      var limitWindow = parseInt(jsonObj['_headers']['x-rate-limit-window'][0])
+                      if (limitRemaining == 0){
+                        console.log("out of limit")
+                          thisUser.delayInterval = 60000
+                      }else
+                          thisUser.delayInterval = ((limitWindow/limitLimit) * 1000) + 100
+                      console.log(thisUser.delayInterval)
+                      */
                       var jsonObj = response.json()
                       var item = {
                         "id": jsonObj.id,
                         "uri": jsonObj.uri,
                         "creationTime": jsonObj.creationTime,
-                        "from": jsonObj.from,
+                        "from": thisUser.fromNumber,
                         "status": jsonObj.messageStatus,
                         "smsDeliveryTime": jsonObj.smsDeliveryTime,
                         "smsSendingAttemptsCount": jsonObj.smsSendingAttemptsCount,
-                        "to": jsonObj.to
+                        "to": recipient
                       }
                       thisUser.detailedReport.push(item)
                       thisUser.sendCount++
                       thisUser.index++
+                      thisUser.sendReport['sentInfo'] = "Estimated time left " + timeLeft
                       thisUser.sendReport['successCount'] = "Sent " + thisUser.sendCount + " out of " + totalCount
-                      thisUser.sendReport['sentInfo'] = "Estimated to finish in " + timeLeft
                       console.log(thisUser.sendReport['successCount'])
                       if (thisUser.index >= totalCount){
                         console.log('DONE SEND MESSAGE!');
@@ -432,7 +394,7 @@ var engine = User.prototype = {
             })
           }
           else{
-            console.log("not sending while there is pending")
+            console.log("not sending while previous message status is pending")
           }
       }, thisUser.delayInterval);
     },
@@ -464,132 +426,6 @@ var engine = User.prototype = {
       }
       res.send({"status":"ok", "message":"cancel timer"})
     },
-    sendSMSMessageSync_old: function(req, res){
-        var recipientArr = []
-        if (req.file != undefined){
-          var currentFolder = process.cwd();
-          var tempFile = currentFolder + "/" + req.file.path
-          var fs = require('fs');
-          var content = fs.readFileSync(tempFile, 'utf8');
-          content = content.trim();
-          recipientArr = content.split("\n")
-          recipientArr.shift()
-          fs.unlinkSync(tempFile);
-        }else{
-          recipientArr = req.body.recipients.split(";")
-        }
-        var totalCount = recipientArr.length
-        if (recipientArr.length > 0){
-          this.sendReport = {
-            "sendInProgress": true,
-            "successCount": "Sent 0/" + totalCount,
-            "failedCount" : "Failed 0",
-            "invalidNumbers": []
-          }
-        }
-        res.render('sendsmspage', {
-            userName: this.getUserName(),
-            phoneNumbers: this.phoneNumbers,
-            sendReport: this.sendReport
-          })
-        var fromNumber = req.body.fromNumber
-        var message = req.body.message
-        if (message.length == 0){
-          return this.sendReport['sendInProgress'] = false
-        }
-        var thisUser = this
-        var sendCount = 0
-        var failedCount = 0
-        var index = 0
-        this.detailedReport = []
-        var interval = setInterval(function() {
-            var recipient = recipientArr[index].trim()
-            var p = thisUser.rc_platform.getPlatform()
-            var params = {
-              from: {'phoneNumber': fromNumber},
-              to: [{'phoneNumber': recipient }],
-              text: message
-            }
-            p.post('/account/~/extension/~/sms', params)
-              .then(function (response) {
-                //console.log(response)
-                var jsonObj = response.json()
-                var item = {
-                  "id": jsonObj.id,
-                  "uri": jsonObj.uri,
-                  "creationTime": jsonObj.creationTime,
-                  "from": jsonObj.from,
-                  "status": jsonObj.messageStatus,
-                  "smsDeliveryTime": jsonObj.smsDeliveryTime,
-                  "smsSendingAttemptsCount": jsonObj.smsSendingAttemptsCount,
-                  "to": jsonObj.to
-                }
-                thisUser.detailedReport.push(item)
-                sendCount++
-                thisUser.sendReport['successCount'] = "Sent " + sendCount + " out of " + totalCount
-                console.log(thisUser.sendReport['successCount'])
-                if (index >= totalCount){
-                  console.log('DONE SEND MESSAGE!');
-                  //thisUser.sendReport['sendInProgress'] = false
-                }
-              })
-              .catch(function(e){
-                //console.log(e.message)
-                failedCount++
-                thisUser.sendReport['failedCount'] = "Failed " + failedCount
-                var reason = ""
-                if (e.message.indexOf("Parameter [to.phoneNumber] value") != -1){
-                  reason = "Invalid recipient number."
-                  var item = {
-                    "number": recipient,
-                    "reason": reason
-                  }
-                  //thisUser.sendReport['invalidNumbers'].push(item)
-                }else if (e.message.indexOf("Parameter [from] value") != -1){
-                  reason = "Invalid sender number."
-                  var item = {
-                    "number": fromNumber,
-                    "reason": "Invalid sender number."
-                  }
-                  //thisUser.sendReport['invalidNumbers'].push(item)
-                  console.log('STOP SENDING BECAUSE OF INVALID FROM NUMBER!');
-                  clearInterval(interval);
-                  console.log('ALL RECIPIENT!');
-                  thisUser.sendReport['sendInProgress'] = false
-                  return
-                }else{
-                  reason = e.message
-                  var item = {
-                    "number": "N/A",
-                    "reason": reason
-                  }
-                  //thisUser.sendReport['invalidNumbers'].push(item)
-                }
-                var item = {
-                  "id": 0,
-                  "uri": "",
-                  "creationTime": new Date().toISOString(),
-                  "from": fromNumber,
-                  "status": reason,
-                  "smsDeliveryTime": "",
-                  "smsSendingAttemptsCount": 0,
-                  "to": recipient
-                }
-                thisUser.detailedReport.push(item)
-                if (index >= totalCount){
-                  console.log('DONE SEND MESSAGE!');
-                  //thisUser.sendReport['sendInProgress'] = false
-                }
-              })
-            index++
-            if (index >= totalCount){
-              clearInterval(interval);
-              console.log('ALL RECIPIENT!');
-              thisUser.sendReport['sendInProgress'] = false
-            }
-        }, 999);
-        console.log("CONTINUE PROSESSING")
-    },
     getSendSMSResult: function(req, res){
       res.send(this.sendReport)
     },
@@ -599,11 +435,21 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + this.getExtensionId() + '.json'
-      console.log(fullNamePath)
-      var content = JSON.stringify(this.detailedReport)
+      var fullNamePath = dir + this.getExtensionId()
+      var fileContent = ""
+      if (req.query.format == "JSON"){
+        fullNamePath += '.json'
+        fileContent = JSON.stringify(this.detailedReport)
+      }else{
+        fullNamePath += '.csv'
+        fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
+        for (var item of this.detailedReport){
+          fileContent += "\n"
+          fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
+        }
+      }
       try{
-        fs.writeFileSync('./'+ fullNamePath, content)
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
         var link = "/downloads?filename=" + fullNamePath
         res.send({"status":"ok","message":link})
         //res.send(link)
@@ -632,6 +478,9 @@ var engine = User.prototype = {
         }
       })
     },
+    postFeedbackToGlip: function(req){
+      post_message_to_group(req.body)
+    },
     logout_old: function(req, res, callback){
       console.log("LOGOUT FUNC")
       var p = this.getPlatform()
@@ -649,5 +498,102 @@ var engine = User.prototype = {
     }
 }
 
-
 module.exports = User;
+
+function formatEstimatedTimeLeft(timeInSeconds){
+  var duration = ""
+  if (timeInSeconds > 3600){
+    var h = Math.floor(timeInSeconds / 3600)
+    timeInSeconds = timeInSeconds % 3600
+    var m = Math.floor(timeInSeconds / 60)
+    m = (m>9) ? m : ("0" + m)
+    timeInSeconds = Math.floor(timeInSeconds % 60)
+    var s = (timeInSeconds>9) ? timeInSeconds : ("0" + timeInSeconds)
+    return h + ":" + m + ":" + s
+  }else if (timeInSeconds > 60){
+    var m = Math.floor(timeInSeconds / 60)
+    timeInSeconds = Math.floor(timeInSeconds %= 60)
+    var s = (timeInSeconds>9) ? timeInSeconds : ("0" + timeInSeconds)
+    return m + ":" + s
+  }else{
+    var s = (timeInSeconds>9) ? timeInSeconds : ("0" + timeInSeconds)
+    return "0:" + s
+  }
+}
+
+function formatPhoneNumber(phoneNumberString) {
+  var cleaned = ('' + phoneNumberString).replace(/\D/g, '')
+  var match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/)
+  if (match) {
+    var intlCode = (match[1] ? '+1 ' : '')
+    return [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('')
+  }
+  return phoneNumberString
+}
+
+function post_message_to_group(params){
+  webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
+  webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
+  var https = require('https');
+  var body = {
+    "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
+    "activity": params.user_name,
+    "title": "SMS Toll-Free app user feedback",
+    "body": params.message
+  }
+/*
+"attachments": [
+{
+  "type": "Card",
+  "color": "#00ff2a",
+  "pretext": "Attachment pretext appears before the attachment block",
+  "author_name": "Author Name",
+  "author_link": "https://example.com/author_link",
+  "author_icon": "https://example.com/author_icon.png",
+  "title": "Attachment Title",
+  "title_link": "https://example.com/title_link",
+  "fields": [
+    {
+      "title": "Field 1",
+      "value": "A short field",
+      "short": true
+    },
+    {
+      "title": "Field 2",
+      "value": "[A linked short field](https://example.com)",
+      "short": true
+    },
+    {
+      "title": "Field 3",
+      "value": "A long, full-width field with *formatting* and [a link](https://example.com)"
+    }
+  ],
+  "text": "Attachment text",
+  "image_url": "https://example.com/congrats.gif",
+  "footer": "Attachment footer and timestamp",
+  "footer_icon": "https://example.com/footer_icon.png",
+  "ts": 1503723350
+}
+]
+*/
+  var post_options = {
+      host: "hooks.glip.com",
+      path: "/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3",
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json'
+      }
+  }
+  var post_req = https.request(post_options, function(res) {
+      var response = ""
+      res.on('data', function (chunk) {
+          response += chunk
+      });
+      res.on("end", function(){
+        console.log(response)
+      });
+  });
+  //console.log(data)
+  post_req.write(JSON.stringify(body));
+  post_req.end();
+}

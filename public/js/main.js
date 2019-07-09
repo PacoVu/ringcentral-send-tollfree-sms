@@ -45,10 +45,13 @@ function disableInputs(flag){
   $("#send-message").prop("disabled", flag);
   if (flag){
     $("#sendingAni").css('display', 'inline');
-    $("#download").toggleClass("hide")
+    $("#download_json").toggleClass("hide")
+    $("#download_csv").toggleClass("hide")
+    download_csv
   }else{
     $("#sendingAni").css('display', 'none');
-    $("#download").toggleClass("show")
+    $("#download_json").toggleClass("show")
+    $("#download_csv").toggleClass("show")
     //$("#control_panel").toggleClass("hide")
     $("#control_panel").css('display', 'none');
   }
@@ -119,8 +122,8 @@ function cancelMessageSending(){
   });
 }
 
-function downloadReport(){
-  var url = "downloadreport"
+function downloadReport(format){
+  var url = "downloadreport?format="+format
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
@@ -182,4 +185,47 @@ function sendMessage(){
     $("#logginIcon").css('display', 'none');
     alert("Error. Please try again.");
   });
+}
+
+function openFeedbackForm(){
+  var message = $('#send_feedback_form');
+  BootstrapDialog.show({
+      title: 'Send us your feedback!',
+      message: message,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-feedback').append(message);
+      },
+      buttons: [{
+        label: 'Close',
+        action: function(dialog) {
+          dialog.close();
+        }
+      }, {
+        label: 'Send Feedback',
+        cssClass: 'btn btn-primary',
+
+        action: function(dialog) {
+          var params = {
+            user_name: window.userName,
+            emotion: $('input[name=emoji]:checked').val(),
+            message: $("#free_text").val()
+          }
+          if (submitFeedback(params))
+            dialog.close();
+        }
+      }]
+  });
+}
+
+function submitFeedback(params){
+  var url = "sendfeedback"
+  var posting = $.post( url, params );
+  posting.done(function( res ) {
+    if (res.status == "ok"){
+      alert(res.message)
+    }else
+      alert(res.message)
+  });
+  return true
 }
