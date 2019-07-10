@@ -118,49 +118,6 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
-    login_old: function(req, res, callback){
-      var thisReq = req
-      if (req.query.code) {
-        console.log("CALL LOGIN FROM USER")
-        var rc_platform = this.rc_platform
-        var thisUser = this
-        rc_platform.login(req.query.code, function (err, extensionId){
-          if (!err){
-            thisUser.setExtensionId(extensionId)
-            req.session.extensionId = extensionId;
-            callback(null, extensionId)
-            var thisRes = res
-            console.log("Read extension")
-            var p = thisUser.getPlatform()
-            p.get('/account/~/extension/~/')
-              .then(function(response) {
-                //console.log(response)
-                var jsonObj = response.json();
-                //console.log(JSON.stringify(jsonObj))
-                thisUser.rc_platform.setAccountId(jsonObj.account.id)
-                //thisRes.send('login success');
-                if (jsonObj.permissions.admin.enabled){
-                  thisUser.setAdmin(true)
-                }
-                var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
-                thisUser.setUserName(fullName)
-                engine.readPhoneNumber(thisUser, callback, thisRes)
-              })
-              .catch(function(e) {
-                console.log("Failed")
-                console.error(e);
-                callback("error", e.message)
-              });
-          }else {
-            console.log("USER HANDLER ERROR: " + thisUser.extensionId)
-            callback("error", thisUser.extensionId)
-          }
-        })
-      } else {
-        res.send('No Auth code');
-        callback("error", null)
-      }
-    },
     readPhoneNumber: function(thisUser, callback, thisRes){
         thisUser.rc_platform.getPlatform(function(err, p){
             if (p != null){
@@ -330,7 +287,7 @@ var engine = User.prototype = {
                       thisUser.index++
                       thisUser.sendReport['sentInfo'] = "Estimated time left " + timeLeft
                       thisUser.sendReport['successCount'] = "Sent " + thisUser.sendCount + " out of " + totalCount
-                      console.log(thisUser.sendReport['successCount'])
+                      //console.log(thisUser.sendReport['successCount'])
                       if (thisUser.index >= totalCount){
                         console.log('DONE SEND MESSAGE!');
                         //thisUser.sendReport['sendInProgress'] = false

@@ -1,14 +1,14 @@
 var canPoll = false
 function init(){
-  if (report.sendInProgress){
+  var jsonObj = JSON.parse(window.sendReport)
+  if (jsonObj.sendInProgress){
     $("#progress").toggleClass("show")
-    //$("#control_panel").toggleClass("show")
     $("#control_panel").css('display', 'block');
-
     disableInputs(true)
     pollResult()
   }
 }
+
 function pollResult(){
   var url = "getresult"
   var getting = $.get( url );
