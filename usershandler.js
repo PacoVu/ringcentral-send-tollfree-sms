@@ -538,7 +538,7 @@ function post_message_to_group(params){
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
-    "title": "SMS Toll-Free app user feedback",
+    "title": "SMS Toll-Free app user feedback - " + params.type,
     "body": params.message
   }
 /*

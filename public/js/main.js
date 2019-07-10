@@ -190,7 +190,7 @@ function sendMessage(){
 function openFeedbackForm(){
   var message = $('#send_feedback_form');
   BootstrapDialog.show({
-      title: 'Send us your feedback!',
+      title: '<div style="font-size:1.2em;font-weight:bold;">Send us your feedback!</div><div>Do you have a suggestion or found some bugs? Let us know in the field below:</div>',
       message: message,
       draggable: true,
       onhide : function(dialog) {
@@ -209,6 +209,7 @@ function openFeedbackForm(){
           var params = {
             user_name: window.userName,
             emotion: $('input[name=emoji]:checked').val(),
+            type: $("#feedback_type").val(),
             message: $("#free_text").val()
           }
           if (submitFeedback(params))
