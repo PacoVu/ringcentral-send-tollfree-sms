@@ -176,6 +176,7 @@ var engine = User.prototype = {
     },
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
+
         if (req.file != undefined){
           var currentFolder = process.cwd();
           var tempFile = currentFolder + "/" + req.file.path
@@ -185,8 +186,13 @@ var engine = User.prototype = {
           this.recipientArr = content.split("\n")
           this.recipientArr.shift()
           fs.unlinkSync(tempFile);
-        }else{
-          this.recipientArr = req.body.recipients.split("\r\n")
+        }
+
+        var tempArr = req.body.recipients.split("\r\n")
+        for (var number of tempArr){
+          number = number.trim()
+          if (number != "")
+            this.recipientArr.unshift(number)
         }
 
         this.fromNumber = req.body.fromNumber
@@ -196,21 +202,21 @@ var engine = User.prototype = {
         this.index = 0
         this.detailedReport = []
 
-        if (this.recipientArr.length > 0){
-          this.sendReport = {
-            sendInProgress: true,
-            successCount: "Sent 0/" + this.recipientArr.length,
-            failedCount : "Failed 0",
-            invalidNumbers: []
-          }
+        this.sendReport = {
+          sendInProgress: true,
+          successCount: "Sent 0/" + this.recipientArr.length,
+          failedCount : "Failed 0",
+          invalidNumbers: []
         }
         res.render('sendsmspage', {
             userName: this.getUserName(),
             phoneNumbers: this.phoneNumbers,
             sendReport: this.sendReport
           })
-        console.log("CONTINUE PROSESSING")
-        engine.sendMessages(this)
+        if (this.recipientArr.length > 0){
+          console.log("CONTINUE PROSESSING")
+          engine.sendMessages(this)
+        }
     },
     sendMessages: function(thisUser){
       var currentIndex = thisUser.index
@@ -224,6 +230,7 @@ var engine = User.prototype = {
               clearInterval(thisUser.intervalTimer);
               thisUser.intervalTimer = null
               console.log('ALL RECIPIENT!');
+              thisUser.sendReport['sentInfo'] = "Completed."
               thisUser.sendReport['sendInProgress'] = false
               return
             }
@@ -285,7 +292,7 @@ var engine = User.prototype = {
                       thisUser.detailedReport.push(item)
                       thisUser.sendCount++
                       thisUser.index++
-                      thisUser.sendReport['sentInfo'] = "Estimated time left " + timeLeft
+                      thisUser.sendReport['sentInfo'] = "Estimated time to finish " + timeLeft
                       thisUser.sendReport['successCount'] = "Sent " + thisUser.sendCount + " out of " + totalCount
                       //console.log(thisUser.sendReport['successCount'])
                       if (thisUser.index >= totalCount){
@@ -384,6 +391,15 @@ var engine = User.prototype = {
       res.send({"status":"ok", "message":"cancel timer"})
     },
     getSendSMSResult: function(req, res){
+      if (this.recipientArr.length == 0){
+        this.sendReport = {
+          sendInProgress: false,
+          sentInfo: "Nothing to send!",
+          successCount: "Sent 0/0",
+          failedCount : "Failed 0",
+          invalidNumbers: []
+        }
+      }
       res.send(this.sendReport)
     },
     downloadSendSMSResult: function(req, res){

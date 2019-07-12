@@ -79,8 +79,8 @@
   </nav>
   <section id='content'>
     <div class="col-sm-3"></div>
-    <div class="col-sm-6">
-      <div id="credentials_bar" class="form-inline">
+    <div class="col-sm-8">
+      <div id="get-input" class="form-inline">
         <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
           <div>
             <label class="label-input" for="from-number">From number</label>
@@ -91,16 +91,16 @@
             </select>
           </div>
           <div>
-            <label class="label-input" for="secret_access_key">To numbers</br>(E164 format)</label>
-            <textarea rows="6" cols="50" id="to-numbers" name="recipients" placeholder="+11234567890&#10;+14087654322" class="form-control text-input" ></textarea>&nbsp;&nbsp;
-          </div>
-          <div>
-            <label class="label-input">Upload CSV file</br>(single column with header row)</label>
-            <input type="file" size="30" id="attachment" name=attachment style="display:inline"></input>
+            <label class="label-input" for="secret_access_key">To numbers</label>
+            <textarea rows="6" cols="15" id="to-numbers" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
+            &nbsp;&nbsp;
+            <label class="label-column">Or, upload .csv file (single column with header row)</br>
+              <input type="file" id="attachment" name=attachment></input>
+            </label>
           </div>
           <label class="label-input" for="message">Message</label>
             <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
-          <button type="submit" id="send-message" class="btn-rc" style="display:inline">Send</button>
+          <button id="send-message" class="btn-rc" style="display:inline">Send</button>
         </form>
       </div>
       </br>

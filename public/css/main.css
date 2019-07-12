@@ -92,6 +92,14 @@ ul > li > span {
   min-width: 180px;
   width: 180px;
 }
+
+.label-column {
+  width: 270px;
+  font-size: 1.0em;
+  font-weight: normal;
+  color: #425563;
+}
+
 .text-input {
   margin-top: 10px;;
 }
