@@ -15,7 +15,7 @@ body {
 .btn-noborder{
   border: none;
   background: #fff;
-  height: 30px;
+  height: 40px;
   font-weight: bold;
 }
 button:focus {
