@@ -12,6 +12,16 @@ body {
   margin-top: 20px;
 }
 
+.btn-noborder{
+  border: none;
+  background: #fff;
+  height: 30px;
+  font-weight: bold;
+}
+button:focus {
+  outline:0;
+}
+
 .left-middle-align {
   margin: 0;
   height: 50px;

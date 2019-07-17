@@ -27,7 +27,6 @@
 <body onload="init()">
   <div id="hidden-div-feedback" style="display: none">
     <form id="send_feedback_form">
-      <!--div class="form-group"-->
         <span class="control-label">How was your experience?</span>
           &nbsp;&nbsp;
           <label>
@@ -54,9 +53,7 @@
           <option value="Suggestion">Suggestion</option>
           <option value="Others">Others</option>
         </select>
-
-      <!--/div-->
-      <div class="form-group"></div>
+      <!--div class="form-group"></div-->
     </form>
   </div>
 
@@ -66,9 +63,13 @@
       <span class="title">Send Toll-Free SMS</span>
     </span>
     <ul class="nav navbar-nav navbar-left middle-align">
-      <li><span><a target="_blank" href="https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues"><b>Report issues</b></a></span></li>
+      <li><!--span><a target="_blank" href="https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues"><b>Report issues</b></a></span-->
+        <button onclick="openWindow()" class="btn-noborder">Report Issues</button>
+      </li>
       <li><span>&nbsp;|&nbsp;</span></li>
-      <li><span><a target="_blank" href="javascript:openFeedbackForm()"><b>Feedback</b></a></span></li>
+      <li><!--span><a href="javascript:openFeedbackForm()"><b>Feedback</b></a></span-->
+        <button onclick="openFeedbackForm()" class="btn-noborder">Feedback</button>
+      </li>
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>

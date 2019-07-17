@@ -44,7 +44,7 @@ function disableInputs(flag){
   $("#message").prop("disabled", flag);
   $("#attachment").prop("disabled", flag);
   $("#send-message").prop("disabled", flag);
-  
+
   if (flag){
     //$("#get-input").hide()
     $("#send-message").toggleClass("btn")
@@ -141,6 +141,9 @@ function logout(){
   window.location.href = "index?n=1"
 }
 
+function openWindow(){
+  window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
+}
 function openFeedbackForm(){
   var message = $('#send_feedback_form');
   BootstrapDialog.show({
@@ -171,6 +174,7 @@ function openFeedbackForm(){
         }
       }]
   });
+  return false;
 }
 
 function submitFeedback(params){
