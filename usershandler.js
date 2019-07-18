@@ -141,7 +141,7 @@ var engine = User.prototype = {
                               var item = {
                                 "format": formatPhoneNumber(record.phoneNumber),
                                 "number": record.phoneNumber,
-                                "type": "TollFree Number"
+                                "type": "Toll-Free Number"
                               }
                               thisUser.phoneNumbers.push(item)
                               break;
@@ -149,7 +149,8 @@ var engine = User.prototype = {
                           }
                         }
                       }
-                      else if (record.usageType == "DirectNumber" /*&& record.extension.id == thisUser.getExtensionId()*/){
+                      /*
+                      else if (record.usageType == "DirectNumber"){
                         if (record.type != "FaxOnly"){
                           var item = {
                             "format": formatPhoneNumber(record.phoneNumber),
@@ -159,6 +160,7 @@ var engine = User.prototype = {
                           thisUser.phoneNumbers.push(item)
                         }
                       }
+                      */
                     }
                   thisRes.send('login success');
                 })

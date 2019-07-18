@@ -122,16 +122,12 @@ var router = module.exports = {
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    //users[index].sendSMSMessageAsync(req, res)
     users[index].postFeedbackToGlip(req)
     res.send({"status":"ok","message":"Thank you for sending your feedback!"})
   },
   loadAboutPage: function(req, res){
-    var index = getUserIndex(req.session.userId)
-    if (index < 0)
-      return this.forceLogin(req, res)
     res.render('about', {
-      userName: users[index].getUserName()
+
     })
   },
   loadSendSMSPage: function(req, res){
