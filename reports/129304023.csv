@@ -1,4 +1,0 @@
-id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber
-1025036804023,https://platform.ringcentral.com/restapi/v1.0/account/129304023/extension/129304023/message-store/1025036804023,2019-07-12T19:16:38.000Z,+18883303674,Queued,1,16505130930
-0,,2019-07-12T19:16:40.392Z,+18883303674,Invalid recipient number.,0,1523557535757
-1025036848023,https://platform.ringcentral.com/restapi/v1.0/account/129304023/extension/129304023/message-store/1025036848023,2019-07-12T19:16:41.000Z,+18883303674,Queued,1,16502245476
