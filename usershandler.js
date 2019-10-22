@@ -18,6 +18,7 @@ function User(id, mode) {
       "failedCount" : "",
       "invalidNumbers" : []
   }
+  this.mainCompanyNumber = ""
   this.detailedReport = []
   this.recipientArr = []
   this.fromNumber = ""
@@ -148,6 +149,9 @@ var engine = User.prototype = {
                             }
                           }
                         }
+                      }
+                      if (record.usageType == "MainCompanyNumber"){
+                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                       /*
                       else if (record.usageType == "DirectNumber"){
@@ -454,7 +458,7 @@ var engine = User.prototype = {
       })
     },
     postFeedbackToGlip: function(req){
-      post_message_to_group(req.body)
+      post_message_to_group(req.body, this.mainCompanyNumber)
     },
     logout_old: function(req, res, callback){
       console.log("LOGOUT FUNC")
@@ -506,7 +510,7 @@ function formatPhoneNumber(phoneNumberString) {
   return phoneNumberString
 }
 
-function post_message_to_group(params){
+function post_message_to_group(params, mainCompanyNumber){
   webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   var https = require('https');
@@ -514,7 +518,7 @@ function post_message_to_group(params){
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
     "title": "SMS Toll-Free app user feedback - " + params.type,
-    "body": params.message
+    "body": params.message + "\n\nUser main company number: " + mainCompanyNumber
   }
 /*
 "attachments": [
