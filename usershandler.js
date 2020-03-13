@@ -136,7 +136,7 @@ var engine = User.prototype = {
                       console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
                       //if (record.usageType == "DirectNumber"){
-                        if (record.type == "VoiceFax"){
+                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
                           for (var feature of record.features){
                             if (feature == "SmsSender"){
                               var item = {
