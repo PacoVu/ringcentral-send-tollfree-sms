@@ -63,8 +63,20 @@ var engine = User.prototype = {
     getPlatform: function(){
       return this.rc_platform.getSDKPlatform()
     },
+    loadOptionPage: function(req, res){
+      res.render('main', {
+          userName: this.getUserName()
+        })
+    },
     loadSendSMSPage: function(req, res){
       res.render('sendsmspage', {
+          userName: this.getUserName(),
+          phoneNumbers: this.phoneNumbers,
+          sendReport: this.sendReport
+        })
+    },
+    loadSendHighVolumeSMSPage: function(req, res){
+      res.render('highvolumepage', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneNumbers,
           sendReport: this.sendReport
@@ -136,7 +148,7 @@ var engine = User.prototype = {
                       console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
                       //if (record.usageType == "DirectNumber"){
-                        if (record.type == "VoiceFax"){
+                        if (record.type == "VoiceOnly" || record.type == "VoiceFax"){
                           for (var feature of record.features){
                             if (feature == "SmsSender"){
                               var item = {
@@ -179,6 +191,156 @@ var engine = User.prototype = {
             }
         })
 
+    },
+    sendHighVolumeSMSMessage: function(req, res){
+        this.recipientArr = []
+        var body = req.body
+        var requestBody = {
+            from: body.from,
+            text: body.text,
+            messages: []
+        }
+        var mainRecipients = body.main_recipients.trim().split("\n")
+        for (var recipient of mainRecipients){
+          var item = {
+            to:[recipient]
+          }
+          requestBody.messages.push(item)
+        }
+        var sub_recipients = JSON.parse(body.sub_recipients)
+        if (sub_recipients.length){
+          for (var item of sub_recipients){
+            var subRecipients = item.to.trim().split("\n")
+            for (var recipient of subRecipients){
+              var group = {
+                to: [recipient],
+                text: item.text
+              }
+              requestBody.messages.push(group)
+            }
+          }
+        }
+        if (body.expiresIn && body.expiresIn > 0){
+          requestBody["expiresIn"] = body.expiresIn
+        }
+        if (body.sendAt && body.sendAt != ""){
+          requestBody["sendAt"] = body.sendAt + ":00Z"
+        }
+
+        console.log(JSON.stringify(requestBody))
+
+        var thisUser = this
+        var p = this.rc_platform.getPlatform(function(err, p){
+          if (p != null){
+            p.post("/account/~/a2p-sms/batch", requestBody)
+              .then(function (resp) {
+                console.log(resp.json())
+                thisUser.sendReport = {
+                  sendInProgress: true,
+                  result: resp.json()
+                }
+                res.send({
+                    status:"ok",
+                    sendReport: thisUser.sendReport
+                  })
+                console.log("Send SMS DONE!")
+              })
+              .catch(function (e) {
+                console.log('ERR ' + e || 'Server cannot send messages');
+                thisUser.sendReport = {
+                  sendInProgress: false,
+                  result: e.message
+                }
+                res.send({
+                    status:"error",
+                    sendReport: thisUser.sendReport
+                  })
+              });
+          }else{
+            console.log("platform issue")
+            thisUser.sendReport = {
+              sendInProgress: false,
+              result: "Platform issue."
+            }
+            res.send({
+                status:"error",
+                sendReport: thisUser.sendReport
+              })
+          }
+        })
+    },
+    sendHighVolumeSMSMessage_form: function(req, res){
+        this.recipientArr = []
+        console.log(JSON.stringify(req.body))
+        /*
+        this.fromNumber = req.body.fromNumber
+        this.sendMessage = req.body.message
+        this.sendCount = 0
+        this.failedCount = 0
+        this.index = 0
+        this.detailedReport = []
+        */
+        var requestBody = {
+            from: req.body.fromNumber,
+            text: req.body.message_1,
+            messages: []
+        }
+        var mainRecipients = req.body.recipients_1.trim().split("\r\n")
+
+        var messages = [
+          { to: mainRecipients }
+        ]
+        var groupIndex = req.body.group_index.split("_")
+        for (var i = 2; i <= groupIndex.length; i++){
+          var index = groupIndex[i-1]
+          var groupRecipients = req.body["recipients_" + index].trim().split("\r\n")
+          var group = {
+            to: groupRecipients,
+            text: req.body["message_" + index]
+          }
+          messages.push(group)
+        }
+        requestBody.messages = messages
+        if (req.body.expiresIn && req.body.expiresIn > 0){
+          requestBody["expiresIn"] = req.body.expiresIn
+        }
+        if (req.body.sendAt && req.body.sendAt != ""){
+          requestBody["sendAt"] = req.body.sendAt + ":00Z"
+        }
+        console.log(JSON.stringify(requestBody))
+        var thisUser = this
+        var p = this.rc_platform.getPlatform(function(err, p){
+          if (p != null){
+            p.post("/account/~/a2p-sms/batch", requestBody)
+              .then(function (resp) {
+                console.log(resp.json())
+                thisUser.sendReport = {
+                  sendInProgress: true,
+                  status: resp.json()
+                }
+                res.render('highvolumepage', {
+                    userName: thisUser.getUserName(),
+                    phoneNumbers: thisUser.phoneNumbers,
+                    sendReport: thisUser.sendReport
+                  })
+              })
+              .catch(function (e) {
+                console.log('ERR ' + e || 'Server cannot send messages');
+                res.render('highvolumepage', {
+                    userName: thisUser.getUserName(),
+                    phoneNumbers: thisUser.phoneNumbers,
+                    sendReport: {}
+                  })
+              });
+          }else{
+            console.log("platform issue")
+            res.render('highvolumepage', {
+                userName: thisUser.getUserName(),
+                phoneNumbers: thisUser.phoneNumbers,
+                sendReport: {}
+              })
+          }
+        })
     },
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
@@ -407,6 +569,47 @@ var engine = User.prototype = {
         }
       }
       res.send(this.sendReport)
+    },
+    getSendBatchResult: function(req, res){
+      if (this.sendReport.sendInProgress == true){
+        var thisUser = this
+        var endpoint = "/account/~/a2p-sms/batch/" + thisUser.sendReport.result.id
+        console.log(endpoint)
+        var p = this.rc_platform.getPlatform(function(err, p){
+          if (p != null){
+            p.get(endpoint)
+              .then(function (resp) {
+                console.log(resp.json())
+                thisUser.sendReport = {
+                  sendInProgress: true,
+                  result: resp.json()
+                }
+                res.send({
+                    status:"ok",
+                    sendReport: thisUser.sendReport
+                  })
+              })
+              .catch(function (e) {
+                console.log('ERR ' + e.message || 'Server cannot send messages');
+                res.send({
+                    status: "failed",
+                    sendReport: e.message
+                  })
+              });
+          }else{
+            console.log("platform issue")
+            res.send({
+                status: "failed",
+                sendReport: "RC platform issue"
+              })
+          }
+        })
+      }else{
+        res.send({
+            status:"ok",
+            sendReport: thisUser.sendReport
+          })
+      }
     },
     downloadSendSMSResult: function(req, res){
       var fs = require('fs')

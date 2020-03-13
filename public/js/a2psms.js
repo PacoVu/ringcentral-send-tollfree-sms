@@ -1,39 +1,31 @@
 var canPoll = false
 function init(){
   var jsonObj = JSON.parse(window.sendReport)
+
   if (jsonObj.sendInProgress){
     $("#progress").toggleClass("show")
-    $("#control_panel").css('display', 'block');
-    disableInputs(true)
+    //$("#control_panel").css('display', 'block');
+    //disableInputs(true)
     pollResult()
-  }
+  }else
+    $("#progress").hide()
 }
 
 function pollResult(){
-  var url = "getresult"
+  var url = "getbatchresult"
   var getting = $.get( url );
   canPoll = true
   getting.done(function( res ) {
-    if (res.sendInProgress == true) {
+    if (res.sendReport.result.status == "Processing") {
       window.setTimeout(function(){
         if (canPoll)
           pollResult()
-      }, 1000)
+      }, 5000)
     }else{
+      canPoll = false
       disableInputs(false)
     }
-    $("#time").html(res.sentInfo)
-    $("#success").html(res.successCount)
-    $("#failure").html(res.failedCount)
-    /*
-    if (res.failedCount.length > 0) {
-      var htmlStr = ""
-      for (var item of res['invalidNumbers']) {
-        htmlStr += "<div>" + item.reason + ": " + item.number + "</div>"
-      }
-      $('#invalid-numbers').html(htmlStr)
-    }
-    */
+    $("#report").html(JSON.stringify(res.sendReport.result.messages))
   });
 }
 
@@ -62,70 +54,6 @@ function disableInputs(flag){
   }
 }
 
-function setDelayInterVal(){
-  var url = "setdelay"
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok")
-      alert(res.message)
-    else
-      alert(res.message)
-  });
-}
-
-function pause_resume(){
-  var title = $("#pause_resume").text()
-  if (title == "Pause"){
-    $("#pause_resume").text("Resume")
-    $("#sendingAni").css('display', 'none');
-    pauseMessageSending()
-  }else{
-    $("#pause_resume").text("Pause")
-    resumeMessageSending()
-  }
-}
-
-function pauseMessageSending(){
-  var url = "pause"
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok")
-      canPoll = false
-      //alert(res.message)
-    else
-      alert(res.message)
-  });
-}
-
-function resumeMessageSending(){
-  var url = "resume"
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok"){
-      $("#sendingAni").css('display', 'inline');
-      pollResult()
-    }else
-      alert(res.message)
-  });
-}
-function confirmCancel(){
-  var r = confirm("Do you really want to cancel sending message?");
-  if (r == true) {
-    cancelMessageSending()
-  }
-}
-function cancelMessageSending(){
-  var url = "cancel"
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok"){
-      canPoll = false
-      disableInputs(false)
-      //alert(res.message)
-    }else
-      alert(res.message)
-  });
-}
 
 function downloadReport(format){
   var url = "downloadreport?format="+format
@@ -202,13 +130,34 @@ function fileSelected(elm, index){
   }
 }
 
-var group = 1
+var group = 0
+var currentGroup = 0
 function addRecipientGroup(){
   group++
-  var groupIndex = $("#group_index").val() + "_" + group
+  var groupIndex = ($("#group_index").val() == "") ? group : $("#group_index").val() + "_" + group
   $("#group_index").val(groupIndex)
-  var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="removeMe(\'g_' + group + '\',' + group + ')"></img><div><label class="label-input">To numbers</label><textarea rows="6" cols="16" id="to-numbers_' + group + '" name="recipients_' + group + '" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" required></textarea>&nbsp;<input type="file" style="display: inline; width: 200px" onchange="fileSelected(this, ' + group + ');"></input></div><label class="label-input" for="message">Message</label><textarea rows="4" cols="50" name="message_' + group + '" class="form-control text-input" required></textarea></div>'
+  var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="removeMe(\'g_' + group + '\',' + group + ')"></img><div><label class="label-input">To numbers</label><textarea rows="6" cols="16" id="to-numbers_' + group + '" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" required></textarea>&nbsp;<input type="file" style="display: inline; width: 200px" onchange="fileSelected(this, ' + group + ');"></input></div><label class="label-input" for="message">Message</label><textarea rows="4" cols="50" id="message_' + group + '" class="form-control text-input" required></textarea></div>'
   $("#groups").append(newGroup);
+
+  var page = '<span id="tab_'+group+'"><a href="javascript:showGroup('+group+')">' + (group - 1) + '</a>&nbsp;&nbsp;</span>'
+  $("#groups_tab").append(page);
+
+  // hide old group
+  if (group > 1){
+    var g = "#g_"+ (group-1).toString()
+    $(g).hide()
+  }
+  // show new group
+  $("#g_"+group).show()
+  currentGroup = group
+}
+
+function showGroup(groupNum){
+  // hide current group
+  $("#g_"+currentGroup).hide()
+  var g = "#g_"+ groupNum
+  $(g).show()
+  currentGroup = groupNum
 }
 
 function removeMe(block, index){
@@ -217,4 +166,44 @@ function removeMe(block, index){
   var groupIndex = indexes.filter(function(e) { return e !== index.toString() })
   var indexesString = groupIndex.join("_")
   $("#group_index").val(indexesString)
+
+  // remove group tab
+  $("#tab_"+currentGroup).remove()
+  // show last group from group tab
+  $("#groups").children().first().show()
+  currentGroup = $("#groups").children().first().attr("id").split("_")[1]
+}
+
+function sendMessage(){
+  var url = "sendhighvolumemessage"
+  var body = {
+    from: $("#from-number").val(),
+    text: $("#message").val(),
+    main_recipients: $("#to-numbers_0").val(),
+    sub_recipients: ""
+  }
+  var subGroup = []
+  if ($("#group_index").val() != ""){
+    var indexes = $("#group_index").val().split("_")
+    for (var index of indexes){
+      var toId = "#to-numbers_" + index
+      var messageId = "#message_" + index
+      var group = {
+        text: $(messageId).val(),
+        to: $(toId).val()
+      }
+      subGroup.push(group)
+    }
+  }
+  body.sub_recipients = JSON.stringify(subGroup)
+
+  var posting = $.post( url, body );
+  posting.done(function( res ) {
+    if (res.status == "ok"){
+      $("#progress").show()
+      $("#report").html(JSON.stringify(res.sendReport.result))
+      //if (res.sendReport.sendInProgress == true)
+      //  pollResult()
+    }
+  });
 }

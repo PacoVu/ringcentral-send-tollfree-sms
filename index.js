@@ -2,7 +2,17 @@ var path = require('path')
 var util = require('util')
 var multer  = require('multer')
 var upload = multer({ dest: 'tempFile/' })
-
+/*
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads')
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now())
+  }
+})
+var upload = multer({ storage: storage })
+*/
 if('production' !== process.env.LOCAL_ENV )
   require('dotenv').load();
 
@@ -62,10 +72,27 @@ app.get('/logout', function (req, res) {
   router.logout(req, res)
 })
 
+app.get('/loadoptionpage', function (req, res) {
+  console.log('loadOptionPage')
+  if (req.session.extensionId != 0)
+    router.loadOptionPage(req, res)
+  else{
+    res.render('index')
+  }
+})
 app.get('/loadsmspage', function (req, res) {
   console.log('loadSendSMSPage')
   if (req.session.extensionId != 0)
     router.loadSendSMSPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/loada2psmspage', function (req, res) {
+  console.log('loadSendHighVolumeSMSPage')
+  if (req.session.extensionId != 0)
+    router.loadSendHighVolumeSMSPage(req, res)
   else{
     res.render('index')
   }
@@ -77,6 +104,10 @@ app.get('/about', function (req, res) {
 
 app.get('/getresult', function (req, res) {
   router.getSendSMSResult(req, res)
+})
+
+app.get('/getbatchresult', function (req, res) {
+  router.getSendBatchResult(req, res)
 })
 
 app.get('/downloadreport', function (req, res) {
@@ -112,6 +143,16 @@ app.get('/cancel', function (req, res) {
 app.post('/sendmessage', upload.single('attachment'), function (req, res) {
    console.log("Send a message");
    router.sendSMSMessage(req, res)
+})
+/*
+app.post('/sendhighvolumemessage', upload.single('attachment'), function (req, res) {
+  console.log("post sendhighvolumemessage")
+  router.sendHighVolumeSMSMessage(req, res)
+})
+*/
+app.post('/sendhighvolumemessage', function (req, res) {
+  console.log("post sendhighvolumemessage")
+  router.sendHighVolumeSMSMessage(req, res)
 })
 
 app.post('/sendsms', function (req, res) {

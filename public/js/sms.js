@@ -188,33 +188,3 @@ function submitFeedback(params){
   });
   return true
 }
-
-function fileSelected(elm, index){
-  var file = elm.files[0]
-  if (file) {
-    var reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = function(e) {
-      var numbers = e.target.result.trim().split("\r\n")
-      numbers.shift()
-      $("#to-numbers_" + index).val(numbers.join("\r\n"));
-    };
-  }
-}
-
-var group = 1
-function addRecipientGroup(){
-  group++
-  var groupIndex = $("#group_index").val() + "_" + group
-  $("#group_index").val(groupIndex)
-  var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="removeMe(\'g_' + group + '\',' + group + ')"></img><div><label class="label-input">To numbers</label><textarea rows="6" cols="16" id="to-numbers_' + group + '" name="recipients_' + group + '" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" required></textarea>&nbsp;<input type="file" style="display: inline; width: 200px" onchange="fileSelected(this, ' + group + ');"></input></div><label class="label-input" for="message">Message</label><textarea rows="4" cols="50" name="message_' + group + '" class="form-control text-input" required></textarea></div>'
-  $("#groups").append(newGroup);
-}
-
-function removeMe(block, index){
-  $("#"+block).remove()
-  var indexes = $("#group_index").val().split("_")
-  var groupIndex = indexes.filter(function(e) { return e !== index.toString() })
-  var indexesString = groupIndex.join("_")
-  $("#group_index").val(indexesString)
-}

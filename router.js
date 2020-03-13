@@ -99,6 +99,12 @@ var router = module.exports = {
       thisObj.forceLogin(req, res)
     })
   },
+  getSendBatchResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getSendBatchResult(req, res)
+  },
   getSendSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -115,8 +121,13 @@ var router = module.exports = {
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    //users[index].sendSMSMessageAsync(req, res)
     users[index].sendSMSMessageSync(req, res)
+  },
+  sendHighVolumeSMSMessage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].sendHighVolumeSMSMessage(req, res)
   },
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -130,11 +141,23 @@ var router = module.exports = {
 
     })
   },
+  loadOptionPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadOptionPage(req, res)
+  },
   loadSendSMSPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadSendSMSPage(req, res)
+  },
+  loadSendHighVolumeSMSPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadSendHighVolumeSMSPage(req, res)
   },
   setDelayInterVal: function(req, res){
     var index = getUserIndex(req.session.userId)

@@ -10,7 +10,7 @@ var OAuthCode = function(authUri, redirectUri) {
             window.clearInterval(pollOAuth);
             win.close();
             window.setTimeout(function() {
-              window.location.href = "loadsmspage"
+              window.location.href = "loadoptionpage"
             }, 100)
           }
         } catch(e) {

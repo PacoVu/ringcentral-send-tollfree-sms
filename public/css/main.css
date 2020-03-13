@@ -99,8 +99,8 @@ ul > li > span {
   margin-bottom: 10px;
 }
 .label-input {
-  min-width: 180px;
-  width: 180px;
+  min-width: 170px;
+  width: 170px;
 }
 
 .label-column {
@@ -234,9 +234,7 @@ td{
 .navbar-brand {
   font-family: 'Open Sans', sans-serif;
 }
-.form-line {
-  /*height: 40px;*/
-}
+
 .column {
     float: left;
 }
@@ -262,7 +260,7 @@ td{
   font-size: 1.0em;
   color: #425563;
 }
-
+/*
 .scrollable_contactlist{
   height: 400px;
   border: none;
@@ -270,6 +268,44 @@ td{
   margin: 0;
   margin-top: -20px !important;
   border-bottom: 1px solid gray;
+  overflow: scroll;
+}
+*/
+.corner {
+  position: relative;
+  top: 0;
+  right: 0;
+  float: right;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  margin-right: 2px;
+}
+
+.corner:hover{
+  cursor: pointer;
+  background-color: #ccc;
+}
+
+.group_block{
+  width: 100%;
+  padding-bottom: 5px;
+  border-top: 1px solid rgba(209, 223, 250, .6);
+  margin-top: 5px;
+}
+
+#groups_tab {
+  margin-left: 100px;
+  display: inline;
+}
+
+.scrollable {
+  height: 400px;
+  border: none;
+  padding: 5px;
+  margin: 0;
+  margin-top: 5px !important;
+  /*border-bottom: 1px solid gray;*/
   overflow: scroll;
 }
 
