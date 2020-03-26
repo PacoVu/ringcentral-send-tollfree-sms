@@ -153,19 +153,7 @@ var engine = User.prototype = {
                       if (record.usageType == "MainCompanyNumber"){
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
-                      /*
-                      else if (record.usageType == "DirectNumber"){
-                        if (record.type != "FaxOnly"){
-                          var item = {
-                            "format": formatPhoneNumber(record.phoneNumber),
-                            "number": record.phoneNumber,
-                            "type": "Direct Number"
-                          }
-                          thisUser.phoneNumbers.push(item)
-                        }
-                      }
-                      */
-                    }
+                  }
                   thisRes.send('login success');
                 })
                 .catch(function(e) {
