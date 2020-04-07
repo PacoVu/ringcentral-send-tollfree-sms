@@ -5,19 +5,36 @@ const RCPlatform = require('./platform.js')
 require('dotenv').load()
 
 function User(id, mode) {
+  this.testCount = 1
   this.id = id;
-  this.admin = false;
+  //this.admin = false;
   this.extensionId = 0;
-  this.extIndex = 0
-  this.token_json = {};
+  //this.extIndex = 0
+  //this.token_json = {};
   this.userName = ""
   this.phoneNumbers = []
   this.sendReport = {
-      "sendInProgress": false,
-      "successCount": "Sending 0/0",
-      "failedCount" : "",
-      "invalidNumbers" : []
+      sendInProgress: false,
+      successCount: "Sending 0/0",
+      failedCount: "",
+      invalidNumbers: []
   }
+  this.batchReport = {
+    Sent_Count: 0,
+    Queued_Count: 0,
+    Delivered_Count: 0,
+    Delivered_Failed_Count: 0,
+    Sending_Failed_Count: 0,
+    Unknown_Count: 0
+  }
+  this.batchResult = {
+    id:"",
+    batchSize: 0,
+    processedCount: 0,
+    status:"Completed"
+  }
+  this.batchFullReport = []
+  this.smsBatchIds = []
   this.mainCompanyNumber = ""
   this.detailedReport = []
   this.recipientArr = []
@@ -29,6 +46,7 @@ function User(id, mode) {
   this.delayInterval = 1510
   this.intervalTimer = null
   this.rc_platform = new RCPlatform(this, mode)
+  this.StartTimestamp = 0
   return this
 }
 
@@ -36,26 +54,14 @@ var engine = User.prototype = {
     setExtensionId: function(id) {
       this.extensionId = id
     },
-    setAdmin: function() {
-      this.admin = true
-    },
-    setUserToken: function (token_json){
-      this.token_json = token_json
-    },
     setUserName: function (userName){
       this.userName = userName
     },
     getUserId: function(){
       return this.id
     },
-    isAdmin: function(){
-      return this.admin
-    },
     getExtensionId: function(){
       return this.extensionId
-    },
-    getUserToken: function () {
-      return this.token_json;
     },
     getUserName: function(){
       return this.userName;
@@ -79,7 +85,8 @@ var engine = User.prototype = {
       res.render('highvolumepage', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneNumbers,
-          sendReport: this.sendReport
+          smsBatchIds: this.smsBatchIds,
+          batchResult: this.batchResult
         })
     },
     login: function(req, res, callback){
@@ -99,14 +106,8 @@ var engine = User.prototype = {
                 if (p != null){
                   p.get('/account/~/extension/~/')
                     .then(function(response) {
-                      //console.log(response)
                       var jsonObj = response.json();
-                      //console.log(JSON.stringify(jsonObj))
                       thisUser.rc_platform.setAccountId(jsonObj.account.id)
-                      //thisRes.send('login success');
-                      if (jsonObj.permissions.admin.enabled){
-                        thisUser.setAdmin(true)
-                      }
                       var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                       thisUser.setUserName(fullName)
                       engine.readPhoneNumber(thisUser, callback, thisRes)
@@ -144,8 +145,20 @@ var engine = User.prototype = {
                   //console.log(response)
                   var jsonObj =response.json();
                   var count = jsonObj.records.length
+                  var item = {
+                    "format": "+1 (888) 330-3674",
+                    "number": "+18883303674",
+                    "type": "Toll-Free Number"
+                  }
+                  thisUser.phoneNumbers.push(item)
+                  item = {
+                    format: "+1 (234) 200-2153",
+                    number: "+12342002153",
+                    type: "10-DLC Number"
+                  }
+                  thisUser.phoneNumbers.push(item)
                   for (var record of jsonObj.records){
-                      console.log("recordid: " + JSON.stringify(record))
+                      //console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
                       //if (record.usageType == "DirectNumber"){
                         if (record.type == "VoiceOnly" || record.type == "VoiceFax"){
@@ -192,163 +205,12 @@ var engine = User.prototype = {
         })
 
     },
-    sendHighVolumeSMSMessage: function(req, res){
-        this.recipientArr = []
-        var body = req.body
-        var requestBody = {
-            from: body.from,
-            text: body.text,
-            messages: []
-        }
-        var mainRecipients = body.main_recipients.trim().split("\n")
-        for (var recipient of mainRecipients){
-          var item = {
-            to:[recipient]
-          }
-          requestBody.messages.push(item)
-        }
-        var sub_recipients = JSON.parse(body.sub_recipients)
-        if (sub_recipients.length){
-          for (var item of sub_recipients){
-            var subRecipients = item.to.trim().split("\n")
-            for (var recipient of subRecipients){
-              var group = {
-                to: [recipient],
-                text: item.text
-              }
-              requestBody.messages.push(group)
-            }
-          }
-        }
-        if (body.expiresIn && body.expiresIn > 0){
-          requestBody["expiresIn"] = body.expiresIn
-        }
-        if (body.sendAt && body.sendAt != ""){
-          requestBody["sendAt"] = body.sendAt + ":00Z"
-        }
-
-        console.log(JSON.stringify(requestBody))
-
-        var thisUser = this
-        var p = this.rc_platform.getPlatform(function(err, p){
-          if (p != null){
-            p.post("/account/~/a2p-sms/batch", requestBody)
-              .then(function (resp) {
-                console.log(resp.json())
-                thisUser.sendReport = {
-                  sendInProgress: true,
-                  result: resp.json()
-                }
-                res.send({
-                    status:"ok",
-                    sendReport: thisUser.sendReport
-                  })
-                console.log("Send SMS DONE!")
-              })
-              .catch(function (e) {
-                console.log('ERR ' + e || 'Server cannot send messages');
-                thisUser.sendReport = {
-                  sendInProgress: false,
-                  result: e.message
-                }
-                res.send({
-                    status:"error",
-                    sendReport: thisUser.sendReport
-                  })
-              });
-          }else{
-            console.log("platform issue")
-            thisUser.sendReport = {
-              sendInProgress: false,
-              result: "Platform issue."
-            }
-            res.send({
-                status:"error",
-                sendReport: thisUser.sendReport
-              })
-          }
-        })
-    },
-    sendHighVolumeSMSMessage_form: function(req, res){
-        this.recipientArr = []
-        console.log(JSON.stringify(req.body))
-        /*
-        this.fromNumber = req.body.fromNumber
-        this.sendMessage = req.body.message
-        this.sendCount = 0
-        this.failedCount = 0
-        this.index = 0
-        this.detailedReport = []
-        */
-        var requestBody = {
-            from: req.body.fromNumber,
-            text: req.body.message_1,
-            messages: []
-        }
-        var mainRecipients = req.body.recipients_1.trim().split("\r\n")
-
-        var messages = [
-          { to: mainRecipients }
-        ]
-        var groupIndex = req.body.group_index.split("_")
-        for (var i = 2; i <= groupIndex.length; i++){
-          var index = groupIndex[i-1]
-          var groupRecipients = req.body["recipients_" + index].trim().split("\r\n")
-          var group = {
-            to: groupRecipients,
-            text: req.body["message_" + index]
-          }
-          messages.push(group)
-        }
-        requestBody.messages = messages
-        if (req.body.expiresIn && req.body.expiresIn > 0){
-          requestBody["expiresIn"] = req.body.expiresIn
-        }
-        if (req.body.sendAt && req.body.sendAt != ""){
-          requestBody["sendAt"] = req.body.sendAt + ":00Z"
-        }
-        console.log(JSON.stringify(requestBody))
-        var thisUser = this
-        var p = this.rc_platform.getPlatform(function(err, p){
-          if (p != null){
-            p.post("/account/~/a2p-sms/batch", requestBody)
-              .then(function (resp) {
-                console.log(resp.json())
-                thisUser.sendReport = {
-                  sendInProgress: true,
-                  status: resp.json()
-                }
-                res.render('highvolumepage', {
-                    userName: thisUser.getUserName(),
-                    phoneNumbers: thisUser.phoneNumbers,
-                    sendReport: thisUser.sendReport
-                  })
-              })
-              .catch(function (e) {
-                console.log('ERR ' + e || 'Server cannot send messages');
-                res.render('highvolumepage', {
-                    userName: thisUser.getUserName(),
-                    phoneNumbers: thisUser.phoneNumbers,
-                    sendReport: {}
-                  })
-              });
-          }else{
-            console.log("platform issue")
-            res.render('highvolumepage', {
-                userName: thisUser.getUserName(),
-                phoneNumbers: thisUser.phoneNumbers,
-                sendReport: {}
-              })
-          }
-        })
-    },
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
 
         if (req.file != undefined){
           var currentFolder = process.cwd();
           var tempFile = currentFolder + "/" + req.file.path
-          var fs = require('fs');
           var content = fs.readFileSync(tempFile, 'utf8');
           content = content.trim();
           this.recipientArr = content.split("\n")
@@ -570,49 +432,317 @@ var engine = User.prototype = {
       }
       res.send(this.sendReport)
     },
-    getSendBatchResult: function(req, res){
-      if (this.sendReport.sendInProgress == true){
+    sendHighVolumeSMSMessage: function(req, res){
+      // parse file and read numbers
+      //console.log(req.files);
+      // parse and detect recipients lists
+      var body = req.body
+      var requestBody = {
+          from: body.from_number,
+          text: body.message_0,
+          messages: []
+      }
+      // add recipients from free text field
+      if (body.recipients_0.trim() != ""){
+        var mainRecipients = body.recipients_0.trim().split("\n")
+        for (var recipient of mainRecipients){
+          recipient = recipient.trim()
+          recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+          var item = {
+            to:[recipient]
+          }
+          requestBody.messages.push(item)
+        }
+      }
+      if (req.files != undefined){
+        for (var f of req.files){
+          var recipientsFromFile = readRecipientFile(f.filename)
+          if (f.fieldname == "attachment_0"){ // main text
+            // add recipients read from file
+            for (var recipient of recipientsFromFile){
+              recipient = recipient.trim()
+              recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+              var item = {
+                to:[recipient]
+              }
+              requestBody.messages.push(item)
+            }
+          }
+        }
+      }
+      var subRecipientsIndexArr = body.group_index.split("_")
+      for (var sub of subRecipientsIndexArr){
+        var attachment = `attachment_${sub}`
+        var recipients = `recipients_${sub}`
+        var subMessage = `message_${sub}`
+        if (req.files != undefined){
+          for (var f of req.files){
+            if (attachment == f.fieldname){
+              var subRecipients = readRecipientFile(f.filename)
+              for (var recipient of subRecipients){
+                recipient = recipient.trim()
+                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+                var group = {
+                    to: [recipient],
+                    text: body[subMessage]
+                  }
+                requestBody.messages.push(group)
+              }
+              break
+            }
+          }
+        }
+        // check free text field
+        if (body[recipients] != undefined){
+          var subRecipients = body[recipients].trim().split("\n")
+          if (subRecipients.length){
+            for (var recipient of subRecipients){
+              if (recipient != ""){
+                recipient = recipient.trim()
+                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+                var group = {
+                    to: [recipient],
+                    text: body[subMessage]
+                  }
+                requestBody.messages.push(group)
+              }
+            }
+          }
+        }
+      }
+
+      var currentFolder = process.cwd();
+      for (var file of req.files){
+        var tempFile = currentFolder + "/uploads/" + file.filename
+        fs.unlinkSync(tempFile);
+      }
+      /*
+      console.log(JSON.stringify(requestBody))
+      res.send({
+          status:"ok",
+          time: '00:00:00',
+          result: this.batchResult
+        })
+      return
+      */
+      //// TEST END
+/*
+        this.recipientArr = []
+        var body = req.body
+        var requestBody = {
+            from: body.from,
+            text: body.text,
+            messages: []
+        }
+        var mainRecipients = body.main_recipients.trim().split("\n")
+        for (var recipient of mainRecipients){
+          var item = {
+            to:[recipient]
+          }
+          requestBody.messages.push(item)
+        }
+        var sub_recipients = JSON.parse(body.sub_recipients)
+        if (sub_recipients.length){
+          for (var item of sub_recipients){
+            var subRecipients = item.to.trim().split("\n")
+            for (var recipient of subRecipients){
+              var group = {
+                to: [recipient],
+                text: item.text
+              }
+              requestBody.messages.push(group)
+            }
+          }
+        }
+*/
+        if (body.expiresIn && body.expiresIn > 0){
+          requestBody["expiresIn"] = body.expiresIn
+        }
+        if (body.sendAt && body.sendAt != ""){
+          requestBody["sendAt"] = body.sendAt + ":00Z"
+        }
+        console.log(JSON.stringify(requestBody))
         var thisUser = this
-        var endpoint = "/account/~/a2p-sms/batch/" + thisUser.sendReport.result.id
-        console.log(endpoint)
+        var p = this.rc_platform.getPlatform(function(err, p){
+          if (p != null){
+            p.post("/account/~/a2p-sms/batch", requestBody)
+              .then(function (resp) {
+                console.log(resp.json())
+                var jsonObj = resp.json()
+                thisUser.StartTimestamp = Date.now()
+                thisUser.smsBatchIds.push(resp.json().id)
+                thisUser.batchResult = jsonObj
+                console.log("Send SMS DONE!")
+                res.send({
+                    status:"ok",
+                    time: formatSendingTime(0),
+                    result: thisUser.batchResult
+                  })
+                console.log("Send SMS DONE!")
+              })
+              .catch(function (e) {
+                console.log('ERR ' + e || 'Server cannot send messages');
+                res.send({
+                    status:"error",
+                    result: e.message
+                  })
+              });
+          }else{
+            console.log("platform issue")
+            res.send({
+                status:"error",
+                result: e.message
+              })
+          }
+        })
+    },
+    getBatchReport: function(res, batchId, pageToken){
+      this.batchReport.Queued_Count = 0
+      this.batchReport.Sent_Count = 0
+      this.batchReport.Delivered_Count = 0
+      this.batchReport.Delivered_Failed_Count = 0
+      this.batchReport.Sending_Failed_Count = 0
+      this.batchReport.Unknown_Count = 0
+      this.batchFullReport = []
+      this._getBatchReport(res, batchId, pageToken)
+    },
+    _getBatchReport: function(res, batchId, pageToken){
+      var thisUser = this
+      // /account/~/a2p-sms/messages?batchId= + this.sendReport.result.id
+      var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
+      if (pageToken != "")
+        endpoint += "&pageToken=" + pageToken
+      console.log(endpoint)
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              //console.log(JSON.stringify(jsonObj))
+              thisUser.batchFullReport.push(jsonObj.messages)
+              for (var message of jsonObj.messages){
+                //console.log(message)
+                //console.log("========")
+                if (message.messageStatus.toLowerCase() == "queued")
+                  thisUser.batchReport.Queued_Count++
+                else if (message.messageStatus.toLowerCase() == "sent")
+                  thisUser.batchReport.Sent_Count++
+                else if (message.messageStatus.toLowerCase() == "delivered")
+                  thisUser.batchReport.Delivered_Count++
+                else if (message.messageStatus.toLowerCase() == "delivery_failed"){
+                  thisUser.batchReport.Delivered_Failed_Count++
+                }else if (message.messageStatus.toLowerCase() == "sending_failed"){
+                  thisUser.batchReport.Sending_Failed_Count++
+                }else{
+                  thisUser.batchReport.Unknown_Count++
+                }
+              }
+              console.log(jsonObj.paging)
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                console.log("Read next page")
+                setTimeout(function(){
+                  thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                res.send({
+                    status: "ok",
+                    result: thisUser.batchReport
+                  })
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+              res.send({
+                  status: "failed",
+                  result: e.message
+                })
+            });
+        }else{
+          console.log("platform issue")
+          res.send({
+              status: "failed",
+              result: "RC platform issue"
+            })
+        }
+      })
+    },
+    getBatchResult: function(req, res){
+        var thisUser = this
+        var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
+/*
+        // FOR TESTING OFFLINE
+        this.testCount += 50
+        var status = "Processing"
+        if (this.testCount >= 10000)
+          status = "Completed"
+        var jsonObj = { id: 'e445d503-1c8f-4a8b-a4a9-76b5f2249c87',
+                  from: '+18884684459',
+                  batchSize: 10000,
+                  processedCount: this.testCount,
+                  status: status,
+                  createdAt: '2020-03-28T01:37:52.783Z',
+                  lastUpdatedAt: '2020-03-28T01:37:54.117Z'
+                }
+        var createdAt = new Date(jsonObj.createdAt).getTime()
+        var lastUpdatedAt = new Date(jsonObj.lastUpdatedAt).getTime() + (this.testCount * 1000)
+
+        var processingTime = (lastUpdatedAt - createdAt) / 1000
+
+        res.send({
+            status:"ok",
+            time: formatSendingTime(processingTime), //`${hour}:${mins}:${secs}`,
+            result: jsonObj
+          })
+        return // TEST OFFLINE END
+*/
         var p = this.rc_platform.getPlatform(function(err, p){
           if (p != null){
             p.get(endpoint)
               .then(function (resp) {
                 console.log(resp.json())
-                thisUser.sendReport = {
-                  sendInProgress: true,
-                  result: resp.json()
-                }
+                var jsonObj = resp.json()
+                var processingTime = (Date.now() - thisUser.StartTimestamp) / 1000
+                thisUser.batchResult = jsonObj
                 res.send({
                     status:"ok",
-                    sendReport: thisUser.sendReport
+                    time: formatSendingTime(processingTime),
+                    result: thisUser.batchResult
                   })
               })
               .catch(function (e) {
                 console.log('ERR ' + e.message || 'Server cannot send messages');
                 res.send({
-                    status: "failed",
-                    sendReport: e.message
+                    status: "error",
+                    result: e.message
                   })
               });
           }else{
             console.log("platform issue")
             res.send({
                 status: "failed",
-                sendReport: "RC platform issue"
+                resule: err
               })
           }
         })
-      }else{
-        res.send({
-            status:"ok",
-            sendReport: thisUser.sendReport
-          })
+    },
+    downloadBatchSMSReport: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId() + '.json'
+      var fileContent = JSON.stringify(this.batchFullReport)
+
+      try{
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
       }
     },
     downloadSendSMSResult: function(req, res){
-      var fs = require('fs')
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
@@ -622,19 +752,21 @@ var engine = User.prototype = {
       if (req.query.format == "JSON"){
         fullNamePath += '.json'
         fileContent = JSON.stringify(this.detailedReport)
-      }else{
+      }else if (req.query.format == "CSV"){
         fullNamePath += '.csv'
         fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
         for (var item of this.detailedReport){
           fileContent += "\n"
           fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
         }
+      }else{
+        fullNamePath += '_BatchReport.json'
+        var fileContent = JSON.stringify(this.batchFullReport)
       }
       try{
         fs.writeFileSync('./'+ fullNamePath, fileContent)
         var link = "/downloads?filename=" + fullNamePath
         res.send({"status":"ok","message":link})
-        //res.send(link)
       }catch (e){
         console.log("cannot create report file")
         res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
@@ -662,26 +794,89 @@ var engine = User.prototype = {
     },
     postFeedbackToGlip: function(req){
       post_message_to_group(req.body, this.mainCompanyNumber)
-    },
-    logout_old: function(req, res, callback){
-      console.log("LOGOUT FUNC")
-      var p = this.getPlatform()
-      p.logout()
-        .then(function (token) {
-          console.log("logged out")
-          //p.auth().cancelAccessToken()
-          //p = null
-          callback(null, "ok")
-        })
-        .catch(function (e) {
-          console.log('ERR ' + e.message || 'Server cannot authorize user');
-          callback(e, e.message)
-        });
     }
 }
-
 module.exports = User;
 
+function readRecipientFile(fileName){
+  var currentFolder = process.cwd();
+  var tempFile = currentFolder + "/uploads/" + fileName
+  var content = fs.readFileSync(tempFile, 'utf8');
+  content = content.trim();
+  var recipientsFromFile = content.split("\n")
+  if (typeof(recipientsFromFile[0]) != "number"){
+    console.log(recipientsFromFile[0])
+    recipientsFromFile.shift() // remove the first column which is the col name
+  }
+  console.log("=============")
+  //fs.unlinkSync(tempFile);
+  return recipientsFromFile
+}
+/*
+function getBatchReport(batchId, pageToken, callback){
+  console.log("getBatchReport")
+  var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
+  if (pageToken != "")
+    endpoint += "&pageToken=" + pageToken
+  console.log(endpoint)
+  platform.get(endpoint)
+    .then(function (resp) {
+        var jsonObj = resp.json()
+        //console.log(JSON.stringify(jsonObj))
+        for (var message of jsonObj.messages){
+          //console.log(message)
+          //console.log("========")
+          if (message.messageStatus.toLowerCase() == "queued")
+            queuedCount++
+          else if (message.messageStatus.toLowerCase() == "sent")
+            sentCount++
+          else if (message.messageStatus.toLowerCase() == "delivered")
+            deliveredCount++
+          else if (message.messageStatus.toLowerCase() == "delivery_failed"){
+            deliveredFailedCount++
+          }else if (message.messageStatus.toLowerCase() == "sending_failed"){
+            sendingFailedCount++
+          }else{
+            unknownCount++
+          }
+        }
+        console.log(jsonObj.paging)
+        if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+          console.log("Read next page")
+          setTimeout(function(){
+            getBatchReport(batchId, jsonObj.paging.nextPageToken, callback)
+          }, 2000)
+        }else{
+          console.log("Send 10DCL SMS test completed:")
+          if (sentCount > 0)
+            console.log("Sent count: " + sentCount)
+          if (queuedCount > 0)
+            console.log("Queued count: " + queuedCount)
+          if (deliveredCount > 0)
+            console.log("Delivered count: " + deliveredCount)
+          if (deliveredFailedCount > 0)
+            console.log("DeliveredFailed count: " + deliveredFailedCount)
+          if (sendingFailedCount > 0)
+            console.log("SendingFailed count: " + sendingFailedCount)
+          console.log("=================")
+          callback(null, )
+        }
+    })
+    .catch(function (e) {
+        console.log('ERR ' + e.message || 'Server cannot send messages');
+    });
+}
+*/
+
+function formatSendingTime(processingTime){
+  var hour = Math.floor(processingTime / 3600)
+  hour = (hour < 10) ? "0"+hour : hour
+  var mins = Math.floor((processingTime % 3600) / 60)
+  mins = (mins < 10) ? "0"+mins : mins
+  var secs = Math.floor(((processingTime % 3600) % 60))
+  secs = (secs < 10) ? "0"+secs : secs
+  return `${hour}:${mins}:${secs}`
+}
 function formatEstimatedTimeLeft(timeInSeconds){
   var duration = ""
   if (timeInSeconds > 3600){
@@ -723,41 +918,7 @@ function post_message_to_group(params, mainCompanyNumber){
     "title": "SMS Toll-Free app user feedback - " + params.type,
     "body": params.message + "\n\nUser main company number: " + mainCompanyNumber
   }
-/*
-"attachments": [
-{
-  "type": "Card",
-  "color": "#00ff2a",
-  "pretext": "Attachment pretext appears before the attachment block",
-  "author_name": "Author Name",
-  "author_link": "https://example.com/author_link",
-  "author_icon": "https://example.com/author_icon.png",
-  "title": "Attachment Title",
-  "title_link": "https://example.com/title_link",
-  "fields": [
-    {
-      "title": "Field 1",
-      "value": "A short field",
-      "short": true
-    },
-    {
-      "title": "Field 2",
-      "value": "[A linked short field](https://example.com)",
-      "short": true
-    },
-    {
-      "title": "Field 3",
-      "value": "A long, full-width field with *formatting* and [a link](https://example.com)"
-    }
-  ],
-  "text": "Attachment text",
-  "image_url": "https://example.com/congrats.gif",
-  "footer": "Attachment footer and timestamp",
-  "footer_icon": "https://example.com/footer_icon.png",
-  "ts": 1503723350
-}
-]
-*/
+
   var post_options = {
       host: "hooks.glip.com",
       path: "/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3",

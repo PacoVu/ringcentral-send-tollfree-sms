@@ -51,7 +51,6 @@ function disableInputs(flag){
     $("#sendingAni").css('display', 'inline');
     $("#download_json").toggleClass("hide")
     $("#download_csv").toggleClass("hide")
-    download_csv
   }else{
     //$("#get-input").show()
     $("#send-message").toggleClass("btn-rc")

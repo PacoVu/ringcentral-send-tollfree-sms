@@ -99,11 +99,18 @@ var router = module.exports = {
       thisObj.forceLogin(req, res)
     })
   },
-  getSendBatchResult: function(req, res){
+  getBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getSendBatchResult(req, res)
+    users[index].getBatchReport(res, req.query.batchId, "")
+    //users[index].getBatchReport(res, "6cf1c23c-b08b-4f42-8860-86cb19100128", "")
+  },
+  getBatchResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getBatchResult(req, res)
   },
   getSendSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)

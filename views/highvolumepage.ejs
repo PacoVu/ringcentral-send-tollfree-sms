@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap3-dialog/1.34.7/css/bootstrap-dialog.min.css">
 
     <script>
-      window.sendReport = '<%- JSON.stringify(sendReport) %>'
+      window.batchResult = '<%- JSON.stringify(batchResult) %>'
     </script>
 
 </head>
@@ -84,56 +84,71 @@
   </nav>
   <section id='content'>
     <div class="col-xs-12">
-    <div class="col-sm-3"></div>
-    <div class="col-sm-9">
-      <div id="get-input" class="form-inline">
-        <form id="sms-form" class="form-group">
-          <div>
-            <label class="label-input" for="from-number">From number</label>
-            <select size="20" id="from-number" name="fromNumber" class="selectpicker filter-select" required>
-              <% for (var item of phoneNumbers) { %>
-                <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
-              <% } %>
-            </select>&nbsp;&nbsp;
-            <input type="button" class="btn-rc" style="display:inline" onclick="sendMessage()" value="Send"></input>
-          </div>
-          <div>
-            <input type="text" id="group_index" name="group_index" hidden value=""></input>
-            <label class="label-input">To numbers</label>
-            <textarea rows="6" cols="14" id="to-numbers_0" name="recipients_0" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" required></textarea>
-            &nbsp;&nbsp;
-            <label class="label-column">Or, load from .csv file (single column with header row)</br>
-              <input type="file" onchange="fileSelected(this, 0);"></input>
-            </label>
-          </div>
-          <div>
-            <label class="label-input" for="message">Message</label>
-            <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
-          </div>
+      <div class="col-sm-1"></div>
+      <div class="col-sm-7">
+        <div class="form-inline">
+          <form id="sms-form" class="form-group" enctype="multipart/form-data">
+            <div class="block_space">
+              <label class="label-input">From number</label>
+              <select size="20" id="from_number" name="from_number" class="selectpicker filter-select">
+                <% for (var item of phoneNumbers) { %>
+                  <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
+                <% } %>
+              </select>&nbsp;&nbsp;
+              <button id="submit" type="submit" class="btn-rc" style="display:inline" onclick="sendBatchMessage(event)" >Submit</button>
+            </div>
+            <div class="block_space">
+              <input type="text" id="group_index" name="group_index" hidden value=""></input>
+              <label class="label-input">To numbers</label>
+              <textarea rows="4" cols="14" id="recipients_0" name="recipients_0" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>
+              &nbsp;&nbsp;&nbsp;
+              <label class="label-column">Or, load from .csv file (single column with header row)</br>
+                <input type="file" id="attachment_0" name="attachment_0"></input>
+              </label>
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="message">Message</br><div class="char-count" id="charcount_0">Char length: 0 char.</div></label>
+              <textarea rows="3" cols="60" id="message_0" oninput="countCharacter(this, 0)" name="message_0" class="form-control text-input"></textarea>&nbsp;&nbsp;
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="expires_in">Expires in:</label>
+              <input type="number" name="expiresIn" step=10 size=3 min=0 max=10000 value=0></input>&nbsp;&nbsp;
+              <label for="send_at">Send at:</label>&nbsp;&nbsp;
+              <input type="datetime-local" id="senddatepicker" size=10 name="sendAt"></input>
+            </div>
+            <hr style="margin: 2px !important"></hr>
+            <div>
+              <button class="btn-noborder" onclick="addCustomizedMessage(event)"><span style="font-size:1.2em">+</span> Customized message</button>
+              <select id="groups_list" onchange="showGroup()"></select>
+            </div>
+            <div id="groups"></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-sm-4" style="border-left: 1px dotted gray">
+        <div id="control_block" style="display: none;">
+          <button id="read_result" onclick="switchPollResult()" class="btn-rc">Stop Polling</button>&nbsp;&nbsp;
+          <button id="read_report" onclick="readReport()" class="btn-rc">Read Report</button>
           </br>
-          <div>
-            <label class="label-input" for="expires_in">Expires in:</label>
-            <input type="number" name="expiresIn" step=10 size=3 min=0 max=10000 value=0></input>&nbsp;&nbsp;
-            <label for="send_at">Send at:</label>&nbsp;&nbsp;
-            <input type="datetime-local" id="senddatepicker" size=10 name="sendAt"></input>
+          <div id="result_block" style="margin-top:20px;display: none">
+            <span style="height:50px;margin-bottom:10px"><b>Send SMS progress</b><span id="polling_tips"> (Update every 5 secs!)</span></span>&nbsp;&nbsp;
+            <img src='./img/sendprogress.gif' id="sendingAni" style='width:30px;height:20px;display: none'></img>
+            <div id="time"></div>
+            <div id="status"></div>
+            <div id="result"></div>
           </div>
-          <hr></hr>
-          <div>
-            <button class="btn-rc" onclick="addRecipientGroup()">Add recipient group</button>
-            <div id="groups_tab"></div>
+          <div id="report_block" style="margin-top:20px;display: none">
+            <span><b>Report</b></span>
+            <div id="report">Reading report ...</div>
+            </br>
+            <div class="block_space" id="downloads">
+              <a href="javascript:downloadReport('')">Download Detailed Report</a>
+            </div>
           </div>
-          <div id="groups" class="scrollable"></div>
-        </form>
+        </div>
       </div>
-      </br>
-
-      <div id="progress" class="show">
-        <span><b>Send SMS Report</b></span>&nbsp;&nbsp;
-        <div id="report"></div>
-      </div>
-
     </div>
-  </div>
   </section>
   <%- include('_footer') %>
 </body>

@@ -106,10 +106,17 @@ ul > li > span {
 .label-column {
   width: 270px;
   font-size: 1.0em;
+  vertical-align: bottom;
   font-weight: normal;
   color: #425563;
 }
 
+.char-count {
+  display: inline;
+  font-size: 1.0em !important;
+  vertical-align: bottom;
+  font-weight: normal !important;
+}
 .text-input {
   margin-top: 10px;;
 }
@@ -135,6 +142,18 @@ ul > li > span {
   height: 100px;
   max-height: 100px;
   overflow: scroll;
+}
+
+#groups_list {
+  display: none;
+}
+
+.tab_item {
+  display: inline;
+}
+
+.block_space{
+  margin-bottom: 5px;
 }
 
 /* Navbar stuff*/

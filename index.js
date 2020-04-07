@@ -1,18 +1,18 @@
 var path = require('path')
 var util = require('util')
 var multer  = require('multer')
-var upload = multer({ dest: 'tempFile/' })
-/*
+//var upload = multer({ dest: 'tempFile/' })
+
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads')
   },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now())
+    cb(null, file.fieldname + '-' + file.originalname)
   }
 })
 var upload = multer({ storage: storage })
-*/
+
 if('production' !== process.env.LOCAL_ENV )
   require('dotenv').load();
 
@@ -106,8 +106,12 @@ app.get('/getresult', function (req, res) {
   router.getSendSMSResult(req, res)
 })
 
+app.get('/getbatchreport', function (req, res) {
+  router.getBatchReport(req, res)
+})
+
 app.get('/getbatchresult', function (req, res) {
-  router.getSendBatchResult(req, res)
+  router.getBatchResult(req, res)
 })
 
 app.get('/downloadreport', function (req, res) {
@@ -150,7 +154,7 @@ app.post('/sendhighvolumemessage', upload.single('attachment'), function (req, r
   router.sendHighVolumeSMSMessage(req, res)
 })
 */
-app.post('/sendhighvolumemessage', function (req, res) {
+app.post('/sendhighvolumemessage', upload.any(), function (req, res, next) {
   console.log("post sendhighvolumemessage")
   router.sendHighVolumeSMSMessage(req, res)
 })
