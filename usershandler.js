@@ -97,8 +97,6 @@ var engine = User.prototype = {
             thisUser.setExtensionId(extensionId)
             req.session.extensionId = extensionId;
             callback(null, extensionId)
-            //var thisRes = res
-            console.log("Read extension")
             rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   p.get('/account/~/extension/~/')
@@ -144,7 +142,7 @@ var engine = User.prototype = {
                   var count = jsonObj.records.length
                   //console.log(JSON.stringify(jsonObj))
                   for (var record of jsonObj.records){
-                      console.log("recordid: " + JSON.stringify(record))
+                      //console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
                         if (record.usageType == "DirectNumber"){
                           if (record.type != "FaxOnly" ){
@@ -177,7 +175,8 @@ var engine = User.prototype = {
                             }
                           }
                         }
-                      }else if (record.usageType == "MainCompanyNumber"){
+                      }
+                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                     }
@@ -598,11 +597,10 @@ var engine = User.prototype = {
     },
     _getBatchReport: function(res, batchId, pageToken){
       var thisUser = this
-      // /account/~/a2p-sms/messages?batchId= + this.sendReport.result.id
       var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
       if (pageToken != "")
         endpoint += "&pageToken=" + pageToken
-      console.log(endpoint)
+      //console.log(endpoint)
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.get(endpoint)
@@ -627,9 +625,9 @@ var engine = User.prototype = {
                   thisUser.batchReport.Unknown_Count++
                 }
               }
-              console.log(jsonObj.paging)
+              //console.log(jsonObj.paging)
               if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-                console.log("Read next page")
+                //console.log("Read next page")
                 setTimeout(function(){
                   thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
                 }, 1200)
@@ -783,7 +781,7 @@ var engine = User.prototype = {
       })
     },
     postFeedbackToGlip: function(req){
-      post_message_to_group(req.body, this.mainCompanyNumber)
+      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId)
     }
 }
 module.exports = User;
@@ -898,7 +896,7 @@ function formatPhoneNumber(phoneNumberString) {
   return phoneNumberString
 }
 
-function post_message_to_group(params, mainCompanyNumber){
+function post_message_to_group(params, mainCompanyNumber, accountId){
   webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   var https = require('https');
@@ -906,7 +904,7 @@ function post_message_to_group(params, mainCompanyNumber){
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
     "title": "SMS Toll-Free app user feedback - " + params.type,
-    "body": params.message + "\n\nUser main company number: " + mainCompanyNumber
+    "body": params.message + "\n\nUser main company number: " + mainCompanyNumber + "\n\nUser account Id: " + accountId
   }
 
   var post_options = {

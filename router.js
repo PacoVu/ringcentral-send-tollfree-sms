@@ -144,9 +144,7 @@ var router = module.exports = {
     res.send({"status":"ok","message":"Thank you for sending your feedback!"})
   },
   loadAboutPage: function(req, res){
-    res.render('about', {
-
-    })
+    res.render('about')
   },
   loadOptionPage: function(req, res){
     var index = getUserIndex(req.session.userId)
