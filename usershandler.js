@@ -5,12 +5,9 @@ const RCPlatform = require('./platform.js')
 require('dotenv').load()
 
 function User(id, mode) {
-  this.testCount = 1
   this.id = id;
-  //this.admin = false;
   this.extensionId = 0;
-  //this.extIndex = 0
-  //this.token_json = {};
+  this.accountId = 0;
   this.userName = ""
   this.phoneNumbers = []
   this.sendReport = {
@@ -100,17 +97,18 @@ var engine = User.prototype = {
             thisUser.setExtensionId(extensionId)
             req.session.extensionId = extensionId;
             callback(null, extensionId)
-            var thisRes = res
+            //var thisRes = res
             console.log("Read extension")
             rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   p.get('/account/~/extension/~/')
                     .then(function(response) {
                       var jsonObj = response.json();
-                      thisUser.rc_platform.setAccountId(jsonObj.account.id)
+                      //thisUser.rc_platform.setAccountId(jsonObj.account.id)
+                      thisUser.accountId = jsonObj.account.id
                       var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                       thisUser.setUserName(fullName)
-                      engine.readPhoneNumber(thisUser, callback, thisRes)
+                      engine.readPhoneNumber(thisUser, callback, res)
                     })
                     .catch(function(e) {
                       console.log("Failed")
@@ -132,7 +130,7 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
-    readPhoneNumber: function(thisUser, callback, thisRes){
+    readPhoneNumber: function(thisUser, callback, res){
         thisUser.rc_platform.getPlatform(function(err, p){
             if (p != null){
               thisUser.phoneNumbers = []
@@ -142,65 +140,57 @@ var engine = User.prototype = {
                 "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
               })
                 .then(function(response) {
-                  //console.log(response)
-                  var jsonObj =response.json();
+                  var jsonObj = response.json();
                   var count = jsonObj.records.length
-                  var item = {
-                    "format": "+1 (888) 330-3674",
-                    "number": "+18883303674",
-                    "type": "Toll-Free Number"
-                  }
-                  thisUser.phoneNumbers.push(item)
-                  item = {
-                    format: "+1 (234) 200-2153",
-                    number: "+12342002153",
-                    type: "10-DLC Number"
-                  }
-                  thisUser.phoneNumbers.push(item)
+                  //console.log(JSON.stringify(jsonObj))
                   for (var record of jsonObj.records){
-                      //console.log("recordid: " + JSON.stringify(record))
+                      console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
-                      //if (record.usageType == "DirectNumber"){
-                        if (record.type == "VoiceOnly" || record.type == "VoiceFax"){
-                          for (var feature of record.features){
-                            if (feature == "SmsSender"){
-                              var item = {
-                                "format": formatPhoneNumber(record.phoneNumber),
-                                "number": record.phoneNumber,
-                                "type": "Toll-Free Number"
+                        if (record.usageType == "DirectNumber"){
+                          if (record.type != "FaxOnly" ){
+                            for (var feature of record.features){
+                              if (feature == "SmsSender" || feature == "CallerId"){
+                                var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "Toll-Free Number"
+                                }
+                                thisUser.phoneNumbers.push(item)
+                                break;
                               }
-                              thisUser.phoneNumbers.push(item)
-                              break;
                             }
                           }
                         }
-                      }
-                      if (record.usageType == "MainCompanyNumber"){
+                      }else if (record.paymentType == "Local"){
+                        if (record.usageType == "DirectNumber"){
+                          if (record.type != "FaxOnly" ){
+                            for (var feature of record.features){
+                              if (feature == "A2pSmsSender" || feature == "CallerId"){
+                                var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "10-DLC Number"
+                                }
+                                thisUser.phoneNumbers.push(item)
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      }else if (record.usageType == "MainCompanyNumber"){
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
-                      /*
-                      else if (record.usageType == "DirectNumber"){
-                        if (record.type != "FaxOnly"){
-                          var item = {
-                            "format": formatPhoneNumber(record.phoneNumber),
-                            "number": record.phoneNumber,
-                            "type": "Direct Number"
-                          }
-                          thisUser.phoneNumbers.push(item)
-                        }
-                      }
-                      */
                     }
-                  thisRes.send('login success');
+                  res.send('login success');
                 })
                 .catch(function(e) {
                   console.log("Failed")
                   console.error(e.message);
-                  thisRes.send('login success');
+                  res.send('login success');
                 });
             }else{
               console.error(e.message);
-              thisRes.send('login failed');
+              res.send('login failed');
             }
         })
 
