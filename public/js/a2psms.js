@@ -1,4 +1,3 @@
-//var canPoll = false
 var currentBatchId = ""
 var pendingBatch = false
 var isPolling = false
