@@ -897,16 +897,19 @@ function formatPhoneNumber(phoneNumberString) {
 }
 
 function post_message_to_group(params, mainCompanyNumber, accountId){
-  webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
-  webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
+  //webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
+  //webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   var https = require('https');
+  var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
+  message += "\nUser account Id: " + accountId
+  message += "\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=" + accountId
+  message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID+++++++++++" + accountId + "User"
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
     "title": "SMS Toll-Free app user feedback - " + params.type,
-    "body": params.message + "\n\nUser main company number: " + mainCompanyNumber + "\n\nUser account Id: " + accountId
+    "body": message
   }
-
   var post_options = {
       host: "hooks.glip.com",
       path: "/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3",
