@@ -6,10 +6,8 @@ require('dotenv').load()
 
 function User(id, mode) {
   this.id = id;
-  this.admin = false;
   this.extensionId = 0;
-  this.extIndex = 0
-  this.token_json = {};
+  this.accountId = 0
   this.userName = ""
   this.phoneNumbers = []
   this.sendReport = {
@@ -36,26 +34,14 @@ var engine = User.prototype = {
     setExtensionId: function(id) {
       this.extensionId = id
     },
-    setAdmin: function() {
-      this.admin = true
-    },
-    setUserToken: function (token_json){
-      this.token_json = token_json
-    },
     setUserName: function (userName){
       this.userName = userName
     },
     getUserId: function(){
       return this.id
     },
-    isAdmin: function(){
-      return this.admin
-    },
     getExtensionId: function(){
       return this.extensionId
-    },
-    getUserToken: function () {
-      return this.token_json;
     },
     getUserName: function(){
       return this.userName;
@@ -73,7 +59,6 @@ var engine = User.prototype = {
     login: function(req, res, callback){
       var thisReq = req
       if (req.query.code) {
-        console.log("CALL LOGIN FROM USER")
         var rc_platform = this.rc_platform
         var thisUser = this
         rc_platform.login(req.query.code, function (err, extensionId){
@@ -82,7 +67,6 @@ var engine = User.prototype = {
             req.session.extensionId = extensionId;
             callback(null, extensionId)
             var thisRes = res
-            console.log("Read extension")
             rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   p.get('/account/~/extension/~/')
@@ -90,11 +74,14 @@ var engine = User.prototype = {
                       //console.log(response)
                       var jsonObj = response.json();
                       //console.log(JSON.stringify(jsonObj))
-                      thisUser.rc_platform.setAccountId(jsonObj.account.id)
+                      //thisUser.rc_platform.setAccountId(jsonObj.account.id)
                       //thisRes.send('login success');
+                      thisUser.accountId = jsonObj.account.id
+                      /*
                       if (jsonObj.permissions.admin.enabled){
                         thisUser.setAdmin(true)
                       }
+                      */
                       var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                       thisUser.setUserName(fullName)
                       engine.readPhoneNumber(thisUser, callback, thisRes)
@@ -133,7 +120,7 @@ var engine = User.prototype = {
                   var jsonObj =response.json();
                   var count = jsonObj.records.length
                   for (var record of jsonObj.records){
-                      console.log("recordid: " + JSON.stringify(record))
+                      //console.log("recordid: " + JSON.stringify(record))
                       if (record.paymentType == "TollFree") {
                       //if (record.usageType == "DirectNumber"){
                         if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
@@ -446,22 +433,7 @@ var engine = User.prototype = {
       })
     },
     postFeedbackToGlip: function(req){
-      post_message_to_group(req.body, this.mainCompanyNumber)
-    },
-    logout_old: function(req, res, callback){
-      console.log("LOGOUT FUNC")
-      var p = this.getPlatform()
-      p.logout()
-        .then(function (token) {
-          console.log("logged out")
-          //p.auth().cancelAccessToken()
-          //p = null
-          callback(null, "ok")
-        })
-        .catch(function (e) {
-          console.log('ERR ' + e.message || 'Server cannot authorize user');
-          callback(e, e.message)
-        });
+      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId)
     }
 }
 
@@ -498,51 +470,18 @@ function formatPhoneNumber(phoneNumberString) {
   return phoneNumberString
 }
 
-function post_message_to_group(params, mainCompanyNumber){
-  webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
-  webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
+function post_message_to_group(params, mainCompanyNumber, accountId){
   var https = require('https');
+  var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
+  message += "\nUser account Id: " + accountId
+  message += "\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=" + accountId
+  message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID+++++++++++" + accountId + "User"
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
     "title": "SMS Toll-Free app user feedback - " + params.type,
-    "body": params.message + "\n\nUser main company number: " + mainCompanyNumber
+    "body": message
   }
-/*
-"attachments": [
-{
-  "type": "Card",
-  "color": "#00ff2a",
-  "pretext": "Attachment pretext appears before the attachment block",
-  "author_name": "Author Name",
-  "author_link": "https://example.com/author_link",
-  "author_icon": "https://example.com/author_icon.png",
-  "title": "Attachment Title",
-  "title_link": "https://example.com/title_link",
-  "fields": [
-    {
-      "title": "Field 1",
-      "value": "A short field",
-      "short": true
-    },
-    {
-      "title": "Field 2",
-      "value": "[A linked short field](https://example.com)",
-      "short": true
-    },
-    {
-      "title": "Field 3",
-      "value": "A long, full-width field with *formatting* and [a link](https://example.com)"
-    }
-  ],
-  "text": "Attachment text",
-  "image_url": "https://example.com/congrats.gif",
-  "footer": "Attachment footer and timestamp",
-  "footer_icon": "https://example.com/footer_icon.png",
-  "ts": 1503723350
-}
-]
-*/
   var post_options = {
       host: "hooks.glip.com",
       path: "/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3",

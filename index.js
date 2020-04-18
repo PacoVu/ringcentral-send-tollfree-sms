@@ -28,8 +28,6 @@ console.log("listen to port " + port)
 var router = require('./router');
 
 app.get('/', function (req, res) {
-  console.log('load option page /')
-  //res.render('index')
   if (req.session.extensionId != 0)
     router.logout(req, res)
   else{
@@ -37,20 +35,16 @@ app.get('/', function (req, res) {
   }
 })
 app.get('/login', function (req, res) {
-  console.log('login to /')
   req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
   if (!req.session.hasOwnProperty("userId"))
     req.session.userId = 0;
     if (!req.session.hasOwnProperty("extensionId"))
       req.session.extensionId = 0;
-  console.log("SESSION:" + JSON.stringify(req.session))
   router.loadLogin(req, res)
 })
 
 app.get('/index', function (req, res) {
-  console.log('load option page /')
   if (req.query.n != undefined && req.query.n == 1){
-    console.log('logout from here?')
     router.logout(req, res)
   }else {
     res.render('index')
@@ -58,12 +52,10 @@ app.get('/index', function (req, res) {
 })
 
 app.get('/logout', function (req, res) {
-  console.log('logout why here?')
   router.logout(req, res)
 })
 
 app.get('/loadsmspage', function (req, res) {
-  console.log('loadSendSMSPage')
   if (req.session.extensionId != 0)
     router.loadSendSMSPage(req, res)
   else{
@@ -83,13 +75,11 @@ app.get('/downloadreport', function (req, res) {
   router.downloadSendSMSResult(req, res)
 })
 app.get('/downloads', function(req, res){
-  console.log(req.query)
   var file = req.query.filename;
   res.download(file); // Set disposition and send it.
 });
 
 app.get('/oauth2callback', function(req, res){
-  console.log("callback redirected")
   router.login(req, res)
 })
 
@@ -110,16 +100,13 @@ app.get('/cancel', function (req, res) {
 })
 
 app.post('/sendmessage', upload.single('attachment'), function (req, res) {
-   console.log("Send a message");
    router.sendSMSMessage(req, res)
 })
 
 app.post('/sendsms', function (req, res) {
-  console.log("sendsms")
   router.sendSMSMessage(req, res)
 })
 
 app.post('/sendfeedback', function (req, res) {
-  console.log("sendfeedback")
   router.postFeedbackToGlip(req, res)
 })
