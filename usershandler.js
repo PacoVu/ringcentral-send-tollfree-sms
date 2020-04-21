@@ -142,7 +142,8 @@ var engine = User.prototype = {
                   var count = jsonObj.records.length
                   //console.log(JSON.stringify(jsonObj))
                   for (var record of jsonObj.records){
-                      //console.log("recordid: " + JSON.stringify(record))
+                      console.log("recordid: " + JSON.stringify(record))
+                      console.log("========")
                       if (record.paymentType == "TollFree") {
                         if (record.usageType == "DirectNumber"){
                           if (record.type != "FaxOnly" ){
