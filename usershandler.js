@@ -475,7 +475,7 @@ function post_message_to_group(params, mainCompanyNumber, accountId){
   var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
   message += "\nUser account Id: " + accountId
   message += "\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=" + accountId
-  message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID+++++++++++" + accountId + "User"
+  message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID++++++++++" + accountId + "User"
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
