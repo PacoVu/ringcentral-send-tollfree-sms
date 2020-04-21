@@ -263,6 +263,10 @@ td{
   color: #425563;
 }
 
+.alert{
+    color: red;
+}
+
 .scrollable_contactlist{
   height: 400px;
   border: none;

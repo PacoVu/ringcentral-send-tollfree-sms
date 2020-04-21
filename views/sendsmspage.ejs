@@ -90,6 +90,9 @@
                 <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
               <% } %>
             </select>
+            <% if (phoneNumbers.length == 0) { %>
+              <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistant!</div>
+            <% } %>
           </div>
           <div>
             <label class="label-input" for="secret_access_key">To numbers</label>
