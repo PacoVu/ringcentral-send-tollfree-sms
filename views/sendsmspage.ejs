@@ -34,7 +34,7 @@
             <img src="./img/positive.png">
           </label>
           &nbsp;&nbsp;
-          <label> 
+          <label>
             <input type="radio" name="emoji" value="neutral"/>
             <img src="./img/neutral.png">
           </label>
@@ -94,16 +94,22 @@
               <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistant!</div>
             <% } %>
           </div>
-          <div>
+          <div class="block-space">
             <label class="label-input" for="secret_access_key">To numbers</label>
-            <textarea rows="6" cols="15" id="to-numbers" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
+            <textarea rows="6" cols="15" id="to-numbers" onchange="updateEstimatedCost()" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
             &nbsp;&nbsp;
             <label class="label-column">Or, upload .csv file (single column with header row)</br>
-              <input type="file" id="attachment" name=attachment></input>
+              <input type="file" id="attachment" name=attachment accept="text/csv" onchange="fileSelected(this)"></input>
             </label>
           </div>
-          <label class="label-input" for="message">Message</label>
-            <textarea rows="4" cols="50" id="message" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
+          <div class="block-space">
+            <label class="label-input" for="message">Message</br><div class="char-count" id="charcount">Char length: 0 char.</div></label>
+            <textarea rows="4" cols="50" id="message" oninput="countCharacter(this)" onchange="updateEstimatedCost()" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
+          </div>
+          <div class="block-space">
+            <label class="label-input warning">Estimated cost!</label>
+            <span class="cost warning"id="estimated_cost"> 0.000 USD</span>
+          </div>
           <button id="send-message" class="btn-rc" style="display:inline">Send</button>
         </form>
       </div>
