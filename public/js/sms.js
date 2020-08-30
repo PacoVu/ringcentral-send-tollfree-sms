@@ -136,6 +136,52 @@ function downloadReport(format){
       alert(res.message)
   });
 }
+
+function countCharacter(elm){
+  var text = $(elm).val()
+  $("#charcount").html("SMS length: " + text.length + " chars.")
+  if (text.length)
+    updateEstimatedCost()
+  else
+    $("#estimated_cost").html("0.000 USD")
+}
+
+function fileSelected(elm){
+  var file = elm.files[0]
+  if (file) {
+    var reader = new FileReader();
+    reader.readAsText(file);
+    reader.onload = function(e) {
+      var numbersFromFile = e.target.result.trim().split("\r\n")
+      numbersFromFile.shift()
+      var directNumbers = $("#to-numbers").val().trim()
+      if (directNumbers.length)
+        directNumbers = directNumbers.split("\n").length
+      calculateEstimatedCost((directNumbers + numbersFromFile.length))
+    };
+  }else{
+    var directNumbers = $("#to-numbers").val().trim()
+    if (directNumbers.length)
+      directNumbers = directNumbers.split("\n").length
+    calculateEstimatedCost(directNumbers)
+  }
+}
+function calculateEstimatedCost(numberOfRecipients){
+  var charCount = $("#message").val().length
+  if (charCount == 0) return
+  var coef = charCount / 160
+  coef = Math.ceil(coef)
+  var numberOfMessages = numberOfRecipients * coef
+  var estimatedCost = numberOfMessages * 0.007
+  var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients. This will cost you ${estimatedCost.toFixed(3)} USD.`
+  if (numberOfRecipients == 0)
+    msg = "0.000 USD."
+  $("#estimated_cost").html(msg)
+}
+function updateEstimatedCost(){
+  fileSelected($("#attachment")[0])
+}
+
 function logout(){
   window.location.href = "index?n=1"
 }

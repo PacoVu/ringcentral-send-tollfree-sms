@@ -279,17 +279,25 @@ td{
   font-size: 1.0em;
   color: #425563;
 }
-/*
-.scrollable_contactlist{
-  height: 400px;
-  border: none;
-  padding: 0;
-  margin: 0;
-  margin-top: -20px !important;
-  border-bottom: 1px solid gray;
-  overflow: scroll;
+.alert{
+  color: red;
 }
-*/
+.warning{
+  color: orange;
+}
+.cost{
+  max-width: 100px !important;
+  width: 100px !important;
+}
+.block-space{
+  margin-bottom: 5px;
+}
+.char-count {
+  display: inline;
+  font-size: 1.0em !important;
+  vertical-align: bottom;
+  font-weight: normal !important;
+}
 .corner {
   position: relative;
   top: 0;

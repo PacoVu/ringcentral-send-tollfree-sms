@@ -100,14 +100,14 @@
             <div class="block_space">
               <input type="text" id="group_index" name="group_index" hidden value=""></input>
               <label class="label-input">To numbers</label>
-              <textarea rows="4" cols="14" id="recipients_0" name="recipients_0" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>
+              <textarea rows="4" cols="14" id="recipients_0" name="recipients_0" onchange="readFieldRecipients(this, 0)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>
               &nbsp;&nbsp;&nbsp;
               <label class="label-column">Or, load from .csv file (single column with header row)</br>
-                <input type="file" id="attachment_0" name="attachment_0"></input>
+                <input type="file" id="attachment_0" name="attachment_0" onchange="readFileRecipients(this, 0)"></input>
               </label>
             </div>
             <div class="block_space">
-              <label class="label-input" for="message">Message</br><div class="char-count" id="charcount_0">Char length: 0 char.</div></label>
+              <label class="label-input" for="message">Message</br><div class="char-count" id="charcount_0">SMS length: 0 char.</div></label>
               <textarea rows="3" cols="60" id="message_0" oninput="countCharacter(this, 0)" name="message_0" class="form-control text-input"></textarea>&nbsp;&nbsp;
             </div>
             <div class="block_space">
@@ -119,9 +119,14 @@
             <hr style="margin: 2px !important"></hr>
             <div>
               <button class="btn-noborder" onclick="addCustomizedMessage(event)"><span style="font-size:1.2em">+</span> Customized message</button>
-              <select id="groups_list" onchange="showGroup()"></select>
+              <select id="groups_list" onchange="showGroup()">
+              </select>
             </div>
             <div id="groups"></div>
+            <div class="block-space">
+              <label class="label-input warning">Estimated cost!</label>
+              <span class="cost warning"id="estimated_cost"> 0.000 USD</span>
+            </div>
           </form>
         </div>
       </div>

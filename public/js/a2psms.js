@@ -1,6 +1,7 @@
 var currentBatchId = ""
 var pendingBatch = false
 var isPolling = false
+const SMS_COST = 0.007
 function init(){
   var jsonObj = JSON.parse(window.batchResult)
   if (jsonObj.status == "Processing" && jsonObj.id != ""){
@@ -127,28 +128,91 @@ function submitFeedback(params){
   return true
 }
 
-// Not used. Upload file directly to backend
-function fileSelected(elm, index){
+function readFieldRecipients(elm, index){
+    var dN = $(elm).val().trim()
+    for (var g of groups){
+      if (index == g.groupNumber){
+        if (dN.length)
+          g.fieldRecipients = dN.split("\n").length
+        else
+          g.fieldRecipients = 0
+        break
+      }
+    }
+    calculateEstimatedCost()
+}
+
+function readFileRecipients(elm, index){
   var file = elm.files[0]
   if (file) {
     var reader = new FileReader();
     reader.readAsText(file);
     reader.onload = function(e) {
-      var numbers = e.target.result.trim().split("\r\n")
-      numbers.shift()
-      $("#to-numbers_" + index).val(numbers.join("\r\n"));
+      var numbersFromFile = e.target.result.trim().split("\r\n")
+      numbersFromFile.shift()
+      for (var g of groups){
+        if (index == g.groupNumber){
+          g.fileRecipients = numbersFromFile.length
+          break
+        }
+      }
+      calculateEstimatedCost()
     };
+  }else{
+    for (var g of groups){
+      if (index == g.groupNumber){
+        g.fileRecipients = 0
+        break
+      }
+    }
+    calculateEstimatedCost()
   }
 }
 
 function countCharacter(elm, index){
-    var text = $(elm).val()
-    $("#charcount_"+index).html("SMS length: " + text.length + " chars.")
+  var text = $(elm).val()
+  $("#charcount_"+index).html("SMS length: " + text.length + " chars.")
+  for (var g of groups){
+    if (index == g.groupNumber){
+      g.charCount = text.length
+      break
+    }
+  }
+  calculateEstimatedCost()
 }
+/// cost estimation
+function calculateEstimatedCost(){
+  var estimatedCost = 0
+  var totalRecipients = 0
+  var totalMessages =0
+  for (var g of groups){
+    var numberOfRecipients = g.fieldRecipients + g.fileRecipients
+    if (g.charCount == 0) continue
+    var coef = g.charCount / 160
+    coef = Math.ceil(coef)
+    var numberOfMessages = numberOfRecipients * coef
+    totalMessages += numberOfMessages
+    totalRecipients += numberOfRecipients
+  }
+  estimatedCost = totalMessages * SMS_COST
+  var msg = `You are about to send a total of ${totalMessages} messages to ${totalRecipients} recipients. This will cost you ${estimatedCost.toFixed(3)} USD.`
+  if (totalMessages == 0)
+    msg = "0.000 USD."
+  $("#estimated_cost").html(msg)
+}
+/// cost estimation ends
 
 var group = 0
 var currentGroup = 0
-var groups = []
+var groups = [
+  {
+    groupNumber: 0,
+    groupName: "",
+    charCount: 0,
+    fileRecipients: 0,
+    fieldRecipients: 0
+  }
+]
 // use to upload file directly.
 function addCustomizedMessage(e){
   e.preventDefault()
@@ -164,7 +228,10 @@ function addCustomizedMessage(e){
   group++
   var item = {
     groupNumber: group,
-    groupName: ""
+    groupName: "",
+    charCount: 0,
+    fileRecipients: 0,
+    fieldRecipients: 0
   }
   groups.push(item)
 
@@ -173,18 +240,18 @@ function addCustomizedMessage(e){
 
   var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="removeMe(\'g_' + group + '\',' + group + ')"></img>'
   newGroup += '<label class="label-input">To numbers</label>'
-  newGroup += '<textarea rows="4" cols="14" id="recipients_'+group+'" name="recipients_'+group+'" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>'
+  newGroup += '<textarea rows="4" cols="14" id="recipients_'+group+'" name="recipients_'+group+'" onchange="readFieldRecipients(this,'+group+')" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>'
   newGroup += '&nbsp;&nbsp;&nbsp;'
   newGroup += '<label class="label-column">Or, load from .csv file (single column with header row)</br>'
-  newGroup += '<input type="file" id="attachment_'+group+'" name="attachment_'+group+'"></input>'
+  newGroup += '<input type="file" id="attachment_'+group+'" name="attachment_'+group+'" onchange="readFileRecipients(this,'+group+')"></input>'
   newGroup += '</label>'
-  newGroup += '<div><label class="label-input">Message</br><div class="char-count" id="charcount_'+group+'">Char length: 0 char.</div></label>'
+  newGroup += '<div><label class="label-input">Message</br><div class="char-count" id="charcount_'+group+'">SMS length: 0 char.</div></label>'
   newGroup += '<textarea rows="3" cols="60" id="message_'+group+'" name="message_'+group+'" oninput="countCharacter(this, '+group+')" class="form-control text-input"></textarea>&nbsp;&nbsp;'
   newGroup += '</div></div>'
   $("#groups").append(newGroup);
 
-  for (var i=0; i < groups.length; i++){
-    var name = i+1
+  for (var i=1; i < groups.length; i++){
+    var name = i//+1
     groups[i].groupName = "Customized Message - " + name.toString()
   }
 /*
@@ -195,7 +262,9 @@ function addCustomizedMessage(e){
   }
 */
   $("#groups_list").empty()
-  for (var g of groups){
+  //for (var g of groups){
+  for (var n=1; n < groups.length; n++){
+    var g = groups[n]
     $("#groups_list").append(($('<option>', {
         value: g.groupNumber,
         text : g.groupName
@@ -227,13 +296,14 @@ function showGroup(groupNum){
 */
 function showGroup(){
   // hide current group
-  $("#g_"+currentGroup).hide()
   var groupNum = $("#groups_list").val()
+  if (groupNum == 0) return
+  $("#g_"+currentGroup).hide()
   var g = "#g_"+ groupNum
   $(g).show()
   currentGroup =  $("#groups_list option:selected").val()
 }
-
+// remove a customized group
 function removeMe(block, index){
   $("#"+block).remove()
   var indexes = $("#group_index").val().split("_")
@@ -243,20 +313,14 @@ function removeMe(block, index){
 
   // remove group from groups
   groups.splice(groups.findIndex(item => item.groupNumber === index), 1)
-  for (var i=0; i < groups.length; i++){
-    var name = i+1
+  for (var i=1; i < groups.length; i++){
+    var name = i//+1
     groups[i].groupName = name.toString()
   }
-/*
-  $("#groups_tab").empty()
-  for (var g of groups){
-    var page = '<span id="tab_'+g.groupNumber+'"><a href="javascript:showGroup('+g.groupNumber+')">' + (g.groupName ) + '</a>&nbsp;&nbsp;</span>'
-    $("#groups_tab").append(page);
-  }
-*/
-
   $("#groups_list").empty()
-  for (var g of groups){
+  //for (var g of groups){
+  for (var n=1; n < groups.length; n++){
+    var g = groups[n]
     $("#groups_list").append(($('<option>', {
         value: g.groupNumber,
         text : "Customized Message - " + g.groupName
@@ -279,7 +343,8 @@ function removeMe(block, index){
   }
   // show first group from group tab
   $("#groups").children().first().show()
-  //currentGroup = $("#groups").children().first().attr("id").split("_")[1]
+  // recalculate cost estimation
+  calculateEstimatedCost()
 }
 
 // submit form using ajax seems not enforce required inputs

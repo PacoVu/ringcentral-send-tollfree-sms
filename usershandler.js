@@ -142,8 +142,7 @@ var engine = User.prototype = {
                   var count = jsonObj.records.length
                   //console.log(JSON.stringify(jsonObj))
                   for (var record of jsonObj.records){
-                      console.log("recordid: " + JSON.stringify(record))
-                      console.log("========")
+                      /*
                       if (record.paymentType == "TollFree") {
                         if (record.usageType == "DirectNumber"){
                           if (record.type != "FaxOnly" ){
@@ -157,6 +156,21 @@ var engine = User.prototype = {
                                 thisUser.phoneNumbers.push(item)
                                 break;
                               }
+                            }
+                          }
+                        }
+                      }*/
+                      if (record.paymentType == "TollFree") {
+                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                          for (var feature of record.features){
+                            if (feature == "SmsSender"){
+                              var item = {
+                                "format": formatPhoneNumber(record.phoneNumber),
+                                "number": record.phoneNumber,
+                                "type": "Toll-Free Number"
+                              }
+                              thisUser.phoneNumbers.push(item)
+                              break;
                             }
                           }
                         }
