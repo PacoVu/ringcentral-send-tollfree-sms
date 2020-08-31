@@ -79,57 +79,61 @@
     </ul>
   </nav>
   <section id='content'>
-    <div class="col-sm-3"></div>
-    <div class="col-sm-8">
-      <div id="get-input" class="form-inline">
-        <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
-          <div>
-            <label class="label-input" for="from-number">From number</label>
-            <select size="20" id="from-number" name="fromNumber" class="selectpicker filter-select" required>
-              <% for (var item of phoneNumbers) { %>
-                <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
+    <div class="col-xs-12">
+      <div class="col-sm-1"></div>
+      <div class="col-sm-7">
+        <div id="get-input" class="form-inline">
+          <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
+            <div>
+              <label class="label-input" for="from-number">From number</label>
+              <select size="20" id="from-number" name="fromNumber" class="selectpicker filter-select" required>
+                <% for (var item of phoneNumbers) { %>
+                  <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
+                <% } %>
+              </select>&nbsp;&nbsp;
+              <button id="send-message" class="btn-rc">Send</button>
+              <% if (phoneNumbers.length == 0) { %>
+                <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistant!</div>
               <% } %>
-            </select>
-            <% if (phoneNumbers.length == 0) { %>
-              <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistant!</div>
-            <% } %>
-          </div>
-          <div class="block-space">
-            <label class="label-input" for="secret_access_key">To numbers</label>
-            <textarea rows="6" cols="15" id="to-numbers" onchange="updateEstimatedCost()" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
-            &nbsp;&nbsp;
-            <label class="label-column">Or, upload .csv file (single column with header row)</br>
-              <input type="file" id="attachment" name=attachment accept="text/csv" onchange="fileSelected(this)"></input>
-            </label>
-          </div>
-          <div class="block-space">
-            <label class="label-input" for="message">Message</br><div class="char-count" id="charcount">Char length: 0 char.</div></label>
-            <textarea rows="4" cols="50" id="message" oninput="countCharacter(this)" onchange="updateEstimatedCost()" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
-          </div>
-          <div class="block-space">
-            <label class="label-input warning">Estimated cost!</label>
-            <span class="cost warning"id="estimated_cost"> 0.000 USD</span>
-          </div>
-          <button id="send-message" class="btn-rc" style="display:inline">Send</button>
-        </form>
-      </div>
-      </br>
-      <div id="control_panel" style="display: none">
-        <button id="pause_resume" class="btn-rc" onclick="pause_resume()" style="display:inline">Pause</button>
-        &nbsp;&nbsp;
-        <button id="cancel" class="btn-rc" onclick="confirmCancel()" style="display:inline">Cancel</button>
-      </div>
-      <div id="progress" class="hide">
-        <span><b>Send SMS progress</b></span>&nbsp;&nbsp;
-        <img src='./img/sendprogress.gif' id="sendingAni" style='width:50px;height:30px;display: none'></img>
-        <div id="time"></div>
-        <div id="success"></div>
-        <div id="failure"></div>
-        <a id="download_json" href="javascript:downloadReport('JSON')" style="display: none">Download Detailed Report (JSON)</a>
-        <a id="download_csv" href="javascript:downloadReport('CSV')" style="display: none">Download Detailed Report (CSV)</a>
+            </div>
+            <div class="block-space">
+              <label class="label-input" for="secret_access_key">To numbers</label>
+              <textarea rows="6" cols="15" id="to-numbers" onchange="updateEstimatedCost()" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
+              &nbsp;&nbsp;
+              <label class="label-column">Or, upload .csv file (single column with header row)</br>
+                <input type="file" id="attachment" name=attachment accept="text/csv" onchange="fileSelected(this)"></input>
+              </label>
+            </div>
+            <div class="block-space">
+              <label class="label-input" for="message">Message</br><div class="char-count" id="charcount">Char length: 0 char.</div></label>
+              <textarea rows="4" cols="50" id="message" oninput="countCharacter(this)" onchange="updateEstimatedCost()" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
+            </div>
+            <hr style="margin: 2px !important"></hr>
+            <div class="block-space">
+              <label class="warning">Estimated cost:</label>
+              <span class="cost warning"id="estimated_cost"> $0.000 USD *</span>
+              <hr style="margin: 2px !important"></hr>
+              <div class="claimed">* Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS.<br/>The actual cost for sending these messages may be higher or lower.</div>
+            </div>
+          </form>
+        </div>
+        </br>
+        <div id="control_panel" style="display: none">
+          <button id="pause_resume" class="btn-rc" onclick="pause_resume()" style="display:inline">Pause</button>
+          &nbsp;&nbsp;
+          <button id="cancel" class="btn-rc" onclick="confirmCancel()" style="display:inline">Cancel</button>
+        </div>
+        <div id="progress" class="hide">
+          <span><b>Send SMS progress</b></span>&nbsp;&nbsp;
+          <img src='./img/sendprogress.gif' id="sendingAni" style='width:50px;height:30px;display: none'></img>
+          <div id="time"></div>
+          <div id="success"></div>
+          <div id="failure"></div>
+          <a id="download_json" href="javascript:downloadReport('JSON')" style="display: none">Download Detailed Report (JSON)</a>
+          <a id="download_csv" href="javascript:downloadReport('CSV')" style="display: none">Download Detailed Report (CSV)</a>
+        </div>
       </div>
     </div>
-
   </section>
   <%- include('_footer') %>
 </body>

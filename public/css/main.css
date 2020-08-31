@@ -227,10 +227,6 @@ ul > li > span {
   letter-spacing: 0.3px;
 }
 
-td{
-  vertical-align: top;
-  align-content: center;
-}
 .navbar-brand {
   font-family: 'Open Sans', sans-serif;
 }
@@ -268,6 +264,10 @@ td{
 }
 .warning{
   color: orange;
+}
+.claimed{
+  color: grey;
+  font-size: 0.8em;
 }
 .cost{
   max-width: 100px !important;

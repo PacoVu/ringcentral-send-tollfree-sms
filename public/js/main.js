@@ -1,4 +1,5 @@
 var canPoll = false
+const SMS_COST = 0.007
 function init(){
   var jsonObj = JSON.parse(window.sendReport)
   if (jsonObj.sendInProgress){
@@ -167,6 +168,7 @@ function fileSelected(elm){
     calculateEstimatedCost(directNumbers)
   }
 }
+/*
 function calculateEstimatedCost(numberOfRecipients){
   var charCount = $("#message").val().length
   if (charCount == 0) return
@@ -179,6 +181,20 @@ function calculateEstimatedCost(numberOfRecipients){
     msg = "0.000 USD."
   $("#estimated_cost").html(msg)
 }
+*/
+function calculateEstimatedCost(numberOfRecipients){
+  var charCount = $("#message").val().length
+  if (charCount == 0) return
+  var coef = charCount / 160
+  coef = Math.ceil(coef)
+  var numberOfMessages = numberOfRecipients * coef
+  var estimatedCost = numberOfMessages * SMS_COST
+  var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients.<br/>Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
+  if (numberOfRecipients == 0)
+    msg = "$0.000 USD."
+  $("#estimated_cost").html(msg)
+}
+
 function updateEstimatedCost(){
   fileSelected($("#attachment")[0])
 }
