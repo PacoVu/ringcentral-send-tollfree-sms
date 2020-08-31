@@ -96,6 +96,9 @@
                 <% } %>
               </select>&nbsp;&nbsp;
               <button id="submit" type="submit" class="btn-rc" onclick="sendBatchMessage(event)">Submit</button>
+              <% if (phoneNumbers.length == 0) { %>
+                <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistance!</div>
+              <% } %>
             </div>
             <div class="block_space">
               <input type="text" id="group_index" name="group_index" hidden value=""></input>
