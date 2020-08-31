@@ -142,24 +142,6 @@ var engine = User.prototype = {
                   var count = jsonObj.records.length
                   //console.log(JSON.stringify(jsonObj))
                   for (var record of jsonObj.records){
-                      /*
-                      if (record.paymentType == "TollFree") {
-                        if (record.usageType == "DirectNumber"){
-                          if (record.type != "FaxOnly" ){
-                            for (var feature of record.features){
-                              if (feature == "SmsSender" || feature == "CallerId"){
-                                var item = {
-                                  "format": formatPhoneNumber(record.phoneNumber),
-                                  "number": record.phoneNumber,
-                                  "type": "Toll-Free Number"
-                                }
-                                thisUser.phoneNumbers.push(item)
-                                break;
-                              }
-                            }
-                          }
-                        }
-                      }*/
                       if (record.paymentType == "TollFree") {
                         if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
                           for (var feature of record.features){
@@ -178,7 +160,7 @@ var engine = User.prototype = {
                         if (record.usageType == "DirectNumber"){
                           if (record.type != "FaxOnly" ){
                             for (var feature of record.features){
-                              if (feature == "A2pSmsSender" || feature == "CallerId"){
+                              if (feature == "A2PSmsSender" /*|| feature == "CallerId"*/){
                                 var item = {
                                   "format": formatPhoneNumber(record.phoneNumber),
                                   "number": record.phoneNumber,
