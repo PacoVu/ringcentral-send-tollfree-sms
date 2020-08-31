@@ -73,7 +73,7 @@
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>
-      <li><a href="/loadoptionpage">&nbsp;&nbsp;Option</a></li>
+      <li><a href="/loadoptionpage">&nbsp;&nbsp;Options</a></li>
       <li><span>|</span></li>
       <li><a href="/about">&nbsp;&nbsp;Help</a></li>
       <li><span>|</span></li>
@@ -81,8 +81,9 @@
     </ul>
   </nav>
   <section id='content'>
-    <div class="col-sm-3"></div>
-    <div class="col-sm-8">
+    <div class="col-xs-12">
+    <div class="col-sm-1"></div>
+    <div class="col-sm-7">
       <div id="get-input" class="form-inline">
         <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
           <div>
@@ -91,7 +92,8 @@
               <% for (var item of phoneNumbers) { %>
                 <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
               <% } %>
-            </select>
+            </select>&nbsp;&nbsp;
+            <button id="send-message" class="btn-rc">Send</button>
             <% if (phoneNumbers.length == 0) { %>
               <div class="alert">It seems your account does not have a Toll-Free SMS number. Please contact your RingCentral account manager for assistant!</div>
             <% } %>
@@ -108,11 +110,13 @@
             <label class="label-input" for="message">Message</br><div class="char-count" id="charcount">SMS length: 0 char.</div></label>
             <textarea rows="4" cols="50" id="message" oninput="countCharacter(this)" onchange="updateEstimatedCost()" name="message" class="form-control text-input" required></textarea>&nbsp;&nbsp;
           </div>
+          <hr style="margin: 2px !important"></hr>
           <div class="block-space">
-            <label class="label-input warning">Estimated cost!</label>
-            <span class="cost warning"id="estimated_cost"> 0.000 USD</span>
+            <label class="warning">Estimated cost:</label>
+            <span class="cost warning"id="estimated_cost"> $0.000 USD</span>
+            <div class="claimed">* Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS.<br/>The actual cost for sending these messages may be higher or lower.</div>
           </div>
-          <button id="send-message" class="btn-rc" style="display:inline">Send</button>
+          <!--button id="send-message" class="btn-rc" style="display:inline">Send</button-->
         </form>
       </div>
       </br>
@@ -131,7 +135,7 @@
         <a id="download_csv" href="javascript:downloadReport('CSV')" style="display: none">Download Detailed Report (CSV)</a>
       </div>
     </div>
-
+  </div>
   </section>
   <%- include('_footer') %>
 </body>

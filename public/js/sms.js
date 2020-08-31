@@ -1,4 +1,5 @@
 var canPoll = false
+const SMS_COST = 0.007
 function init(){
   var jsonObj = JSON.parse(window.sendReport)
   if (jsonObj.sendInProgress){
@@ -46,13 +47,11 @@ function disableInputs(flag){
   $("#send-message").prop("disabled", flag);
 
   if (flag){
-    //$("#get-input").hide()
     $("#send-message").toggleClass("btn")
     $("#sendingAni").css('display', 'inline');
     $("#download_json").toggleClass("hide")
     $("#download_csv").toggleClass("hide")
   }else{
-    //$("#get-input").show()
     $("#send-message").toggleClass("btn-rc")
     $("#sendingAni").css('display', 'none');
     $("#download_json").toggleClass("show")
@@ -120,7 +119,6 @@ function cancelMessageSending(){
     if (res.status == "ok"){
       canPoll = false
       disableInputs(false)
-      //alert(res.message)
     }else
       alert(res.message)
   });
@@ -172,10 +170,10 @@ function calculateEstimatedCost(numberOfRecipients){
   var coef = charCount / 160
   coef = Math.ceil(coef)
   var numberOfMessages = numberOfRecipients * coef
-  var estimatedCost = numberOfMessages * 0.007
-  var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients. This will cost you ${estimatedCost.toFixed(3)} USD.`
+  var estimatedCost = numberOfMessages * SMS_COST
+  var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients.<br/>Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
   if (numberOfRecipients == 0)
-    msg = "0.000 USD."
+    msg = "$0.000 USD."
   $("#estimated_cost").html(msg)
 }
 function updateEstimatedCost(){

@@ -180,7 +180,7 @@ function countCharacter(elm, index){
   }
   calculateEstimatedCost()
 }
-/// cost estimation
+// cost estimation
 function calculateEstimatedCost(){
   var estimatedCost = 0
   var totalRecipients = 0
@@ -195,9 +195,9 @@ function calculateEstimatedCost(){
     totalRecipients += numberOfRecipients
   }
   estimatedCost = totalMessages * SMS_COST
-  var msg = `You are about to send a total of ${totalMessages} messages to ${totalRecipients} recipients. This will cost you ${estimatedCost.toFixed(3)} USD.`
+  var msg = `You are about to send a total of ${totalMessages} messages to ${totalRecipients} recipients.<br/>Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
   if (totalMessages == 0)
-    msg = "0.000 USD."
+    msg = "$0.000 USD *."
   $("#estimated_cost").html(msg)
 }
 /// cost estimation ends
@@ -238,7 +238,7 @@ function addCustomizedMessage(e){
   var groupIndex = ($("#group_index").val() == "") ? group : $("#group_index").val() + "_" + group
   $("#group_index").val(groupIndex)
 
-  var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="removeMe(\'g_' + group + '\',' + group + ')"></img>'
+  var newGroup = '<div id="g_'+ group + '" class="group_block"><img class="corner" src="./img/close.png" onclick="deleteWarning(\'g_' + group + '\',' + group + ')"></img>'
   newGroup += '<label class="label-input">To numbers</label>'
   newGroup += '<textarea rows="4" cols="14" id="recipients_'+group+'" name="recipients_'+group+'" onchange="readFieldRecipients(this,'+group+')" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input"></textarea>'
   newGroup += '&nbsp;&nbsp;&nbsp;'
@@ -285,15 +285,7 @@ function addCustomizedMessage(e){
   currentGroup = group
   $("#recipients_"+group).focus()
 }
-/*
-function showGroup(groupNum){
-  // hide current group
-  $("#g_"+currentGroup).hide()
-  var g = "#g_"+ groupNum
-  $(g).show()
-  currentGroup = groupNum
-}
-*/
+
 function showGroup(){
   // hide current group
   var groupNum = $("#groups_list").val()
@@ -303,7 +295,15 @@ function showGroup(){
   $(g).show()
   currentGroup =  $("#groups_list option:selected").val()
 }
+
 // remove a customized group
+function deleteWarning(block, index){
+  var r = confirm("Do you really want to delete this customized message?");
+    if (r == true) {
+      removeMe(block, index)
+    }
+}
+
 function removeMe(block, index){
   $("#"+block).remove()
   var indexes = $("#group_index").val().split("_")

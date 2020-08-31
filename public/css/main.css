@@ -18,6 +18,7 @@ body {
   height: 40px;
   font-weight: bold;
 }
+
 button:focus {
   outline:0;
 }
@@ -111,12 +112,6 @@ ul > li > span {
   color: #425563;
 }
 
-.char-count {
-  display: inline;
-  font-size: 1.0em !important;
-  vertical-align: bottom;
-  font-weight: normal !important;
-}
 .text-input {
   margin-top: 10px;;
 }
@@ -222,7 +217,7 @@ ul > li > span {
     max-width: 70%; /* Max Width of the popover (depending on the container!) */
     font-family: Source Sans Pro,Arial,sans-serif;
 }
-
+/*
 #content {
   padding-left: 12px;
   padding-right: 12px;
@@ -231,7 +226,7 @@ ul > li > span {
 #button_header{
   margin-left: 12px;
 }
-
+*/
 .btn-rc {
   background-color: #0073ae;
   color: white;
@@ -245,15 +240,16 @@ ul > li > span {
   font-size: 12px;
   letter-spacing: 0.3px;
 }
-
+/*
 td{
   vertical-align: top;
   align-content: center;
 }
+*/
 .navbar-brand {
   font-family: 'Open Sans', sans-serif;
 }
-
+/*
 .column {
     float: left;
 }
@@ -275,12 +271,17 @@ td{
   width: 60%;
   margin-left: 10px;
 }
+*/
 .header{
   font-size: 1.0em;
   color: #425563;
 }
 .alert{
   color: red;
+}
+.claimed{
+  color: grey;
+  font-size: 0.8em;
 }
 .warning{
   color: orange;
@@ -298,6 +299,7 @@ td{
   vertical-align: bottom;
   font-weight: normal !important;
 }
+
 .corner {
   position: relative;
   top: 0;
@@ -325,24 +327,14 @@ td{
   margin-left: 100px;
   display: inline;
 }
-
-.scrollable {
-  height: 400px;
-  border: none;
-  padding: 5px;
-  margin: 0;
-  margin-top: 5px !important;
-  /*border-bottom: 1px solid gray;*/
-  overflow: scroll;
-}
-
+/*
 .display-right{
   float:right;
 }
 .with-border {
   border: 1px solid #f7f7f9;
 }
-
+*/
 .rc-login-footer {
   font-size: 10px;
   padding: 10px 30px;

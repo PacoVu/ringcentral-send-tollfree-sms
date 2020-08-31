@@ -75,7 +75,7 @@
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>
-      <li><a href="/loadoptionpage">&nbsp;&nbsp;Option</a></li>
+      <li><a href="/loadoptionpage">&nbsp;&nbsp;Options</a></li>
       <li><span>|</span></li>
       <li><a href="/about">&nbsp;&nbsp;Help</a></li>
       <li><span>|</span></li>
@@ -95,7 +95,7 @@
                   <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
                 <% } %>
               </select>&nbsp;&nbsp;
-              <button id="submit" type="submit" class="btn-rc" style="display:inline" onclick="sendBatchMessage(event)" >Submit</button>
+              <button id="submit" type="submit" class="btn-rc" onclick="sendBatchMessage(event)">Submit</button>
             </div>
             <div class="block_space">
               <input type="text" id="group_index" name="group_index" hidden value=""></input>
@@ -118,14 +118,16 @@
             </div>
             <hr style="margin: 2px !important"></hr>
             <div>
-              <button class="btn-noborder" onclick="addCustomizedMessage(event)"><span style="font-size:1.2em">+</span> Customized message</button>
+              <button class="btn-noborder" onclick="addCustomizedMessage(event)"><span style="font-size:1.2em">+</span> Customized messages</button>
               <select id="groups_list" onchange="showGroup()">
               </select>
             </div>
             <div id="groups"></div>
+            <hr style="margin: 2px !important"></hr>
             <div class="block-space">
-              <label class="label-input warning">Estimated cost!</label>
-              <span class="cost warning"id="estimated_cost"> 0.000 USD</span>
+              <label class="warning">Estimated cost:</label>
+              <span class="cost warning"id="estimated_cost"> $0.000 USD *</span>
+              <div class="claimed">* Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS.<br/>The actual cost for sending these messages may be higher or lower.</div>
             </div>
           </form>
         </div>
