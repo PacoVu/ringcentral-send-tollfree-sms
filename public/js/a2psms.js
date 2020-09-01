@@ -409,6 +409,7 @@ function canSendMessages() {
           if (res.status == "ok"){
             pendingBatch = true
             isPolling = false // force to start polling
+            currentBatchId = res.result.id
             switchPollResult()
             parseResultResponse(res)
           }
@@ -420,7 +421,7 @@ function canSendMessages() {
 }
 
 function parseResultResponse(resp){
-  currentBatchId = resp.result.id
+  //currentBatchId = resp.result.id
   $("#control_block").show()
   $("#status").html("Status: " + resp.result.status)
 

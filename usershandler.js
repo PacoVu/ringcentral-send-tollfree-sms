@@ -72,19 +72,25 @@ var engine = User.prototype = {
         })
     },
     loadSendSMSPage: function(req, res){
+      this.readTFSMSPhoneNumber(res)
+      /*
       res.render('sendsmspage', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneNumbers,
           sendReport: this.sendReport
         })
+      */
     },
     loadSendHighVolumeSMSPage: function(req, res){
+      this.readA2PSMSPhoneNumber(res)
+      /*
       res.render('highvolumepage', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneNumbers,
           smsBatchIds: this.smsBatchIds,
           batchResult: this.batchResult
         })
+      */
     },
     login: function(req, res, callback){
       var thisReq = req
@@ -97,6 +103,8 @@ var engine = User.prototype = {
             thisUser.setExtensionId(extensionId)
             req.session.extensionId = extensionId;
             callback(null, extensionId)
+            res.send('login success');
+
             rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   p.get('/account/~/extension/~/')
@@ -106,7 +114,7 @@ var engine = User.prototype = {
                       thisUser.accountId = jsonObj.account.id
                       var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                       thisUser.setUserName(fullName)
-                      engine.readPhoneNumber(thisUser, callback, res)
+                      //engine.readA2PSMSPhoneNumber(thisUser, callback, res)
                     })
                     .catch(function(e) {
                       console.log("Failed")
@@ -118,6 +126,7 @@ var engine = User.prototype = {
                   callback("error", thisUser.extensionId)
                 }
             })
+
           }else {
             console.log("USER HANDLER ERROR: " + thisUser.extensionId)
             callback("error", thisUser.extensionId)
@@ -128,6 +137,128 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
+    readTFSMSPhoneNumber: function(res){
+      var thisUser = this
+        this.rc_platform.getPlatform(function(err, p){
+            if (p != null){
+              thisUser.phoneNumbers = []
+              var endpoint = '/account/~/extension/~/phone-number'
+              p.get(endpoint, {
+                "perPage": 1000,
+                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
+              })
+                .then(function(response) {
+                  var jsonObj = response.json();
+                  var count = jsonObj.records.length
+                  //console.log(JSON.stringify(jsonObj))
+                  for (var record of jsonObj.records){
+                      if (record.paymentType == "TollFree") {
+                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                          for (var feature of record.features){
+                            if (feature == "SmsSender"){
+                              var item = {
+                                "format": formatPhoneNumber(record.phoneNumber),
+                                "number": record.phoneNumber,
+                                "type": "Toll-Free Number"
+                              }
+                              thisUser.phoneNumbers.push(item)
+                              break;
+                            }
+                          }
+                        }
+                      }
+                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
+                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
+                      }
+                    }
+                  //res.send('login success');
+                  res.render('sendsmspage', {
+                      userName: thisUser.getUserName(),
+                      phoneNumbers: thisUser.phoneNumbers,
+                      sendReport: thisUser.sendReport
+                    })
+                })
+                .catch(function(e) {
+                  console.log("Failed")
+                  console.error(e.message);
+                  res.send('login success');
+                });
+            }else{
+              console.error(e.message);
+              res.send('login failed');
+            }
+        })
+    },
+    readA2PSMSPhoneNumber: function(res){
+      var thisUser = this
+        this.rc_platform.getPlatform(function(err, p){
+            if (p != null){
+              thisUser.phoneNumbers = []
+              var endpoint = '/account/~/extension/~/phone-number'
+              p.get(endpoint, {
+                "perPage": 1000,
+                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
+              })
+                .then(function(response) {
+                  var jsonObj = response.json();
+                  var count = jsonObj.records.length
+                  //console.log(JSON.stringify(jsonObj))
+                  for (var record of jsonObj.records){
+                      if (record.paymentType == "TollFree") {
+                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                          for (var feature of record.features){
+                            if (feature == "A2PSmsSender"){
+                              var item = {
+                                "format": formatPhoneNumber(record.phoneNumber),
+                                "number": record.phoneNumber,
+                                "type": "Toll-Free Number"
+                              }
+                              thisUser.phoneNumbers.push(item)
+                              break;
+                            }
+                          }
+                        }
+                      }else if (record.paymentType == "Local"){
+                        if (record.usageType == "DirectNumber"){
+                          if (record.type != "FaxOnly" ){
+                            for (var feature of record.features){
+                              if (feature == "A2PSmsSender"){
+                                var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "10-DLC Number"
+                                }
+                                thisUser.phoneNumbers.push(item)
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      }
+                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
+                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
+                      }
+                    }
+                  //res.send('login success');
+                  res.render('highvolumepage', {
+                      userName: thisUser.getUserName(),
+                      phoneNumbers: thisUser.phoneNumbers,
+                      smsBatchIds: thisUser.smsBatchIds,
+                      batchResult: thisUser.batchResult
+                    })
+                })
+                .catch(function(e) {
+                  console.log("Failed")
+                  console.error(e.message);
+                  res.send('login success');
+                });
+            }else{
+              console.error(e.message);
+              res.send('login failed');
+            }
+        })
+    },
+    /*
     readPhoneNumber: function(thisUser, callback, res){
         thisUser.rc_platform.getPlatform(function(err, p){
             if (p != null){
@@ -177,7 +308,12 @@ var engine = User.prototype = {
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                     }
-                  res.send('login success');
+                  //res.send('login success');
+                  res.render('sendsmspage', {
+                      userName: thisUser.getUserName(),
+                      phoneNumbers: thisUser.phoneNumbers,
+                      sendReport: thisUser.sendReport
+                    })
                 })
                 .catch(function(e) {
                   console.log("Failed")
@@ -189,8 +325,76 @@ var engine = User.prototype = {
               res.send('login failed');
             }
         })
-
     },
+    readA2PSMSPhoneNumber: function(thisUser, callback, res){
+        thisUser.rc_platform.getPlatform(function(err, p){
+            if (p != null){
+              thisUser.phoneNumbers = []
+              var endpoint = '/account/~/extension/~/phone-number'
+              p.get(endpoint, {
+                "perPage": 1000,
+                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
+              })
+                .then(function(response) {
+                  var jsonObj = response.json();
+                  var count = jsonObj.records.length
+                  //console.log(JSON.stringify(jsonObj))
+                  for (var record of jsonObj.records){
+                      if (record.paymentType == "TollFree") {
+                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                          for (var feature of record.features){
+                            if (feature == "A2PSmsSender"){
+                              var item = {
+                                "format": formatPhoneNumber(record.phoneNumber),
+                                "number": record.phoneNumber,
+                                "type": "Toll-Free Number"
+                              }
+                              thisUser.phoneNumbers.push(item)
+                              break;
+                            }
+                          }
+                        }
+                      }else if (record.paymentType == "Local"){
+                        if (record.usageType == "DirectNumber"){
+                          if (record.type != "FaxOnly" ){
+                            for (var feature of record.features){
+                              if (feature == "A2PSmsSender"){
+                                var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "10-DLC Number"
+                                }
+                                thisUser.phoneNumbers.push(item)
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      }
+                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
+                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
+                      }
+                    }
+                  //res.send('login success');
+                  res.render('highvolumepage', {
+                      userName: this.getUserName(),
+                      phoneNumbers: this.phoneNumbers,
+                      smsBatchIds: this.smsBatchIds,
+                      batchResult: this.batchResult
+                    })
+                })
+                .catch(function(e) {
+                  console.log("Failed")
+                  console.error(e.message);
+                  res.send('login success');
+                });
+            }else{
+              console.error(e.message);
+              res.send('login failed');
+            }
+        })
+    },
+    */
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
 
@@ -277,6 +481,7 @@ var engine = User.prototype = {
                     to: [{'phoneNumber': recipient }],
                     text: thisUser.sendMessage
                   }
+                  console.log(JSON.stringify(params))
                   p.post('/account/~/extension/~/sms', params)
                     .then(function (response) {
                       var jsonObj = response.response().headers
@@ -525,7 +730,6 @@ var engine = User.prototype = {
                   time: formatSendingTime(0),
                   result: thisUser.batchResult
                 })
-              console.log("Send SMS DONE!")
             })
             .catch(function (e) {
               console.log('ERR ' + e || 'Server cannot send messages');
@@ -558,13 +762,13 @@ var engine = User.prototype = {
       var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
       if (pageToken != "")
         endpoint += "&pageToken=" + pageToken
-      //console.log(endpoint)
+      console.log(endpoint)
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.get(endpoint)
             .then(function (resp) {
               var jsonObj = resp.json()
-              console.log(JSON.stringify(jsonObj))
+              //console.log("_getBatchReport: " + JSON.stringify(jsonObj))
               thisUser.batchFullReport.push(jsonObj.messages)
               for (var message of jsonObj.messages){
                 //console.log(message)
@@ -615,37 +819,11 @@ var engine = User.prototype = {
     getBatchResult: function(req, res){
         var thisUser = this
         var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
-/*
-        // FOR TESTING OFFLINE
-        this.testCount += 50
-        var status = "Processing"
-        if (this.testCount >= 10000)
-          status = "Completed"
-        var jsonObj = { id: 'e445d503-1c8f-4a8b-a4a9-76b5f2249c87',
-                  from: '+18884684459',
-                  batchSize: 10000,
-                  processedCount: this.testCount,
-                  status: status,
-                  createdAt: '2020-03-28T01:37:52.783Z',
-                  lastUpdatedAt: '2020-03-28T01:37:54.117Z'
-                }
-        var createdAt = new Date(jsonObj.createdAt).getTime()
-        var lastUpdatedAt = new Date(jsonObj.lastUpdatedAt).getTime() + (this.testCount * 1000)
-
-        var processingTime = (lastUpdatedAt - createdAt) / 1000
-
-        res.send({
-            status:"ok",
-            time: formatSendingTime(processingTime), //`${hour}:${mins}:${secs}`,
-            result: jsonObj
-          })
-        return // TEST OFFLINE END
-*/
         var p = this.rc_platform.getPlatform(function(err, p){
           if (p != null){
             p.get(endpoint)
               .then(function (resp) {
-                console.log(resp.json())
+                //console.log("getBatchResult: " + JSON.stringify(resp.json()))
                 var jsonObj = resp.json()
                 var processingTime = (Date.now() - thisUser.StartTimestamp) / 1000
                 thisUser.batchResult = jsonObj
