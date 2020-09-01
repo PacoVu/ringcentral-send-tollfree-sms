@@ -145,7 +145,7 @@ var engine = User.prototype = {
                       if (record.paymentType == "TollFree") {
                         if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
                           for (var feature of record.features){
-                            if (feature == "SmsSender"){
+                            if (feature == "SmsSender" || feature == "A2PSmsSender"){
                               var item = {
                                 "format": formatPhoneNumber(record.phoneNumber),
                                 "number": record.phoneNumber,
