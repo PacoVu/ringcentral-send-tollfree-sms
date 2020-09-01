@@ -160,7 +160,7 @@ var engine = User.prototype = {
                         if (record.usageType == "DirectNumber"){
                           if (record.type != "FaxOnly" ){
                             for (var feature of record.features){
-                              if (feature == "A2PSmsSender" /*|| feature == "CallerId"*/){
+                              if (feature == "A2PSmsSender"){
                                 var item = {
                                   "format": formatPhoneNumber(record.phoneNumber),
                                   "number": record.phoneNumber,
@@ -502,85 +502,46 @@ var engine = User.prototype = {
         var tempFile = currentFolder + "/uploads/" + file.filename
         fs.unlinkSync(tempFile);
       }
-      /*
-      console.log(JSON.stringify(requestBody))
-      res.send({
-          status:"ok",
-          time: '00:00:00',
-          result: this.batchResult
-        })
-      return
-      */
-      //// TEST END
-/*
-        this.recipientArr = []
-        var body = req.body
-        var requestBody = {
-            from: body.from,
-            text: body.text,
-            messages: []
+      if (body.expiresIn && body.expiresIn > 0){
+        requestBody["expiresIn"] = body.expiresIn
+      }
+      if (body.sendAt && body.sendAt != ""){
+        requestBody["sendAt"] = body.sendAt + ":00Z"
+      }
+      //console.log(JSON.stringify(requestBody))
+      var thisUser = this
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.post("/account/~/a2p-sms/batch", requestBody)
+            .then(function (resp) {
+              console.log(resp.json())
+              var jsonObj = resp.json()
+              thisUser.StartTimestamp = Date.now()
+              thisUser.smsBatchIds.push(resp.json().id)
+              thisUser.batchResult = jsonObj
+              console.log("Send SMS DONE!")
+              res.send({
+                  status:"ok",
+                  time: formatSendingTime(0),
+                  result: thisUser.batchResult
+                })
+              console.log("Send SMS DONE!")
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e || 'Server cannot send messages');
+              res.send({
+                  status:"error",
+                  result: e.message
+                })
+            });
+        }else{
+          console.log("platform issue")
+          res.send({
+              status:"error",
+              result: e.message
+            })
         }
-        var mainRecipients = body.main_recipients.trim().split("\n")
-        for (var recipient of mainRecipients){
-          var item = {
-            to:[recipient]
-          }
-          requestBody.messages.push(item)
-        }
-        var sub_recipients = JSON.parse(body.sub_recipients)
-        if (sub_recipients.length){
-          for (var item of sub_recipients){
-            var subRecipients = item.to.trim().split("\n")
-            for (var recipient of subRecipients){
-              var group = {
-                to: [recipient],
-                text: item.text
-              }
-              requestBody.messages.push(group)
-            }
-          }
-        }
-*/
-        if (body.expiresIn && body.expiresIn > 0){
-          requestBody["expiresIn"] = body.expiresIn
-        }
-        if (body.sendAt && body.sendAt != ""){
-          requestBody["sendAt"] = body.sendAt + ":00Z"
-        }
-        console.log(JSON.stringify(requestBody))
-        var thisUser = this
-        var p = this.rc_platform.getPlatform(function(err, p){
-          if (p != null){
-            p.post("/account/~/a2p-sms/batch", requestBody)
-              .then(function (resp) {
-                console.log(resp.json())
-                var jsonObj = resp.json()
-                thisUser.StartTimestamp = Date.now()
-                thisUser.smsBatchIds.push(resp.json().id)
-                thisUser.batchResult = jsonObj
-                console.log("Send SMS DONE!")
-                res.send({
-                    status:"ok",
-                    time: formatSendingTime(0),
-                    result: thisUser.batchResult
-                  })
-                console.log("Send SMS DONE!")
-              })
-              .catch(function (e) {
-                console.log('ERR ' + e || 'Server cannot send messages');
-                res.send({
-                    status:"error",
-                    result: e.message
-                  })
-              });
-          }else{
-            console.log("platform issue")
-            res.send({
-                status:"error",
-                result: e.message
-              })
-          }
-        })
+      })
     },
     getBatchReport: function(res, batchId, pageToken){
       this.batchReport.Queued_Count = 0
@@ -603,7 +564,7 @@ var engine = User.prototype = {
           p.get(endpoint)
             .then(function (resp) {
               var jsonObj = resp.json()
-              //console.log(JSON.stringify(jsonObj))
+              console.log(JSON.stringify(jsonObj))
               thisUser.batchFullReport.push(jsonObj.messages)
               for (var message of jsonObj.messages){
                 //console.log(message)
@@ -614,9 +575,9 @@ var engine = User.prototype = {
                   thisUser.batchReport.Sent_Count++
                 else if (message.messageStatus.toLowerCase() == "delivered")
                   thisUser.batchReport.Delivered_Count++
-                else if (message.messageStatus.toLowerCase() == "delivery_failed"){
+                else if (message.messageStatus.toLowerCase() == "deliveryfailed"){
                   thisUser.batchReport.Delivered_Failed_Count++
-                }else if (message.messageStatus.toLowerCase() == "sending_failed"){
+                }else if (message.messageStatus.toLowerCase() == "sendingfailed"){
                   thisUser.batchReport.Sending_Failed_Count++
                 }else{
                   thisUser.batchReport.Unknown_Count++
