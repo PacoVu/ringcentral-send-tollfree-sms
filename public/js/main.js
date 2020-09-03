@@ -1,5 +1,7 @@
 var canPoll = false
 const SMS_COST = 0.007
+const SMS_SEGMENT_LEN = 153
+const SMS_MAX_LEN = 160
 function init(){
   var jsonObj = JSON.parse(window.sendReport)
   if (jsonObj.sendInProgress){
@@ -185,8 +187,11 @@ function calculateEstimatedCost(numberOfRecipients){
 function calculateEstimatedCost(numberOfRecipients){
   var charCount = $("#message").val().length
   if (charCount == 0) return
-  var coef = charCount / 160
-  coef = Math.ceil(coef)
+  var coef = 1
+  if (charCount > SMS_MAX_LEN){
+    coef = charCount / SMS_SEGMENT_LEN
+    coef = Math.ceil(coef)
+  }
   var numberOfMessages = numberOfRecipients * coef
   var estimatedCost = numberOfMessages * SMS_COST
   var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients.<br/>Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
