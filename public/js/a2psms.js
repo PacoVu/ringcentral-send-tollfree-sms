@@ -2,6 +2,8 @@ var currentBatchId = ""
 var pendingBatch = false
 var isPolling = false
 const SMS_COST = 0.007
+const SMS_SEGMENT_LEN = 153
+const SMS_MAX_LEN = 160
 function init(){
   var jsonObj = JSON.parse(window.batchResult)
   if (jsonObj.status == "Processing" && jsonObj.id != ""){
@@ -188,8 +190,11 @@ function calculateEstimatedCost(){
   for (var g of groups){
     var numberOfRecipients = g.fieldRecipients + g.fileRecipients
     if (g.charCount == 0) continue
-    var coef = g.charCount / 160
-    coef = Math.ceil(coef)
+    var coef = 1
+    if (g.charCount > SMS_MAX_LEN){
+      coef = g.charCount / SMS_SEGMENT_LEN
+      coef = Math.ceil(coef)
+    }
     var numberOfMessages = numberOfRecipients * coef
     totalMessages += numberOfMessages
     totalRecipients += numberOfRecipients
