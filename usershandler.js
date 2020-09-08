@@ -73,24 +73,9 @@ var engine = User.prototype = {
     },
     loadSendSMSPage: function(req, res){
       this.readTFSMSPhoneNumber(res)
-      /*
-      res.render('sendsmspage', {
-          userName: this.getUserName(),
-          phoneNumbers: this.phoneNumbers,
-          sendReport: this.sendReport
-        })
-      */
     },
     loadSendHighVolumeSMSPage: function(req, res){
       this.readA2PSMSPhoneNumber(res)
-      /*
-      res.render('highvolumepage', {
-          userName: this.getUserName(),
-          phoneNumbers: this.phoneNumbers,
-          smsBatchIds: this.smsBatchIds,
-          batchResult: this.batchResult
-        })
-      */
     },
     login: function(req, res, callback){
       var thisReq = req
@@ -110,11 +95,9 @@ var engine = User.prototype = {
                   p.get('/account/~/extension/~/')
                     .then(function(response) {
                       var jsonObj = response.json();
-                      //thisUser.rc_platform.setAccountId(jsonObj.account.id)
                       thisUser.accountId = jsonObj.account.id
                       var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
                       thisUser.setUserName(fullName)
-                      //engine.readA2PSMSPhoneNumber(thisUser, callback, res)
                     })
                     .catch(function(e) {
                       console.log("Failed")
@@ -239,8 +222,7 @@ var engine = User.prototype = {
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                     }
-                  //res.send('login success');
-                  res.render('highvolumepage', {
+                    res.render('highvolumepage', {
                       userName: thisUser.getUserName(),
                       phoneNumbers: thisUser.phoneNumbers,
                       smsBatchIds: thisUser.smsBatchIds,
