@@ -185,7 +185,8 @@ var engine = User.prototype = {
                 .then(function(response) {
                   var jsonObj = response.json();
                   var count = jsonObj.records.length
-                  //console.log(JSON.stringify(jsonObj))
+                  console.log(JSON.stringify(jsonObj))
+                  /*
                   for (var record of jsonObj.records){
                       if (record.paymentType == "TollFree") {
                         if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
@@ -222,6 +223,27 @@ var engine = User.prototype = {
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                     }
+                    */
+                    for (var record of jsonObj.records){
+                      for (var feature of record.features){
+                        if (feature == "A2PSmsSender"){
+                          var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "10-DLC"
+                          }
+                          if (record.paymentType == "TollFree")
+                            item.type = "Toll-Free"
+                          thisUser.phoneNumbers.push(item)
+                          break;
+                        }
+                      }
+                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
+                          thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
+                          console.log(thisUser.mainCompanyNumber)
+                      }
+                    }
+
                     res.render('highvolumepage', {
                       userName: thisUser.getUserName(),
                       phoneNumbers: thisUser.phoneNumbers,
@@ -690,12 +712,13 @@ var engine = User.prototype = {
         fs.unlinkSync(tempFile);
       }
       if (body.expiresIn && body.expiresIn > 0){
-        requestBody["expiresIn"] = body.expiresIn
+        requestBody["expiresIn"] = parseInt(body.expiresIn)
       }
       if (body.sendAt && body.sendAt != ""){
         requestBody["sendAt"] = body.sendAt + ":00Z"
       }
-      //console.log(JSON.stringify(requestBody))
+      console.log(body.sendAt)
+      console.log(JSON.stringify(requestBody))
       var thisUser = this
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
@@ -744,15 +767,15 @@ var engine = User.prototype = {
       var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
       if (pageToken != "")
         endpoint += "&pageToken=" + pageToken
-      console.log(endpoint)
+      //console.log(endpoint)
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.get(endpoint)
             .then(function (resp) {
               var jsonObj = resp.json()
               //console.log("_getBatchReport: " + JSON.stringify(jsonObj))
-              thisUser.batchFullReport.push(jsonObj.messages)
-              for (var message of jsonObj.messages){
+              thisUser.batchFullReport.push(jsonObj.records)
+              for (var message of jsonObj.records){ // used to be .messages
                 //console.log(message)
                 //console.log("========")
                 if (message.messageStatus.toLowerCase() == "queued")
