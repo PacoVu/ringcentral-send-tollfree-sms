@@ -154,7 +154,6 @@ var engine = User.prototype = {
                         thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                       }
                     }
-                  //res.send('login success');
                   res.render('sendsmspage', {
                       userName: thisUser.getUserName(),
                       phoneNumbers: thisUser.phoneNumbers,
@@ -185,7 +184,7 @@ var engine = User.prototype = {
                 .then(function(response) {
                   var jsonObj = response.json();
                   var count = jsonObj.records.length
-                  console.log(JSON.stringify(jsonObj))
+                  //console.log(JSON.stringify(jsonObj))
                   /*
                   for (var record of jsonObj.records){
                       if (record.paymentType == "TollFree") {
@@ -225,6 +224,8 @@ var engine = User.prototype = {
                     }
                     */
                     for (var record of jsonObj.records){
+                      //console.log(JSON.stringify(record))
+                      //console.log("=====")
                       for (var feature of record.features){
                         if (feature == "A2PSmsSender"){
                           var item = {
@@ -262,143 +263,6 @@ var engine = User.prototype = {
             }
         })
     },
-    /*
-    readPhoneNumber: function(thisUser, callback, res){
-        thisUser.rc_platform.getPlatform(function(err, p){
-            if (p != null){
-              thisUser.phoneNumbers = []
-              var endpoint = '/account/~/extension/~/phone-number'
-              p.get(endpoint, {
-                "perPage": 1000,
-                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
-              })
-                .then(function(response) {
-                  var jsonObj = response.json();
-                  var count = jsonObj.records.length
-                  //console.log(JSON.stringify(jsonObj))
-                  for (var record of jsonObj.records){
-                      if (record.paymentType == "TollFree") {
-                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
-                          for (var feature of record.features){
-                            if (feature == "SmsSender" || feature == "A2PSmsSender"){
-                              var item = {
-                                "format": formatPhoneNumber(record.phoneNumber),
-                                "number": record.phoneNumber,
-                                "type": "Toll-Free Number"
-                              }
-                              thisUser.phoneNumbers.push(item)
-                              break;
-                            }
-                          }
-                        }
-                      }else if (record.paymentType == "Local"){
-                        if (record.usageType == "DirectNumber"){
-                          if (record.type != "FaxOnly" ){
-                            for (var feature of record.features){
-                              if (feature == "A2PSmsSender"){
-                                var item = {
-                                  "format": formatPhoneNumber(record.phoneNumber),
-                                  "number": record.phoneNumber,
-                                  "type": "10-DLC Number"
-                                }
-                                thisUser.phoneNumbers.push(item)
-                                break;
-                              }
-                            }
-                          }
-                        }
-                      }
-                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
-                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
-                      }
-                    }
-                  //res.send('login success');
-                  res.render('sendsmspage', {
-                      userName: thisUser.getUserName(),
-                      phoneNumbers: thisUser.phoneNumbers,
-                      sendReport: thisUser.sendReport
-                    })
-                })
-                .catch(function(e) {
-                  console.log("Failed")
-                  console.error(e.message);
-                  res.send('login success');
-                });
-            }else{
-              console.error(e.message);
-              res.send('login failed');
-            }
-        })
-    },
-    readA2PSMSPhoneNumber: function(thisUser, callback, res){
-        thisUser.rc_platform.getPlatform(function(err, p){
-            if (p != null){
-              thisUser.phoneNumbers = []
-              var endpoint = '/account/~/extension/~/phone-number'
-              p.get(endpoint, {
-                "perPage": 1000,
-                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
-              })
-                .then(function(response) {
-                  var jsonObj = response.json();
-                  var count = jsonObj.records.length
-                  //console.log(JSON.stringify(jsonObj))
-                  for (var record of jsonObj.records){
-                      if (record.paymentType == "TollFree") {
-                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
-                          for (var feature of record.features){
-                            if (feature == "A2PSmsSender"){
-                              var item = {
-                                "format": formatPhoneNumber(record.phoneNumber),
-                                "number": record.phoneNumber,
-                                "type": "Toll-Free Number"
-                              }
-                              thisUser.phoneNumbers.push(item)
-                              break;
-                            }
-                          }
-                        }
-                      }else if (record.paymentType == "Local"){
-                        if (record.usageType == "DirectNumber"){
-                          if (record.type != "FaxOnly" ){
-                            for (var feature of record.features){
-                              if (feature == "A2PSmsSender"){
-                                var item = {
-                                  "format": formatPhoneNumber(record.phoneNumber),
-                                  "number": record.phoneNumber,
-                                  "type": "10-DLC Number"
-                                }
-                                thisUser.phoneNumbers.push(item)
-                                break;
-                              }
-                            }
-                          }
-                        }
-                      }
-                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
-                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
-                      }
-                    }
-                  //res.send('login success');
-                  res.render('highvolumepage', {
-                      userName: this.getUserName(),
-                      phoneNumbers: this.phoneNumbers,
-                      smsBatchIds: this.smsBatchIds,
-                      batchResult: this.batchResult
-                    })
-                })
-                .catch(function(e) {
-                  console.log("Failed")
-                  console.error(e.message);
-                  res.send('login success');
-                });
-            }else{
-              console.error(e.message);
-              res.send('login failed');
-            }
-        })
-    },
-    */
     sendSMSMessageSync: function(req, res){
         this.recipientArr = []
 
@@ -464,20 +328,6 @@ var engine = User.prototype = {
             var unsentCount = totalCount - thisUser.index
 
             var timeLeft = formatEstimatedTimeLeft(unsentCount * (thisUser.delayInterval/1000))
-            /*
-            var remainMinutesToSend = (unsentCount * (thisUser.delayInterval/1000)) / 60
-            var timeLeft = "00 hour, "
-            if (remainMinutesToSend >= 60){
-              timeLeft = Math.floor((remainMinutesToSend / 60)) + " hours and "
-              remainMinutesToSend %= 60
-              timeLeft += Math.ceil(remainMinutesToSend).toString() + " minutes."
-            }else if (remainMinutesToSend < 1){
-              var round = Number(remainMinutesToSend).toFixed(2);
-              timeLeft = (round * 60) + " seconds."
-            }else{
-              timeLeft = Math.ceil(remainMinutesToSend).toString() + " minutes."
-            }
-            */
             thisUser.rc_platform.getPlatform(function(err, p){
                 if (p != null){
                   var params = {
@@ -489,20 +339,6 @@ var engine = User.prototype = {
                   p.post('/account/~/extension/~/sms', params)
                     .then(function (response) {
                       var jsonObj = response.response().headers
-                      /*
-                      console.log("limitLimit " + jsonObj['_headers']['x-rate-limit-limit'][0])
-                      console.log("limitRemaining " + jsonObj['_headers']['x-rate-limit-remaining'][0])
-                      console.log("limitWindow" + jsonObj['_headers']['x-rate-limit-window'][0])
-                      var limitLimit = parseInt(jsonObj['_headers']['x-rate-limit-limit'][0])
-                      var limitRemaining = parseInt(jsonObj['_headers']['x-rate-limit-remaining'][0])
-                      var limitWindow = parseInt(jsonObj['_headers']['x-rate-limit-window'][0])
-                      if (limitRemaining == 0){
-                        console.log("out of limit")
-                          thisUser.delayInterval = 60000
-                      }else
-                          thisUser.delayInterval = ((limitWindow/limitLimit) * 1000) + 100
-                      console.log(thisUser.delayInterval)
-                      */
                       var jsonObj = response.json()
                       var item = {
                         "id": jsonObj.id,
@@ -714,11 +550,11 @@ var engine = User.prototype = {
       if (body.expiresIn && body.expiresIn > 0){
         requestBody["expiresIn"] = parseInt(body.expiresIn)
       }
-      if (body.sendAt && body.sendAt != ""){
-        requestBody["sendAt"] = body.sendAt + ":00Z"
+      if (body.scheduledAt && body.scheduledAt != ""){
+        requestBody["scheduledAt"] = body.scheduledAt + ":00Z"
       }
-      console.log(body.sendAt)
-      console.log(JSON.stringify(requestBody))
+      //console.log(body.scheduledAt)
+      //console.log(JSON.stringify(requestBody))
       var thisUser = this
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
