@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>RingCentral Toll-Free SMS</title>
+    <title>RingCentral High Volume SMS</title>
     <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="shortcut icon">
     <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="icon">
 
@@ -15,20 +15,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.3/css/bootstrap-select.min.css">
     <link rel="stylesheet" type="text/css" href="css/main.css">
     <link rel="stylesheet" type="text/css" href="css/ui.css">
-    <!--
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.2.0/js/bootstrap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.3/js/bootstrap-select.min.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap3-dialog/1.34.7/js/bootstrap-dialog.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap3-dialog/1.34.7/css/bootstrap-dialog.min.css">
-    -->
 </head>
 <body onload="init()">
 
   <nav id="menu_header" class="navbar navbar-default no-border">
     <span class="left-middle-align">
       <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
-      <span class="title">Send Toll-Free SMS</span>
+      <span class="title">High Volume SMS</span>
     </span>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>
@@ -41,12 +35,26 @@
     <div class="col-sm-3"></div>
     <div class="col-sm-9">
       <!--
-      <button class="btn-rc" onclick="loadClassicSMSPage();">Send SMS with the normal SMS API</button>
+      <button class="btn-rc" onclick="loadClassicSMSPage();">Send SMS with the P2P SMS API (Up to 56K per day)</button>
       <button class="btn-rc" onclick="loadHighVolumeSMSPage();">Send SMS with the High Volume SMS API</button>
       -->
-      <h2>Options</h2>
-      <div>1. <a href="/loadsmspage">Send SMS using the normal SMS API</a></div>
-      <div>2. <a href="/loada2psmspage">Send SMS using the High Volume SMS API</a></div>
+      <% if (lowVolume == false && highVolume == false) { %>
+        <div class="alert">It seems your account does not have a phone number which is provisioned for High Volume SMS. Please follow the instructions below to acquire a number:</div>
+        <ol>
+          <li>Login to your <a href='https://service.ringcentral.com'>account online Web portal</a> and choose or purchase a number. Select either the "Local" or "TollFree" type.</li>
+          <li>Fill out the request form <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Request Form</a>.</li>
+        </ol>
+        <div>Note: You can copy this text "Use RingCentral demo app" and paste into the <b>Application Client ID(s) to enable</b> field in the form!</div>
+      <% } else { %>
+        <h2>Options</h2>
+        <% if (lowVolume == true && highVolume == true) { %>
+        <div>1. <a href="/loadsmspage">Send Classic Toll-Free SMS (up to 56K per day)</a></div>
+        <div>2. <a href="/loada2psmspage">Send High Volume SMS (up to 250K per day)</a></div>
+        <% } else if (lowVolume == true && highVolume ==  false) { %>
+        <div>1. <a href="/loadsmspage">Send Classic Toll-Free SMS (up to 56K per day)</a></div>
+        <div>2. <a target="_blank" href="https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html">Send Request for Provisioning High Volume SMS (up to 250K per day)</a></div>
+        <% } %>
+      <% } %>
     </div>
 
   </section>

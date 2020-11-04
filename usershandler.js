@@ -9,7 +9,8 @@ function User(id, mode) {
   this.extensionId = 0;
   this.accountId = 0;
   this.userName = ""
-  this.phoneNumbers = []
+  this.phoneHVNumbers = []
+  this.phoneTFNumbers = []
   this.sendReport = {
       sendInProgress: false,
       successCount: "Sending 0/0",
@@ -67,15 +68,29 @@ var engine = User.prototype = {
       return this.rc_platform.getSDKPlatform()
     },
     loadOptionPage: function(req, res){
+      this.readA2PSMSPhoneNumber(res)
+      /*
       res.render('main', {
           userName: this.getUserName()
-        })
+      })
+      */
     },
     loadSendSMSPage: function(req, res){
-      this.readTFSMSPhoneNumber(res)
+      //this.readTFSMSPhoneNumber(res)
+      res.render('sendsmspage', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneTFNumbers,
+        sendReport: this.sendReport
+      })
     },
     loadSendHighVolumeSMSPage: function(req, res){
-      this.readA2PSMSPhoneNumber(res)
+      //this.readA2PSMSPhoneNumber(res)
+      res.render('highvolumepage', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers,
+        smsBatchIds: this.smsBatchIds,
+        batchResult: this.batchResult
+      })
     },
     login: function(req, res, callback){
       var thisReq = req
@@ -120,62 +135,12 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
-    readTFSMSPhoneNumber: function(res){
-      var thisUser = this
-        this.rc_platform.getPlatform(function(err, p){
-            if (p != null){
-              thisUser.phoneNumbers = []
-              var endpoint = '/account/~/extension/~/phone-number'
-              p.get(endpoint, {
-                "perPage": 1000,
-                "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
-              })
-                .then(function(response) {
-                  var jsonObj = response.json();
-                  var count = jsonObj.records.length
-                  //console.log(JSON.stringify(jsonObj))
-                  for (var record of jsonObj.records){
-                      if (record.paymentType == "TollFree") {
-                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
-                          for (var feature of record.features){
-                            if (feature == "SmsSender"){
-                              var item = {
-                                "format": formatPhoneNumber(record.phoneNumber),
-                                "number": record.phoneNumber,
-                                "type": "Toll-Free Number"
-                              }
-                              thisUser.phoneNumbers.push(item)
-                              break;
-                            }
-                          }
-                        }
-                      }
-                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
-                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
-                      }
-                    }
-                  res.render('sendsmspage', {
-                      userName: thisUser.getUserName(),
-                      phoneNumbers: thisUser.phoneNumbers,
-                      sendReport: thisUser.sendReport
-                    })
-                })
-                .catch(function(e) {
-                  console.log("Failed")
-                  console.error(e.message);
-                  res.send('login success');
-                });
-            }else{
-              console.error(e.message);
-              res.send('login failed');
-            }
-        })
-    },
     readA2PSMSPhoneNumber: function(res){
       var thisUser = this
         this.rc_platform.getPlatform(function(err, p){
             if (p != null){
-              thisUser.phoneNumbers = []
+              thisUser.phoneHVNumbers = []
+              thisUser.phoneTFNumbers = []
               var endpoint = '/account/~/extension/~/phone-number'
               p.get(endpoint, {
                 "perPage": 1000,
@@ -185,47 +150,7 @@ var engine = User.prototype = {
                   var jsonObj = response.json();
                   var count = jsonObj.records.length
                   //console.log(JSON.stringify(jsonObj))
-                  /*
-                  for (var record of jsonObj.records){
-                      if (record.paymentType == "TollFree") {
-                        if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
-                          for (var feature of record.features){
-                            if (feature == "A2PSmsSender"){
-                              var item = {
-                                "format": formatPhoneNumber(record.phoneNumber),
-                                "number": record.phoneNumber,
-                                "type": "Toll-Free Number"
-                              }
-                              thisUser.phoneNumbers.push(item)
-                              break;
-                            }
-                          }
-                        }
-                      }else if (record.paymentType == "Local"){
-                        if (record.usageType == "DirectNumber"){
-                          if (record.type != "FaxOnly" ){
-                            for (var feature of record.features){
-                              if (feature == "A2PSmsSender"){
-                                var item = {
-                                  "format": formatPhoneNumber(record.phoneNumber),
-                                  "number": record.phoneNumber,
-                                  "type": "10-DLC Number"
-                                }
-                                thisUser.phoneNumbers.push(item)
-                                break;
-                              }
-                            }
-                          }
-                        }
-                      }
-                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
-                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
-                      }
-                    }
-                    */
                     for (var record of jsonObj.records){
-                      //console.log(JSON.stringify(record))
-                      //console.log("=====")
                       for (var feature of record.features){
                         if (feature == "A2PSmsSender"){
                           var item = {
@@ -235,8 +160,20 @@ var engine = User.prototype = {
                           }
                           if (record.paymentType == "TollFree")
                             item.type = "Toll-Free"
-                          thisUser.phoneNumbers.push(item)
+                          thisUser.phoneHVNumbers.push(item)
                           break;
+                        }else if (feature == "SmsSender"){
+                          if (record.paymentType == "TollFree") {
+                            if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                              var item = {
+                                    "format": formatPhoneNumber(record.phoneNumber),
+                                    "number": record.phoneNumber,
+                                    "type": "Toll-Free Number"
+                              }
+                              //thisUser.phoneTFNumbers.push(item)
+                              break;
+                            }
+                          }
                         }
                       }
                       if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
@@ -244,13 +181,44 @@ var engine = User.prototype = {
                           console.log(thisUser.mainCompanyNumber)
                       }
                     }
-
-                    res.render('highvolumepage', {
-                      userName: thisUser.getUserName(),
-                      phoneNumbers: thisUser.phoneNumbers,
-                      smsBatchIds: thisUser.smsBatchIds,
-                      batchResult: thisUser.batchResult
-                    })
+                    // decide what page to load
+                    if (thisUser.phoneHVNumbers.length && thisUser.phoneTFNumbers.length){
+                      // launch option page
+                      res.render('main', {
+                        userName: thisUser.getUserName(),
+                        lowVolume: true,
+                        highVolume: true
+                      })
+                    }else if (thisUser.phoneHVNumbers.length){
+                      // launch high volume page
+                      res.render('highvolumepage', {
+                        userName: thisUser.getUserName(),
+                        phoneNumbers: thisUser.phoneHVNumbers,
+                        smsBatchIds: thisUser.smsBatchIds,
+                        batchResult: thisUser.batchResult
+                      })
+                    }else if (thisUser.phoneTFNumbers.length){
+                      /*
+                      // launch classic SMS page
+                      res.render('sendsmspage', {
+                        userName: thisUser.getUserName(),
+                        phoneNumbers: thisUser.phoneTFNumbers,
+                        sendReport: thisUser.sendReport
+                      })
+                      */
+                      res.render('main', {
+                        userName: thisUser.getUserName(),
+                        lowVolume: true,
+                        highVolume: false
+                      })
+                    }else{
+                      // launch info page
+                      res.render('main', {
+                        userName: thisUser.getUserName(),
+                        lowVolume: false,
+                        highVolume: false
+                      })
+                    }
                 })
                 .catch(function(e) {
                   console.log("Failed")
@@ -547,12 +515,14 @@ var engine = User.prototype = {
         var tempFile = currentFolder + "/uploads/" + file.filename
         fs.unlinkSync(tempFile);
       }
-      if (body.expiresIn && body.expiresIn > 0){
+      /*
+      if (body.hasOwnProperty('expiresIn') && body.expiresIn > 0){
         requestBody["expiresIn"] = parseInt(body.expiresIn)
       }
-      if (body.scheduledAt && body.scheduledAt != ""){
-        requestBody["scheduledAt"] = body.scheduledAt + ":00Z"
+      if (body.hasOwnProperty('sendAt') && body.scheduledAt != ""){
+        requestBody["sendAt"] = body.scheduledAt + ":00Z"
       }
+      */
       //console.log(body.scheduledAt)
       //console.log(JSON.stringify(requestBody))
       var thisUser = this
@@ -887,9 +857,12 @@ function post_message_to_group(params, mainCompanyNumber, accountId){
     "title": "SMS Toll-Free app user feedback - " + params.type,
     "body": message
   }
+  //old: https://hooks.glip.com/webhook/b70b8d8d-2dbb-4a1f-9f99-5a587954b425
+  // ab875aa6-8460-4be2-91d7-9119484b4ed3
+  // new: https://hooks.glip.com/webhook/400b279f-97ba-42e4-a886-e7c1c6c79dee
   var post_options = {
       host: "hooks.glip.com",
-      path: "/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3",
+      path: "/webhook/400b279f-97ba-42e4-a886-e7c1c6c79dee",
       method: "POST",
       headers: {
         'Content-Type': 'application/json'

@@ -63,7 +63,8 @@ app.get('/index', function (req, res) {
     console.log('logout from here?')
     router.logout(req, res)
   }else {
-    res.render('index')
+    //res.render('index')
+    router.loadSendHighVolumeSMSPage(req, res)
   }
 })
 
@@ -76,6 +77,7 @@ app.get('/loadoptionpage', function (req, res) {
   console.log('loadOptionPage')
   if (req.session.extensionId != 0)
     router.loadOptionPage(req, res)
+    //router.loadSendHighVolumeSMSPage(req, res)
   else{
     res.render('index')
   }

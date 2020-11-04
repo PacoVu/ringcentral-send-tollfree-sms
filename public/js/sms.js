@@ -236,3 +236,7 @@ function submitFeedback(params){
   });
   return true
 }
+
+function launchRequestApp(){
+  window.open("https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html")
+}
