@@ -170,7 +170,7 @@ var engine = User.prototype = {
                                     "number": record.phoneNumber,
                                     "type": "Toll-Free Number"
                               }
-                              //thisUser.phoneTFNumbers.push(item)
+                              thisUser.phoneTFNumbers.push(item)
                               break;
                             }
                           }
