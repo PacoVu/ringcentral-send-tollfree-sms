@@ -266,7 +266,7 @@ var engine = User.prototype = {
         }
         res.render('sendsmspage', {
             userName: this.getUserName(),
-            phoneNumbers: this.phoneNumbers,
+            phoneNumbers: this.phoneTFNumbers,
             sendReport: this.sendReport
           })
         if (this.recipientArr.length > 0){

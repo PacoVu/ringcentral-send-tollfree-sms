@@ -170,10 +170,11 @@ function calculateEstimatedCost(numberOfRecipients){
   var charCount = $("#message").val().length
   if (charCount == 0) return
   var coef = 1
-  if (g.charCount > SMS_MAX_LEN){
+  if (charCount > SMS_MAX_LEN){
     coef = g.charCount / SMS_SEGMENT_LEN
     coef = Math.ceil(coef)
   }
+
   var numberOfMessages = numberOfRecipients * coef
   var estimatedCost = numberOfMessages * SMS_COST
   var msg = `You are about to send a total of ${numberOfMessages} messages to ${numberOfRecipients} recipients.<br/>Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
