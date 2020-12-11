@@ -68,7 +68,6 @@ app.get('/login', function (req, res) {
 })
 
 app.get('/logout', function (req, res) {
-  console.log('logout why here?')
   router.logout(req, res)
 })
 

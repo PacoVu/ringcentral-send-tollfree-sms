@@ -370,7 +370,6 @@ var engine = User.prototype = {
               thisUser.StartTimestamp = Date.now()
               thisUser.smsBatchIds.push(resp.json().id)
               thisUser.batchResult = jsonObj
-              console.log(JSON.stringify(jsonObj))
               thisUser.addBatchToDB(campaignName, jsonObj)
               res.send({
                   status:"ok",
@@ -680,7 +679,7 @@ var engine = User.prototype = {
                     to: [{'phoneNumber': recipient }],
                     text: thisUser.sendMessage
                   }
-                  console.log(JSON.stringify(params))
+                  //console.log(JSON.stringify(params))
                   p.post('/account/~/extension/~/sms', params)
                     .then(function (response) {
                       //var jsonObj = response.response().headers
