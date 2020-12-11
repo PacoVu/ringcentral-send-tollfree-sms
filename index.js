@@ -21,7 +21,7 @@ var session = require('express-session');
 
 var app = express();
 //app.use(session());
-app.use(session({ secret: 'this-is-a-secret-token', cookie: { maxAge: 24 * 60 * 60 * 1000 }}));
+app.use(session({ secret: process.env.SECRET_TOKEN, cookie: { maxAge: 24 * 60 * 60 * 1000 }}));
 var bodyParser = require('body-parser');
 var urlencoded = bodyParser.urlencoded({extended: false})
 
@@ -39,33 +39,32 @@ var router = require('./router');
 
 app.get('/', function (req, res) {
   console.log('load option page /')
-  //res.render('index')
   if (req.session.extensionId != 0)
     router.logout(req, res)
   else{
-    res.render('index')
+    res.redirect('index')
   }
-})
-app.get('/login', function (req, res) {
-  console.log('login to /')
-  req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
-  if (!req.session.hasOwnProperty("userId"))
-    req.session.userId = 0;
-    if (!req.session.hasOwnProperty("extensionId"))
-      req.session.extensionId = 0;
-  console.log("SESSION:" + JSON.stringify(req.session))
-  router.loadLogin(req, res)
 })
 
 app.get('/index', function (req, res) {
   console.log('load option page /')
   if (req.query.n != undefined && req.query.n == 1){
-    console.log('logout from here?')
     router.logout(req, res)
   }else {
-    //res.render('index')
-    router.loadSendHighVolumeSMSPage(req, res)
+    //router.loadSendHighVolumeSMSPage(req, res)
+    //router.loadOptionPage(req, res)
+    res.render('index')
   }
+})
+
+app.get('/login', function (req, res) {
+  req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
+  if (!req.session.hasOwnProperty("userId"))
+    req.session.userId = 0;
+    if (!req.session.hasOwnProperty("extensionId"))
+      req.session.extensionId = 0;
+
+  router.loadLogin(req, res)
 })
 
 app.get('/logout', function (req, res) {
@@ -73,56 +72,107 @@ app.get('/logout', function (req, res) {
   router.logout(req, res)
 })
 
-app.get('/loadoptionpage', function (req, res) {
+app.get('/options', function (req, res) {
   console.log('loadOptionPage')
   if (req.session.extensionId != 0)
     router.loadOptionPage(req, res)
-    //router.loadSendHighVolumeSMSPage(req, res)
   else{
     res.render('index')
   }
 })
-app.get('/loadsmspage', function (req, res) {
-  console.log('loadSendSMSPage')
+app.get('/standard', function (req, res) {
+  console.log('loadStandardSMSPage')
   if (req.session.extensionId != 0)
-    router.loadSendSMSPage(req, res)
+    router.loadStandardSMSPage(req, res)
   else{
     res.render('index')
   }
 })
 
-app.get('/loada2psmspage', function (req, res) {
-  console.log('loadSendHighVolumeSMSPage')
+app.get ('/campaign', function (req, res) {
+  console.log('loadCampaignPage')
   if (req.session.extensionId != 0)
-    router.loadSendHighVolumeSMSPage(req, res)
+    router.loadCampaignHistoryPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/read_campaign', function (req, res) {
+  console.log('readCampaign')
+  if (req.session.extensionId != 0)
+    router.getBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get ('/highvolume-template', function (req, res) {
+  console.log('load highvolume-template')
+  if (req.session.extensionId != 0)
+    router.loadHVTemplatePage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/highvolume-manual', function (req, res) {
+  console.log('load highvolume-manual')
+  if (req.session.extensionId != 0)
+    router.loadHVManualPage(req, res)
   else{
     res.render('index')
   }
 })
 
 app.get('/about', function (req, res) {
-  router.loadAboutPage(req, res)
+  res.render('about')
 })
 
 app.get('/getresult', function (req, res) {
-  router.getSendSMSResult(req, res)
+  if (req.session.extensionId != 0)
+    router.getSendSMSResult(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/getbatchreport', function (req, res) {
-  router.getBatchReport(req, res)
+  if (req.session.extensionId != 0)
+    router.getBatchReport(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/getbatchresult', function (req, res) {
-  router.getBatchResult(req, res)
+  if (req.session.extensionId != 0)
+    router.getBatchResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/downloadbatchreport', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadBatchReport(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/downloadreport', function (req, res) {
-  router.downloadSendSMSResult(req, res)
+  if (req.session.extensionId != 0)
+    router.downloadSendSMSResult(req, res)
+  else{
+    res.render('index')
+  }
 })
+
 app.get('/downloads', function(req, res){
   console.log(req.query)
   var file = req.query.filename;
-  res.download(file); // Set disposition and send it.
+  res.download(file);
 });
 
 app.get('/oauth2callback', function(req, res){
@@ -131,35 +181,56 @@ app.get('/oauth2callback', function(req, res){
 })
 
 app.get('/setdelay', function (req, res) {
-  router.setDelayInterVal(req, res)
+  if (req.session.extensionId != 0)
+    router.setDelayInterVal(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/pause', function (req, res) {
-  router.pauseMessageSending(req, res)
+  if (req.session.extensionId != 0)
+    router.pauseMessageSending(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/resume', function (req, res) {
-  router.resumeMessageSending(req, res)
+  if (req.session.extensionId != 0)
+    router.resumeMessageSending(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/cancel', function (req, res) {
-  router.cancelMessageSending(req, res)
+  if (req.session.extensionId != 0)
+    router.cancelMessageSending(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.post('/sendmessage', upload.single('attachment'), function (req, res) {
    console.log("Send a message");
-   router.sendSMSMessage(req, res)
+   if (req.session.extensionId != 0)
+     router.sendSMSMessage(req, res)
+   else{
+     res.render('index')
+   }
 })
-/*
-app.post('/sendhighvolumemessage', upload.single('attachment'), function (req, res) {
-  console.log("post sendhighvolumemessage")
-  router.sendHighVolumeSMSMessage(req, res)
-})
-*/
+
 app.post('/sendhighvolumemessage', upload.any(), function (req, res, next) {
   console.log("post sendhighvolumemessage")
   router.sendHighVolumeSMSMessage(req, res)
 })
+
+app.post('/sendhighvolumemessage-advance', upload.any(), function (req, res, next) {
+  console.log("post sendhighvolumemessage-advance")
+  router.sendHighVolumeSMSMessageAdvance(req, res)
+})
+
 
 app.post('/sendsms', function (req, res) {
   console.log("sendsms")

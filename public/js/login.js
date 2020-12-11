@@ -10,7 +10,7 @@ var OAuthCode = function(authUri, redirectUri) {
             window.clearInterval(pollOAuth);
             win.close();
             window.setTimeout(function() {
-              window.location.href = "loadoptionpage"
+              window.location.href = "options"
             }, 100)
           }
         } catch(e) {
@@ -25,6 +25,6 @@ function login() {
   oauth.loginPopup()
 }
 
-function chooseEnvironment(environemt){
-  window.location.href = "login?env=" + environemt
+function chooseEnvironment(){
+  window.location.href = "login"
 }

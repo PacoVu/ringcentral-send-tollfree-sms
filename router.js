@@ -3,11 +3,9 @@ require('dotenv').load()
 var users = []
 
 function getUserIndex(id){
-  //console.log("USERS LENGTH:" + users.length)
   for (var i=0; i<users.length; i++){
     var user = users[i]
     if (user != null){
-      //console.log("USER ID:" + user.getUserId())
       if (id == user.getUserId()){
         return i
       }
@@ -17,10 +15,8 @@ function getUserIndex(id){
 }
 
 function getUserIndexByExtensionId(extId){
-  //console.log("USERS LENGTH:" + users.length)
   for (var i=0; i<users.length; i++){
     var user = users[i]
-    //console.log("EXTENSiON ID:" + user.getExtensionId())
     if (extId == user.getExtensionId()){
       return i
     }
@@ -31,11 +27,9 @@ function getUserIndexByExtensionId(extId){
 var router = module.exports = {
   loadLogin: function(req, res){
     if (req.session.userId == 0 || req.session.extensionId == 0) {
-      console.log("load login page")
       var id = new Date().getTime()
-      console.log(id)
       req.session.userId = id;
-      var user = new User(id, req.query.env)
+      var user = new User(id)
       users.push(user)
       var p = user.getPlatform()
       if (p != null){
@@ -52,7 +46,7 @@ var router = module.exports = {
       console.log("Must be a reload page")
       var index = getUserIndex(req.session.userId)
       if (index >= 0)
-        users[index].loadSendSMSPage(req, res)
+        users[index].loadOptionPage(req, res)
       else{
         this.forceLogin(req, res)
       }
@@ -70,7 +64,6 @@ var router = module.exports = {
     users[index].login(req, res, function(err, extensionId){
       // result contain extensionId. Use it to check for orphan user and remove it
       if (!err){
-        console.log("USERLENGTH: " + users.length)
         for (var i = 0; i < users.length; i++){
           console.log("REMOVING")
           var extId = users[i].getExtensionId()
@@ -93,9 +86,7 @@ var router = module.exports = {
     var thisObj = this
     users[index].logout(req, res, function(err, result){
       users[index] = null
-      console.log("user length before: " + users.length)
       users.splice(index, 1);
-      console.log("user length after: " + users.length)
       thisObj.forceLogin(req, res)
     })
   },
@@ -104,7 +95,6 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].getBatchReport(res, req.query.batchId, "")
-    //users[index].getBatchReport(res, "6cf1c23c-b08b-4f42-8860-86cb19100128", "")
   },
   getBatchResult: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -118,6 +108,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getSendSMSResult(req, res)
   },
+  downloadBatchReport: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadBatchReport(req, res)
+  },
   downloadSendSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -128,13 +124,25 @@ var router = module.exports = {
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].sendSMSMessageSync(req, res)
+    users[index].sendSMSMessageAsync(req, res)
   },
   sendHighVolumeSMSMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].sendHighVolumeSMSMessage(req, res)
+  },
+  sendHighVolumeSMSMessageAdvance: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].sendHighVolumeSMSMessageAdvance(req, res)
+  },
+  readCampaign: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getBatchReport(res, req.query.batchId, "")
   },
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -143,26 +151,35 @@ var router = module.exports = {
     users[index].postFeedbackToGlip(req)
     res.send({"status":"ok","message":"Thank you for sending your feedback!"})
   },
-  loadAboutPage: function(req, res){
-    res.render('about')
-  },
   loadOptionPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadOptionPage(req, res)
   },
-  loadSendSMSPage: function(req, res){
+  loadStandardSMSPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].loadSendSMSPage(req, res)
+    users[index].loadStandardSMSPage(res)
   },
-  loadSendHighVolumeSMSPage: function(req, res){
+  loadHVManualPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].loadSendHighVolumeSMSPage(req, res)
+    users[index].loadHVManualPage(res)
+  },
+  loadHVTemplatePage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadHVTemplatePage(res)
+  },
+  loadCampaignHistoryPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadCampaignHistoryPage(res)
   },
   setDelayInterVal: function(req, res){
     var index = getUserIndex(req.session.userId)

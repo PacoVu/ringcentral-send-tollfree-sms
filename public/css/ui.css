@@ -107,27 +107,3 @@
   border-bottom: none!important;
   box-shadow: 0 1px 3px 0 #cccccc;
 }
-/*
-.btn-rc {
-  border: none;
-  border-radius: 3px;
-  padding: 0 16px;
-  height: 32px;
-  line-height: 32px;
-  font-size: 12px;
-  letter-spacing: 0.3px;
-}
-
-.rc-login-footer {
-  font-size: 10px;
-  padding: 10px 30px;
-  position: absolute;
-  bottom: 10px;
-}
-*/
-
-.scrollable_calllist {
-  border: none;
-  padding: 0;
-  margin: 0;
-}
