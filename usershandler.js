@@ -2,13 +2,18 @@ var RC = require('ringcentral')
 var fs = require('fs')
 var async = require("async");
 const RCPlatform = require('./platform.js')
+const pgdb = require('./db')
 require('dotenv').load()
 
-function User(id, mode) {
+const MASK = "#!#"
+
+function User(id) {
   this.id = id;
   this.extensionId = 0;
   this.accountId = 0;
   this.userName = ""
+  this.rc_platform = new RCPlatform()
+
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
   this.sendReport = {
@@ -23,7 +28,7 @@ function User(id, mode) {
     Delivered_Count: 0,
     Delivered_Failed_Count: 0,
     Sending_Failed_Count: 0,
-    Unknown_Count: 0
+    Total_Cost: 0
   }
   this.batchResult = {
     id:"",
@@ -34,6 +39,8 @@ function User(id, mode) {
   this.batchFullReport = []
   this.smsBatchIds = []
   this.mainCompanyNumber = ""
+
+  // Classic SMS
   this.detailedReport = []
   this.recipientArr = []
   this.fromNumber = ""
@@ -43,15 +50,11 @@ function User(id, mode) {
   this.index = 0
   this.delayInterval = 1510
   this.intervalTimer = null
-  this.rc_platform = new RCPlatform(this, mode)
   this.StartTimestamp = 0
   return this
 }
 
 var engine = User.prototype = {
-    setExtensionId: function(id) {
-      this.extensionId = id
-    },
     setUserName: function (userName){
       this.userName = userName
     },
@@ -68,24 +71,27 @@ var engine = User.prototype = {
       return this.rc_platform.getSDKPlatform()
     },
     loadOptionPage: function(req, res){
-      this.readA2PSMSPhoneNumber(res)
-      /*
-      res.render('main', {
-          userName: this.getUserName()
-      })
-      */
+      this.readA2PSMSPhoneNumber(req, res)
     },
-    loadSendSMSPage: function(req, res){
-      //this.readTFSMSPhoneNumber(res)
-      res.render('sendsmspage', {
+    loadStandardSMSPage: function(res){
+      var enableHVSMS = (this.phoneHVNumbers.length) ? false : true
+      res.render('standard-sms', {
         userName: this.getUserName(),
         phoneNumbers: this.phoneTFNumbers,
-        sendReport: this.sendReport
+        sendReport: this.sendReport,
+        enableHighVolumeSMS: enableHVSMS
       })
     },
-    loadSendHighVolumeSMSPage: function(req, res){
-      //this.readA2PSMSPhoneNumber(res)
-      res.render('highvolumepage', {
+    loadHVManualPage: function(res){
+      res.render('manual-input', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers,
+        smsBatchIds: this.smsBatchIds,
+        batchResult: this.batchResult
+      })
+    },
+    loadHVTemplatePage: function(res){
+      res.render('file-input', {
         userName: this.getUserName(),
         phoneNumbers: this.phoneHVNumbers,
         smsBatchIds: this.smsBatchIds,
@@ -95,36 +101,34 @@ var engine = User.prototype = {
     login: function(req, res, callback){
       var thisReq = req
       if (req.query.code) {
-        console.log("CALL LOGIN FROM USER")
         var rc_platform = this.rc_platform
         var thisUser = this
         rc_platform.login(req.query.code, function (err, extensionId){
           if (!err){
-            thisUser.setExtensionId(extensionId)
+            thisUser.extensionId = extensionId
             req.session.extensionId = extensionId;
             callback(null, extensionId)
             res.send('login success');
-
-            rc_platform.getPlatform(function(err, p){
-                if (p != null){
-                  p.get('/account/~/extension/~/')
-                    .then(function(response) {
-                      var jsonObj = response.json();
-                      thisUser.accountId = jsonObj.account.id
-                      var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
-                      thisUser.setUserName(fullName)
-                    })
-                    .catch(function(e) {
-                      console.log("Failed")
-                      console.error(e);
-                      callback("error", e.message)
-                    });
-                }else{
-                  console.log("CANNOT LOGIN")
-                  callback("error", thisUser.extensionId)
-                }
+            thisUser.createTable(function(err, result){
+              console.log("a2p_user created")
             })
-
+            rc_platform.getPlatform(function(err, p){
+              if (p != null){
+                p.get('/account/~/extension/~/')
+                  .then(function(response) {
+                    var jsonObj = response.json();
+                    thisUser.accountId = jsonObj.account.id
+                    var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
+                    thisUser.setUserName(fullName)
+                  })
+                  .catch(function(e) {
+                    console.log("Failed")
+                    console.error(e.message);
+                  });
+              }else{
+                console.log("CANNOT LOGIN")
+              }
+            })
           }else {
             console.log("USER HANDLER ERROR: " + thisUser.extensionId)
             callback("error", thisUser.extensionId)
@@ -135,10 +139,13 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
-    readA2PSMSPhoneNumber: function(res){
+    readA2PSMSPhoneNumber: function(req, res){
       var thisUser = this
         this.rc_platform.getPlatform(function(err, p){
-            if (p != null){
+          if (err){
+            req.session.destroy();
+            res.render('index')
+          }else {
               thisUser.phoneHVNumbers = []
               thisUser.phoneTFNumbers = []
               var endpoint = '/account/~/extension/~/phone-number'
@@ -146,94 +153,464 @@ var engine = User.prototype = {
                 "perPage": 1000,
                 "usageType": ["MainCompanyNumber", "CompanyNumber", "DirectNumber"]
               })
-                .then(function(response) {
+              .then(function(response) {
                   var jsonObj = response.json();
                   var count = jsonObj.records.length
-                  //console.log(JSON.stringify(jsonObj))
-                    for (var record of jsonObj.records){
-                      for (var feature of record.features){
-                        if (feature == "A2PSmsSender"){
-                          var item = {
+                  for (var record of jsonObj.records){
+                    for (var feature of record.features){
+                      if (feature == "A2PSmsSender"){
+                        var item = {
                                   "format": formatPhoneNumber(record.phoneNumber),
                                   "number": record.phoneNumber,
                                   "type": "10-DLC"
-                          }
-                          if (record.paymentType == "TollFree")
-                            item.type = "Toll-Free"
-                          thisUser.phoneHVNumbers.push(item)
-                          break;
-                        }else if (feature == "SmsSender"){
-                          if (record.paymentType == "TollFree") {
-                            if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
-                              var item = {
-                                    "format": formatPhoneNumber(record.phoneNumber),
-                                    "number": record.phoneNumber,
-                                    "type": "Toll-Free Number"
-                              }
-                              thisUser.phoneTFNumbers.push(item)
-                              break;
+                        }
+                        if (record.paymentType == "TollFree")
+                          item.type = "Toll-Free"
+                        thisUser.phoneHVNumbers.push(item)
+                        break;
+                      }else if (feature == "SmsSender"){
+                        if (record.paymentType == "TollFree") {
+                          if (record.type == "VoiceFax" || record.type == "VoiceOnly"){
+                            var item = {
+                                  "format": formatPhoneNumber(record.phoneNumber),
+                                  "number": record.phoneNumber,
+                                  "type": "Toll-Free Number"
                             }
+                            thisUser.phoneTFNumbers.push(item)
+                            break;
                           }
                         }
                       }
-                      if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
-                          thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
-                          console.log(thisUser.mainCompanyNumber)
-                      }
                     }
-                    // decide what page to load
-                    if (thisUser.phoneHVNumbers.length && thisUser.phoneTFNumbers.length){
-                      // launch option page
-                      res.render('main', {
-                        userName: thisUser.getUserName(),
-                        lowVolume: true,
-                        highVolume: true
-                      })
-                    }else if (thisUser.phoneHVNumbers.length){
-                      // launch high volume page
-                      res.render('highvolumepage', {
-                        userName: thisUser.getUserName(),
-                        phoneNumbers: thisUser.phoneHVNumbers,
-                        smsBatchIds: thisUser.smsBatchIds,
-                        batchResult: thisUser.batchResult
-                      })
-                    }else if (thisUser.phoneTFNumbers.length){
-                      /*
-                      // launch classic SMS page
-                      res.render('sendsmspage', {
-                        userName: thisUser.getUserName(),
-                        phoneNumbers: thisUser.phoneTFNumbers,
-                        sendReport: thisUser.sendReport
-                      })
-                      */
-                      res.render('main', {
-                        userName: thisUser.getUserName(),
-                        lowVolume: true,
-                        highVolume: false
-                      })
-                    }else{
-                      // launch info page
-                      res.render('main', {
-                        userName: thisUser.getUserName(),
-                        lowVolume: false,
-                        highVolume: false
-                      })
+                    if (record.usageType == "MainCompanyNumber" && thisUser.mainCompanyNumber == ""){
+                        thisUser.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
                     }
-                })
-                .catch(function(e) {
-                  console.log("Failed")
-                  console.error(e.message);
-                  res.send('login success');
-                });
-            }else{
-              console.error(e.message);
-              res.send('login failed');
-            }
+                  }
+                  // decide what page to load
+                  if (thisUser.phoneHVNumbers.length && thisUser.phoneTFNumbers.length){
+                    // launch option page
+                    res.render('main', {
+                      userName: thisUser.getUserName(),
+                      lowVolume: true,
+                      highVolume: true
+                    })
+                  }else if (thisUser.phoneHVNumbers.length){
+                    // launch high volume page
+                    res.render('manual-input', {
+                      userName: thisUser.getUserName(),
+                      phoneNumbers: thisUser.phoneHVNumbers,
+                      smsBatchIds: thisUser.smsBatchIds,
+                      batchResult: thisUser.batchResult
+                    })
+                  }else if (thisUser.phoneTFNumbers.length){
+                    res.render('main', {
+                      userName: thisUser.getUserName(),
+                      lowVolume: true,
+                      highVolume: false
+                    })
+                  }else{
+                    // launch info page
+                    res.render('main', {
+                      userName: thisUser.getUserName(),
+                      lowVolume: false,
+                      highVolume: false
+                    })
+                  }
+              })
+              .catch(function(e) {
+                console.log("Failed")
+                console.error(e.message);
+                res.send('login success');
+              });
+          }
         })
     },
-    sendSMSMessageSync: function(req, res){
-        this.recipientArr = []
+    sendHighVolumeSMSMessageAdvance: function(req, res){
+      var body = req.body
+      var requestBody = {
+          from: body.from_number,
+          messages: []
+      }
+      var csvColumnIndex = {}
+      if (req.files != undefined){
+        for (var f of req.files){
+          var currentFolder = process.cwd();
+          var tempFile = currentFolder + "/uploads/" + f.filename
+          var content = fs.readFileSync(tempFile, 'utf8');
+          var recipientsFromFile = content.trim().split("\r\n")
+          var header = recipientsFromFile[0]
+          var columns = header.trim().split(",")
+          for (var i=0; i<columns.length; i++){
+            csvColumnIndex[columns[i]] = i
+          }
+          var message = body.message
+          var toNumberColumnName = body.to_number_column
+          recipientsFromFile.shift() // remove the first row which is the header
+          for (var row of recipientsFromFile){
+            row = detectAndHandleCommas(row)
+            var columns = row.trim().split(",")
+            var msg = resembleMessage(message, columns, csvColumnIndex)
+            var group = {
+                to: [columns[csvColumnIndex[toNumberColumnName]]],
+                text: msg
+            }
+            requestBody.messages.push(group)
+          }
+          //console.log(JSON.stringify(requestBody))
+        }
+        var currentFolder = process.cwd();
+        for (var file of req.files){
+          var tempFile = currentFolder + "/uploads/" + file.filename
+          fs.unlinkSync(tempFile);
+        }
+        this.sendBatchMessage(res, requestBody, body.campaign_name)
+      }
+    },
+    sendHighVolumeSMSMessage: function(req, res){
+      var body = req.body
+      var requestBody = {
+          from: body.from_number,
+          text: body.message_0,
+          messages: []
+      }
+      // add recipients from free text field
+      if (body.recipients_0.trim() != ""){
+        var mainRecipients = body.recipients_0.trim().split("\n")
+        for (var recipient of mainRecipients){
+          recipient = recipient.trim()
+          recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+          var item = {
+            to:[recipient]
+          }
+          requestBody.messages.push(item)
+        }
+      }
+      if (req.files != undefined){
+        for (var f of req.files){
+          var recipientsFromFile = readRecipientFile(f.filename)
+          if (f.fieldname == "attachment_0"){ // main text
+            // add recipients read from file
+            for (var recipient of recipientsFromFile){
+              recipient = recipient.trim()
+              recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+              var item = {
+                to:[recipient]
+              }
+              requestBody.messages.push(item)
+            }
+          }
+        }
+      }
+      var subRecipientsIndexArr = body.group_index.split("_")
+      for (var sub of subRecipientsIndexArr){
+        var attachment = `attachment_${sub}`
+        var recipients = `recipients_${sub}`
+        var subMessage = `message_${sub}`
+        if (req.files != undefined){
+          for (var f of req.files){
+            if (attachment == f.fieldname){
+              var subRecipients = readRecipientFile(f.filename)
+              for (var recipient of subRecipients){
+                recipient = recipient.trim()
+                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+                var group = {
+                    to: [recipient],
+                    text: body[subMessage]
+                  }
+                requestBody.messages.push(group)
+              }
+              break
+            }
+          }
+        }
+        // check free text field
+        if (body[recipients] != undefined){
+          var subRecipients = body[recipients].trim().split("\n")
+          if (subRecipients.length){
+            for (var recipient of subRecipients){
+              if (recipient != ""){
+                recipient = recipient.trim()
+                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+                var group = {
+                    to: [recipient],
+                    text: body[subMessage]
+                  }
+                requestBody.messages.push(group)
+              }
+            }
+          }
+        }
+      }
 
+      var currentFolder = process.cwd();
+      for (var file of req.files){
+        var tempFile = currentFolder + "/uploads/" + file.filename
+        fs.unlinkSync(tempFile);
+      }
+      /*
+      if (body.hasOwnProperty('expiresIn') && body.expiresIn > 0){
+        requestBody["expiresIn"] = parseInt(body.expiresIn)
+      }
+      if (body.hasOwnProperty('sendAt') && body.scheduledAt != ""){
+        requestBody["sendAt"] = body.scheduledAt + ":00Z"
+      }
+      */
+      //console.log(body.scheduledAt)
+      //console.log(JSON.stringify(requestBody))
+      this.sendBatchMessage(res, requestBody, body.campaign_name)
+    },
+    sendBatchMessage: function(res, requestBody, campaignName){
+      var thisUser = this
+      //console.log(JSON.stringify(requestBody))
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.post("/account/~/a2p-sms/batch", requestBody)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              thisUser.StartTimestamp = Date.now()
+              thisUser.smsBatchIds.push(resp.json().id)
+              thisUser.batchResult = jsonObj
+              console.log(JSON.stringify(jsonObj))
+              thisUser.addBatchToDB(campaignName, jsonObj)
+              res.send({
+                  status:"ok",
+                  time: formatSendingTime(0),
+                  result: thisUser.batchResult
+              })
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message);
+              res.send({
+                  status:"error",
+                  message: e.message
+              })
+            });
+        }else{
+          res.send({
+            status: "failed",
+            message: "You have been logged out. Please login again."
+          })
+        }
+      })
+    },
+    getBatchReport: function(res, batchId, pageToken){
+      this.batchReport.Queued_Count = 0
+      this.batchReport.Sent_Count = 0
+      this.batchReport.Delivered_Count = 0
+      this.batchReport.Delivered_Failed_Count = 0
+      this.batchReport.Sending_Failed_Count = 0
+      this.batchReport.Total_Cost = 0
+      this.batchFullReport = []
+      this._getBatchReport(res, batchId, pageToken)
+    },
+    _getBatchReport: function(res, batchId, pageToken){
+      var thisUser = this
+      var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
+      if (pageToken != "")
+        endpoint += "&pageToken=" + pageToken
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
+              for (var message of jsonObj.records){ // used to be .messages
+                //console.log(message)
+                //console.log("========")
+                if (message.messageStatus.toLowerCase() == "queued")
+                  thisUser.batchReport.Queued_Count++
+                else if (message.messageStatus.toLowerCase() == "sent")
+                  thisUser.batchReport.Sent_Count++
+                else if (message.messageStatus.toLowerCase() == "delivered")
+                  thisUser.batchReport.Delivered_Count++
+                else if (message.messageStatus.toLowerCase() == "deliveryfailed"){
+                  thisUser.batchReport.Delivered_Failed_Count++
+                }else if (message.messageStatus.toLowerCase() == "sendingfailed"){
+                  thisUser.batchReport.Sending_Failed_Count++
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
+                thisUser.batchReport.Total_Cost += cost
+              }
+              //console.log(jsonObj.paging)
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                //console.log("Read next page")
+                setTimeout(function(){
+                  thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                res.send({
+                    status: "ok",
+                    result: thisUser.batchReport,
+                    fullReport: thisUser.batchFullReport
+                  })
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+              res.send({
+                  status: "error",
+                  message: e.message
+                })
+            });
+        }else{
+          console.log("platform issue")
+          res.send({
+              status: "failed",
+              message: "You have been logged out. Please login again."
+            })
+        }
+      })
+    },
+    getBatchResult: function(req, res){
+        var thisUser = this
+        var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
+        var p = this.rc_platform.getPlatform(function(err, p){
+          if (p != null){
+            p.get(endpoint)
+              .then(function (resp) {
+                var jsonObj = resp.json()
+                var processingTime = (Date.now() - thisUser.StartTimestamp) / 1000
+                thisUser.batchResult = jsonObj
+                res.send({
+                    status:"ok",
+                    time: formatSendingTime(processingTime),
+                    result: thisUser.batchResult
+                  })
+              })
+              .catch(function (e) {
+                console.log('ERR ' + e.message || 'Server cannot send messages');
+                res.send({
+                    status: "error",
+                    message: e.message
+                  })
+              });
+          }else{
+            console.log("platform issue")
+            res.send({
+                status: "failed",
+                message: "You have been logged out. Please login again."
+              })
+          }
+        })
+    },
+    downloadBatchReport: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId()
+      var fileContent = ""
+      if (req.query.format == "JSON"){
+        fullNamePath += '.json'
+        fileContent = JSON.stringify(this.batchFullReport)
+      }else{
+        fullNamePath += '.csv'
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+        var timeOffset = parseInt(req.query.timeOffset)
+        let dateOptions = { weekday: 'short' }
+        for (var item of this.batchFullReport){
+          var from = formatPhoneNumber(item.from)
+          var to = formatPhoneNumber(item.to[0])
+          //var date = new Date(item.createdAt)
+          var date = new Date(item.creationTime)
+          var timestamp = date.getTime() - timeOffset
+          var createdDate = new Date (timestamp)
+          var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+          createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+          createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+          //date = new Date(item.lastUpdatedAt)
+          date = new Date(item.lastModifiedTime)
+          var timestamp = date.getTime() - timeOffset
+          var updatedDate = new Date (timestamp)
+          var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+          updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+          updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+          fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+          fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+        }
+      }
+      try{
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+      }
+    },
+    downloadSendSMSResult: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId()
+      var fileContent = ""
+      if (req.query.format == "JSON"){
+        fullNamePath += '.json'
+        fileContent = JSON.stringify(this.detailedReport)
+      }else if (req.query.format == "CSV"){
+        fullNamePath += '.csv'
+        fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
+        for (var item of this.detailedReport){
+          fileContent += "\n"
+          fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
+        }
+      }else{
+        fullNamePath += '_BatchReport.json'
+        var fileContent = JSON.stringify(this.batchFullReport)
+      }
+      try{
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+      }
+    },
+    logout: function(req, res, callback){
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.logout()
+            .then(function (token) {
+              console.log("logged out")
+              callback(null, "ok")
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot authorize user');
+              callback(e, e.message)
+            });
+        }else{
+          callback(null, "ok")
+        }
+      })
+    },
+    readCampaign: function(req, res){
+      this._getBatchReport(res, req.query.batchId, "")
+    },
+    loadCampaignHistoryPage: function(res){
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          var batches = JSON.parse(result.rows[0].batches)
+          res.render('campaign', {
+            userName: this.getUserName(),
+            campaigns: batches
+          })
+        }else{ // no history
+          res.render('campaign', {
+            userName: this.getUserName(),
+            campaigns: []
+          })
+        }
+      })
+    },
+    // Classic SMS
+    sendSMSMessageAsync: function(req, res){
+        this.recipientArr = []
         if (req.file != undefined){
           var currentFolder = process.cwd();
           var tempFile = currentFolder + "/" + req.file.path
@@ -264,34 +641,34 @@ var engine = User.prototype = {
           failedCount : "Failed 0",
           invalidNumbers: []
         }
-        res.render('sendsmspage', {
+        var enableHVSMS = (this.phoneHVNumbers.length) ? false : true
+        res.render('standard-sms', {
             userName: this.getUserName(),
             phoneNumbers: this.phoneTFNumbers,
-            sendReport: this.sendReport
-          })
+            sendReport: this.sendReport,
+            enableHighVolumeSMS: enableHVSMS
+        })
         if (this.recipientArr.length > 0){
           console.log("CONTINUE PROSESSING")
-          engine.sendMessages(this)
+          this.sendMessages()
         }
     },
-    sendMessages: function(thisUser){
-      var currentIndex = thisUser.index
-      var totalCount = thisUser.recipientArr.length
+    sendMessages: function(){
+      var thisUser = this
+      var currentIndex = this.index
+      var totalCount = this.recipientArr.length
 
-      thisUser.intervalTimer = setInterval(function() {
+      this.intervalTimer = setInterval(function() {
           if (currentIndex == thisUser.index){
             // this will prevent sending a new message while the previous message was not sent
             currentIndex++
             if (thisUser.index >= totalCount){
               clearInterval(thisUser.intervalTimer);
               thisUser.intervalTimer = null
-              console.log('ALL RECIPIENT!');
               thisUser.sendReport['sentInfo'] = "Completed."
               thisUser.sendReport['sendInProgress'] = false
               return
             }
-            //console.log("index: " + thisUser.index)
-            //console.log("recipient: " + thisUser.recipientArr[thisUser.index])
             var recipient = thisUser.recipientArr[thisUser.index].trim()
             var unsentCount = totalCount - thisUser.index
 
@@ -306,7 +683,7 @@ var engine = User.prototype = {
                   console.log(JSON.stringify(params))
                   p.post('/account/~/extension/~/sms', params)
                     .then(function (response) {
-                      var jsonObj = response.response().headers
+                      //var jsonObj = response.response().headers
                       var jsonObj = response.json()
                       var item = {
                         "id": jsonObj.id,
@@ -406,7 +783,7 @@ var engine = User.prototype = {
     resumeMessageSending: function(req, res){
       if (this.intervalTimer != null){
         console.log("resumeMessageSending")
-        engine.sendMessages(this)
+        this.sendMessages()
         res.send({"status":"ok", "message":"resume sending"})
       }else
         res.send({"status":"failed", "message":"cannot resume sending"})
@@ -431,307 +808,133 @@ var engine = User.prototype = {
       }
       res.send(this.sendReport)
     },
-    sendHighVolumeSMSMessage: function(req, res){
-      // parse file and read numbers
-      //console.log(req.files);
-      // parse and detect recipients lists
-      var body = req.body
-      var requestBody = {
-          from: body.from_number,
-          text: body.message_0,
-          messages: []
-      }
-      // add recipients from free text field
-      if (body.recipients_0.trim() != ""){
-        var mainRecipients = body.recipients_0.trim().split("\n")
-        for (var recipient of mainRecipients){
-          recipient = recipient.trim()
-          recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-          var item = {
-            to:[recipient]
-          }
-          requestBody.messages.push(item)
-        }
-      }
-      if (req.files != undefined){
-        for (var f of req.files){
-          var recipientsFromFile = readRecipientFile(f.filename)
-          if (f.fieldname == "attachment_0"){ // main text
-            // add recipients read from file
-            for (var recipient of recipientsFromFile){
-              recipient = recipient.trim()
-              recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-              var item = {
-                to:[recipient]
-              }
-              requestBody.messages.push(item)
-            }
-          }
-        }
-      }
-      var subRecipientsIndexArr = body.group_index.split("_")
-      for (var sub of subRecipientsIndexArr){
-        var attachment = `attachment_${sub}`
-        var recipients = `recipients_${sub}`
-        var subMessage = `message_${sub}`
-        if (req.files != undefined){
-          for (var f of req.files){
-            if (attachment == f.fieldname){
-              var subRecipients = readRecipientFile(f.filename)
-              for (var recipient of subRecipients){
-                recipient = recipient.trim()
-                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-                var group = {
-                    to: [recipient],
-                    text: body[subMessage]
-                  }
-                requestBody.messages.push(group)
-              }
-              break
-            }
-          }
-        }
-        // check free text field
-        if (body[recipients] != undefined){
-          var subRecipients = body[recipients].trim().split("\n")
-          if (subRecipients.length){
-            for (var recipient of subRecipients){
-              if (recipient != ""){
-                recipient = recipient.trim()
-                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-                var group = {
-                    to: [recipient],
-                    text: body[subMessage]
-                  }
-                requestBody.messages.push(group)
-              }
-            }
-          }
-        }
-      }
-
-      var currentFolder = process.cwd();
-      for (var file of req.files){
-        var tempFile = currentFolder + "/uploads/" + file.filename
-        fs.unlinkSync(tempFile);
-      }
-      /*
-      if (body.hasOwnProperty('expiresIn') && body.expiresIn > 0){
-        requestBody["expiresIn"] = parseInt(body.expiresIn)
-      }
-      if (body.hasOwnProperty('sendAt') && body.scheduledAt != ""){
-        requestBody["sendAt"] = body.scheduledAt + ":00Z"
-      }
-      */
-      //console.log(body.scheduledAt)
-      //console.log(JSON.stringify(requestBody))
-      var thisUser = this
-      var p = this.rc_platform.getPlatform(function(err, p){
-        if (p != null){
-          p.post("/account/~/a2p-sms/batch", requestBody)
-            .then(function (resp) {
-              console.log(resp.json())
-              var jsonObj = resp.json()
-              thisUser.StartTimestamp = Date.now()
-              thisUser.smsBatchIds.push(resp.json().id)
-              thisUser.batchResult = jsonObj
-              console.log("Send SMS DONE!")
-              res.send({
-                  status:"ok",
-                  time: formatSendingTime(0),
-                  result: thisUser.batchResult
-                })
-            })
-            .catch(function (e) {
-              console.log('ERR ' + e || 'Server cannot send messages');
-              res.send({
-                  status:"error",
-                  result: e.message
-                })
-            });
-        }else{
-          console.log("platform issue")
-          res.send({
-              status:"error",
-              result: e.message
-            })
-        }
-      })
-    },
-    getBatchReport: function(res, batchId, pageToken){
-      this.batchReport.Queued_Count = 0
-      this.batchReport.Sent_Count = 0
-      this.batchReport.Delivered_Count = 0
-      this.batchReport.Delivered_Failed_Count = 0
-      this.batchReport.Sending_Failed_Count = 0
-      this.batchReport.Unknown_Count = 0
-      this.batchFullReport = []
-      this._getBatchReport(res, batchId, pageToken)
-    },
-    _getBatchReport: function(res, batchId, pageToken){
-      var thisUser = this
-      var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
-      if (pageToken != "")
-        endpoint += "&pageToken=" + pageToken
-      //console.log(endpoint)
-      var p = this.rc_platform.getPlatform(function(err, p){
-        if (p != null){
-          p.get(endpoint)
-            .then(function (resp) {
-              var jsonObj = resp.json()
-              //console.log("_getBatchReport: " + JSON.stringify(jsonObj))
-              thisUser.batchFullReport.push(jsonObj.records)
-              for (var message of jsonObj.records){ // used to be .messages
-                //console.log(message)
-                //console.log("========")
-                if (message.messageStatus.toLowerCase() == "queued")
-                  thisUser.batchReport.Queued_Count++
-                else if (message.messageStatus.toLowerCase() == "sent")
-                  thisUser.batchReport.Sent_Count++
-                else if (message.messageStatus.toLowerCase() == "delivered")
-                  thisUser.batchReport.Delivered_Count++
-                else if (message.messageStatus.toLowerCase() == "deliveryfailed"){
-                  thisUser.batchReport.Delivered_Failed_Count++
-                }else if (message.messageStatus.toLowerCase() == "sendingfailed"){
-                  thisUser.batchReport.Sending_Failed_Count++
-                }else{
-                  thisUser.batchReport.Unknown_Count++
-                }
-              }
-              //console.log(jsonObj.paging)
-              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-                //console.log("Read next page")
-                setTimeout(function(){
-                  thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
-                }, 1200)
-              }else{
-                res.send({
-                    status: "ok",
-                    result: thisUser.batchReport
-                  })
-              }
-            })
-            .catch(function (e) {
-              console.log('ERR ' + e.message || 'Server cannot send messages');
-              res.send({
-                  status: "failed",
-                  result: e.message
-                })
-            });
-        }else{
-          console.log("platform issue")
-          res.send({
-              status: "failed",
-              result: "RC platform issue"
-            })
-        }
-      })
-    },
-    getBatchResult: function(req, res){
-        var thisUser = this
-        var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
-        var p = this.rc_platform.getPlatform(function(err, p){
-          if (p != null){
-            p.get(endpoint)
-              .then(function (resp) {
-                //console.log("getBatchResult: " + JSON.stringify(resp.json()))
-                var jsonObj = resp.json()
-                var processingTime = (Date.now() - thisUser.StartTimestamp) / 1000
-                thisUser.batchResult = jsonObj
-                res.send({
-                    status:"ok",
-                    time: formatSendingTime(processingTime),
-                    result: thisUser.batchResult
-                  })
-              })
-              .catch(function (e) {
-                console.log('ERR ' + e.message || 'Server cannot send messages');
-                res.send({
-                    status: "error",
-                    result: e.message
-                  })
-              });
-          }else{
-            console.log("platform issue")
-            res.send({
-                status: "failed",
-                resule: err
-              })
-          }
-        })
-    },
-    downloadBatchSMSReport: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir + this.getExtensionId() + '.json'
-      var fileContent = JSON.stringify(this.batchFullReport)
-
-      try{
-        fs.writeFileSync('./'+ fullNamePath, fileContent)
-        var link = "/downloads?filename=" + fullNamePath
-        res.send({"status":"ok","message":link})
-      }catch (e){
-        console.log("cannot create report file")
-        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
-      }
-    },
-    downloadSendSMSResult: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir + this.getExtensionId()
-      var fileContent = ""
-      if (req.query.format == "JSON"){
-        fullNamePath += '.json'
-        fileContent = JSON.stringify(this.detailedReport)
-      }else if (req.query.format == "CSV"){
-        fullNamePath += '.csv'
-        fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
-        for (var item of this.detailedReport){
-          fileContent += "\n"
-          fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
-        }
-      }else{
-        fullNamePath += '_BatchReport.json'
-        var fileContent = JSON.stringify(this.batchFullReport)
-      }
-      try{
-        fs.writeFileSync('./'+ fullNamePath, fileContent)
-        var link = "/downloads?filename=" + fullNamePath
-        res.send({"status":"ok","message":link})
-      }catch (e){
-        console.log("cannot create report file")
-        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
-      }
-    },
-    logout: function(req, res, callback){
-      console.log("LOGOUT FUNC")
-      var p = this.rc_platform.getPlatform(function(err, p){
-        if (p != null){
-          p.logout()
-            .then(function (token) {
-              console.log("logged out")
-              //p.auth().cancelAccessToken()
-              //p = null
-              callback(null, "ok")
-            })
-            .catch(function (e) {
-              console.log('ERR ' + e.message || 'Server cannot authorize user');
-              callback(e, e.message)
-            });
-        }else{
-          callback(null, "ok")
-        }
-      })
-    },
     postFeedbackToGlip: function(req){
       post_message_to_group(req.body, this.mainCompanyNumber, this.accountId)
+    },
+    createTable: function (callback) {
+      console.log("CREATE TABLE")
+      var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
+      query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, stats TEXT)'
+      pgdb.create_table(query, (err, res) => {
+        if (err) {
+          console.log(err, res)
+          callback(err, err.message)
+        }else{
+          console.log("DONE")
+          callback(null, "Ok")
+        }
+      })
+    },
+    addBatchToDB: function(campaignName, batchInfo){
+      var thisUser = this
+      var newBatch = {
+        campaign: campaignName,
+        creationTime: batchInfo.creationTime,
+        batchId: batchInfo.id,
+        batchSize: batchInfo.batchSize
+      }
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          // attach to array then update db
+          var batches = JSON.parse(result.rows[0].batches)
+          batches.push(newBatch)
+          var query = 'UPDATE a2p_sms_users SET '
+          query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"
+          pgdb.update(query, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+            }
+            console.log("updated batch data")
+          })
+        }else{ // add new to db
+          var batches = [newBatch]
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
+          var query = "INSERT INTO a2p_sms_users VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+          pgdb.insert(query, values, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+            }
+            console.log("stored batch in to db")
+          })
+        }
+      })
+    },
+    // not used
+    readUsersStats: function(req, res){
+      var query = `SELECT * FROM a2p_sms_users`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          var userStats = []
+          for (var item of result.rows){
+            var user = {
+              userId: item.user_id,
+              accountId: item.account_id,
+              stats: []
+            }
+            var batches = JSON.parse(item.batches)
+            for (var batch of batches){
+              var stat ={
+                batchSize: batch.batchSize,
+                sentDate: batch.creationTime
+              }
+              user.stats.push(stat)
+            }
+            userStats.push(user)
+          }
+          res.send({status:"ok", data: userStats})
+        }
+      })
     }
 }
 module.exports = User;
+
+function detectAndHandleCommas(row){
+  var startPos = 0
+  var endPos = 0
+  while (startPos >= 0){
+    startPos = row.indexOf('"', endPos)
+    if (startPos > 0){
+      endPos = row.indexOf('"', startPos+1)
+      if (endPos >= 0){
+        var colText = row.substring(startPos, endPos+1)
+        var count = colText.split(",").length - 1
+        var maskedText = colText.replace(/,/g, MASK);
+        endPos = endPos + (2 * count)
+        row = row.replace(colText, maskedText)
+      }
+      endPos = endPos+2
+      if (endPos >= row.length)
+        startPos = -1
+    }
+  }
+  return row
+}
+
+function resembleMessage(message, columns, csvColumnIndex){
+  var msg = message
+  let re = new RegExp('/\{([^}]+)\}/g');
+  var arr = msg.match(/{([^}]*)}/g)
+  if (arr){
+    for (var pattern of arr){
+      for (var key of Object.keys(csvColumnIndex)){
+        var k = `{${key}}`
+        if (k == pattern){
+          var text = columns[csvColumnIndex[key]].replace(/"/g, '')
+          text = text.replace(/#!#/g, ',')
+          msg = msg.replace(pattern, text)
+        }
+      }
+    }
+  }
+  return msg
+}
 
 function readRecipientFile(fileName){
   var currentFolder = process.cwd();
@@ -740,68 +943,10 @@ function readRecipientFile(fileName){
   content = content.trim();
   var recipientsFromFile = content.split("\n")
   if (typeof(recipientsFromFile[0]) != "number"){
-    console.log(recipientsFromFile[0])
     recipientsFromFile.shift() // remove the first column which is the col name
   }
-  console.log("=============")
-  //fs.unlinkSync(tempFile);
   return recipientsFromFile
 }
-/*
-function getBatchReport(batchId, pageToken, callback){
-  console.log("getBatchReport")
-  var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
-  if (pageToken != "")
-    endpoint += "&pageToken=" + pageToken
-  console.log(endpoint)
-  platform.get(endpoint)
-    .then(function (resp) {
-        var jsonObj = resp.json()
-        //console.log(JSON.stringify(jsonObj))
-        for (var message of jsonObj.messages){
-          //console.log(message)
-          //console.log("========")
-          if (message.messageStatus.toLowerCase() == "queued")
-            queuedCount++
-          else if (message.messageStatus.toLowerCase() == "sent")
-            sentCount++
-          else if (message.messageStatus.toLowerCase() == "delivered")
-            deliveredCount++
-          else if (message.messageStatus.toLowerCase() == "delivery_failed"){
-            deliveredFailedCount++
-          }else if (message.messageStatus.toLowerCase() == "sending_failed"){
-            sendingFailedCount++
-          }else{
-            unknownCount++
-          }
-        }
-        console.log(jsonObj.paging)
-        if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-          console.log("Read next page")
-          setTimeout(function(){
-            getBatchReport(batchId, jsonObj.paging.nextPageToken, callback)
-          }, 2000)
-        }else{
-          console.log("Send 10DCL SMS test completed:")
-          if (sentCount > 0)
-            console.log("Sent count: " + sentCount)
-          if (queuedCount > 0)
-            console.log("Queued count: " + queuedCount)
-          if (deliveredCount > 0)
-            console.log("Delivered count: " + deliveredCount)
-          if (deliveredFailedCount > 0)
-            console.log("DeliveredFailed count: " + deliveredFailedCount)
-          if (sendingFailedCount > 0)
-            console.log("SendingFailed count: " + sendingFailedCount)
-          console.log("=================")
-          callback(null, )
-        }
-    })
-    .catch(function (e) {
-        console.log('ERR ' + e.message || 'Server cannot send messages');
-    });
-}
-*/
 
 function formatSendingTime(processingTime){
   var hour = Math.floor(processingTime / 3600)
@@ -844,8 +989,6 @@ function formatPhoneNumber(phoneNumberString) {
 }
 
 function post_message_to_group(params, mainCompanyNumber, accountId){
-  //webhook_url_v1 = "https://hooks.glip.com/webhook/ab875aa6-8460-4be2-91d7-9119484b4ed3"
-  //webhook_url_v2 = "https://hooks.glip.com/webhook/v2/ab875aa6-8460-4be2-91d7-9119484b4ed3"
   var https = require('https');
   var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
   message += "\nUser account Id: " + accountId
@@ -857,12 +1000,9 @@ function post_message_to_group(params, mainCompanyNumber, accountId){
     "title": "SMS Toll-Free app user feedback - " + params.type,
     "body": message
   }
-  //old: https://hooks.glip.com/webhook/b70b8d8d-2dbb-4a1f-9f99-5a587954b425
-  // ab875aa6-8460-4be2-91d7-9119484b4ed3
-  // new: https://hooks.glip.com/webhook/400b279f-97ba-42e4-a886-e7c1c6c79dee
   var post_options = {
       host: "hooks.glip.com",
-      path: "/webhook/400b279f-97ba-42e4-a886-e7c1c6c79dee",
+      path: `/webhook/${process.env.INBOUND_WEBHOOK}`,
       method: "POST",
       headers: {
         'Content-Type': 'application/json'
@@ -877,7 +1017,7 @@ function post_message_to_group(params, mainCompanyNumber, accountId){
         console.log(response)
       });
   });
-  //console.log(data)
+
   post_req.write(JSON.stringify(body));
   post_req.end();
 }

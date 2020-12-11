@@ -1,12 +1,11 @@
 PORT=8080
-PRINT_LOG=yes
-ADMIN=admin
-MODE=sandbox
 
 CLIENT_ID_SB=sandbox_ClientId
 CLIENT_SECRET_SB=sandbox_ClientSecret
 CLIENT_ID_PROD=production_ClientId
 CLIENT_SECRET_PROD=production_ClientSecret
+
+SECRET_TOKEN=some-secret-string
 
 RC_APP_SERVER_URL_SB=https://platform.devtest.ringcentral.com
 RC_APP_SERVER_URL_PROD=https://platform.ringcentral.com

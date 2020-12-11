@@ -113,7 +113,7 @@ ul > li > span {
 }
 
 .text-input {
-  margin-top: 10px;;
+  /*margin-top: 10px;*/
 }
 .show {
   display: inline;
@@ -138,9 +138,18 @@ ul > li > span {
   max-height: 100px;
   overflow: scroll;
 }
-
+/*
 #groups_list {
   display: none;
+  margin-top: 10px;
+  position: relative;
+  float: right;
+}
+*/
+
+.groups{
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
 
 .tab_item {
@@ -214,19 +223,10 @@ ul > li > span {
   padding: 0px !important;
 }
 .popover{
-    max-width: 70%; /* Max Width of the popover (depending on the container!) */
-    font-family: Source Sans Pro,Arial,sans-serif;
-}
-/*
-#content {
-  padding-left: 12px;
-  padding-right: 12px;
+  max-width: 70%; /* Max Width of the popover (depending on the container!) */
+  font-family: Source Sans Pro,Arial,sans-serif;
 }
 
-#button_header{
-  margin-left: 12px;
-}
-*/
 .btn-rc {
   background-color: #0073ae;
   color: white;
@@ -240,51 +240,35 @@ ul > li > span {
   font-size: 12px;
   letter-spacing: 0.3px;
 }
-/*
-td{
-  vertical-align: top;
-  align-content: center;
-}
-*/
+
 .navbar-brand {
   font-family: 'Open Sans', sans-serif;
 }
-/*
-.column {
-    float: left;
-}
 
-.left {
-  width: 29%;
-  margin-right: 5px;
-}
-
-.right {
-    width: 70%;
-}
-
-.left_col {
-  width: 40%;
-  margin-right: 5px;
-}
-.right-col {
-  width: 60%;
-  margin-left: 10px;
-}
-*/
 .header{
   font-size: 1.0em;
-  color: #425563;
+  font-weight: bold;
+  color: white;
+  background-color: #45485e;
 }
+
 .alert{
   color: red;
 }
 .claimed{
   color: grey;
   font-size: 0.8em;
+  max-width: 800px !important;
 }
 .warning{
   color: orange;
+}
+.sample {
+  background-color: yellow;
+  color: blue;
+}
+.error{
+  color: red;
 }
 .cost{
   max-width: 100px !important;
@@ -295,7 +279,7 @@ td{
 }
 .char-count {
   display: inline;
-  font-size: 1.0em !important;
+  font-size: 0.8em !important;
   vertical-align: bottom;
   font-weight: normal !important;
 }
@@ -327,17 +311,30 @@ td{
   margin-left: 100px;
   display: inline;
 }
-/*
-.display-right{
-  float:right;
-}
-.with-border {
-  border: 1px solid #f7f7f9;
-}
-*/
+
 .rc-login-footer {
   font-size: 10px;
   padding: 10px 30px;
   position: absolute;
   bottom: 10px;
+}
+
+.scrollable {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  height: 400px;
+}
+
+#list {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  height: 400px;
+}
+
+#list > div:hover{
+  background: #D1F6FA;
+}
+
+.hasborder {
+  border: 1px dotted purple;
 }

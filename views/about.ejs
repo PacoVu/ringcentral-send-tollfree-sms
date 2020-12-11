@@ -13,6 +13,21 @@
 
         <link rel="stylesheet" type="text/css" href="./css/main.css">
         <link rel="stylesheet" type="text/css" href="./css/ui.css">
+        <script>
+          function switchMode(mode){
+            if (mode == 0){
+              $("#manual-mode").css("display", "block")
+              $("#template-mode").css("display", "none")
+              $("#manual").html("&#9745;")
+              $("#template").html("&#9744;")
+            }else{
+              $("#template-mode").css("display", "block")
+              $("#manual-mode").css("display", "none")
+              $("#manual").html("&#9744;")
+              $("#template").html("&#9745;")
+            }
+          }
+        </script>
     </head>
     <body>
       <nav id="menu_header" class="navbar navbar-default no-border">
@@ -28,29 +43,76 @@
         </ul>
       </nav>
       <section id='content'>
-        <body>
-          <h3>Send High Volume SMS</h3>
-          <h4>Instructions:</h4>
-          <ol>
-              <li>Login with RingCentral account</li>
-              <li>Select a Toll-Free number from the <b>From number</b> dropdown</li>
-              <li>Provide a list of recipient number. Enter numbers separated by a new line or upload a .csv file (.cs file format is 1 column with header as "number")
-                  <div><b>Sample .csv file:</b></br>
-                    <span style="background:yellow">
-                      number</br>
-                      +11234567890</br>
-                      +14087654322</br>
-                      +16501234567</br>
-                    </span>
-                  </div>
-              </li>
-              <li>Compose the SMS message</li>
-              <li>Click the <b>Send</b> to send</li>
-          </ol>
-          <div>
-            Get the project's source code from <a href="https://github.com/PacoVu/ringcentral-send-tollfree-sms">Github repo</a>
+          <div class="col-xs-12">
+            <h3>Send High Volume SMS Instructions</h3>
+            <div class="col-sm-1">
+              <ul class="nav navbar-left">
+                <li>
+                  <span><span id="manual">&#9745;</span><a href="javascript:switchMode(0)"> Manual Input</a></span>
+                </li>
+                <li>
+                  <span><span id="template">&#9744;</span><a href="javascript:switchMode(1)">Template Input</a></span>
+                </li>
+              </ul>
+            </div>
+            <div class="col-sm-7">
+              <div id="manual-mode">
+                <h4>Manual Input Mode:</h4>
+                <ol>
+                    <li>Enter a campaign name</li>
+                    <li>Select phone number from the <b>From number</b> dropdown list</li>
+                    <li>Enter recipients' numbers separated by a new line or upload a .csv file (.csv file format is a single column with header as "number")
+                        <div><b>Sample .csv file:</b></br>
+                          <div style="font-family: courier">
+                          <span class="sample">
+                            <b>number</b></br>
+                            +11234567890</br>
+                            +14087654322</br>
+                            +16501234567</br>
+                          </span>
+                          </div>
+                        </div>
+                    </li>
+                    <li>Compose the main SMS message</li>
+                    <li>If you also want to add more message group, click the <b>+ New message group</b> button and repeat the step 3 and 4 as shown above.
+                      <div>
+                        <span>Note: Message will be sent to multiple recipients individually. Recipients will not see each other number!</span>
+                      </div>
+                    </li>
+                    <li>Click the <b>Submit</b> button to send</li>
+                </ol>
+              </div>
+              <div id="template-mode" style="display: none">
+                <div id="manual-mode">
+                  <h4>Template Input Mode:</h4>
+                  <ol>
+                      <li>Enter a campaign name</li>
+                      <li>Select a phone number from the <b>From number</b> dropdown list</li>
+                      <li>Click the <b>Choose file</b> button to load your multiple columns .CSV file
+                          <div><b>Sample .csv file:</b></div>
+                          <div style="font-family: courier">
+                              <b><span class="sample">phone number</span>,<span class="sample">name,<span class="sample">datetime,<span class="sample">doctor</span>,<span class="sample">location</span></b></br>
+                              <div><span class="sample">+14084567890</span>,<span class="sample">Samuel</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Rich Edisson, MD"</span>,<span class="sample">Santa Clara hospital</span></div>
+                              <div><span class="sample">+11234567890</span>,<span class="sample">Ted</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Bruce Lewis, DO"</span>,<span class="sample">Mountain View hospital</span></div>
+                              <div><span class="sample">+14087654322</span>,<span class="sample">Anna</span>,<span class="sample">2020/12/16 10:00</span>,<span class="sample">Leo Hudson, PhD</span>,<span class="sample">Mountain View hospital</span></div>
+                              <div><span class="sample">+16501234567</span>,<span class="sample">Jen</span>,<span class="sample">2020/12/16 14:00</span>,<span class="sample">"Brad Willis, MD"</span>,<span class="sample">"Stanford Health Care Center. Bld #3, 5th floor"</span></div>
+                          </div>
+                      </li>
+                      <li>Enter the phone number column name to the "Recipient's number column" field</li>
+                      <li>Compose the SMS message. Click a CSV column to automatically fill the message. Read the "Sample message" to see a example message. E.g.
+                        <div><b>Text input:</b> Hello {name}. Your appointment with Dr. {doctor} will be due on {datetime} at {location}</div>
+                        <div><b>Sample:</b> <span style="color: blue">Hello Samuel. Your appointment with Dr. Rich Edisson, MD will be due on 2020/12/16 08:00 at Santa Clara hospital</span></div>
+                      </li>
+                      <li>Click the <b>Submit</b> button to send</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4"></div>
           </div>
-        </body>
+          <div class="col-xs-12">
+            Get the project's source code from <a target="_blank" href="https://github.com/PacoVu/ringcentral-send-tollfree-sms/tree/combined">Github repo</a>
+          </div>
       </section>
       <%- include('_footer') %>
     </body>

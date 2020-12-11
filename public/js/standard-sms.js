@@ -49,7 +49,7 @@ function disableInputs(flag){
   $("#send-message").prop("disabled", flag);
 
   if (flag){
-    $("#send-message").toggleClass("btn")
+    $("#send-message").toggleClass("btn-rc")
     $("#sendingAni").css('display', 'inline');
     $("#download_json").toggleClass("hide")
     $("#download_csv").toggleClass("hide")
