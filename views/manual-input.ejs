@@ -83,15 +83,9 @@
   </nav>
   <section id='content'>
     <div class="col-xs-12">
-      <div class="col-sm-1">
-        <ul class="nav navbar-left">
-          <li>
-            <span>&#9745; Manual Input</span>
-          </li>
-          <li>
-            <span>&#9744; <a href="/highvolume-template">Template Input</a></span>
-          </li>
-        </ul>
+      <div class="row col-sm-2">
+        <div>&#9745; Manual Input</div>
+        <div>&#9744; <a href="/highvolume-template">Template Input</a></div>
       </div>
       <div class="col-sm-7">
         <div class="form-inline">
@@ -150,7 +144,7 @@
         </div>
       </div>
 
-      <div class="col-sm-4" style="border-left: 1px dotted gray">
+      <div class="col-sm-3" style="border-left: 1px dotted gray">
         <div id="control_block" style="display: none;">
           <button id="read_result" onclick="switchPollResult()" class="btn-rc">Stop Polling</button>&nbsp;&nbsp;
           <button id="read_report" onclick="readReport()" class="btn-rc">Read Report</button>
