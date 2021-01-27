@@ -1,6 +1,53 @@
 const User = require('./usershandler.js')
+const ActiveAccount = require('./event-engine.js')
+const pgdb = require('./db')
+const async = require('async')
 require('dotenv').load()
 var users = []
+
+var activeAccounts = []
+exports.activeAccounts = activeAccounts
+autoStart()
+function autoStart(){
+  console.log("autoStart")
+  var query = `SELECT * FROM a2p_sms_active_accounts`
+  pgdb.read(query, (err, result) => {
+    if (err){
+      console.error(err.message);
+      createActiveAccountsTable()
+    }else{
+      if (result.rows){
+        async.each(result.rows,
+          function(item, callback){
+            console.log("account info: " + item.account_id + " / " + item.subscription_id)
+            var account = new ActiveAccount(item.account_id, item.subscription_id)
+            account.setup((err, result) => {
+              if (err == null){
+                activeAccounts.push(account)
+                console.log("activeAccounts.length: " + activeAccounts.length)
+                callback(null, result)
+              }
+            })
+          },
+          function (err){
+            console.log("autoStart completed")
+          })
+      }
+    }
+  })
+}
+
+function createActiveAccountsTable() {
+  console.log("createActiveAccountsTable")
+  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_accounts (account_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64))'
+  pgdb.create_table(query, (err, res) => {
+      if (err) {
+        console.log(err, err.message)
+      }else{
+        console.log("DONE")
+      }
+    })
+}
 
 function getUserIndex(id){
   for (var i=0; i<users.length; i++){
@@ -25,6 +72,9 @@ function getUserIndexByExtensionId(extId){
 }
 
 var router = module.exports = {
+  getEngine: function(){
+    return activeAccounts
+  },
   loadLogin: function(req, res){
     if (req.session.userId == 0 || req.session.extensionId == 0) {
       var id = new Date().getTime()
@@ -64,6 +114,7 @@ var router = module.exports = {
     users[index].login(req, res, function(err, extensionId){
       // result contain extensionId. Use it to check for orphan user and remove it
       if (!err){
+        /* remove
         for (var i = 0; i < users.length; i++){
           console.log("REMOVING")
           var extId = users[i].getExtensionId()
@@ -73,6 +124,42 @@ var router = module.exports = {
             users[i] = null
             users.splice(i, 1);
             break
+          }
+        }
+        */
+        console.log("USERLENGTH: " + users.length)
+        var shouldReplace = false
+        var oldUser = null
+        var newUser = null
+        var oldUserIndex = -1
+        var newUserIndex = -1
+        for (var i = 0; i < users.length; i++){
+          console.log("REPLACING")
+          var extId = users[i].getExtensionId()
+          var userId = users[i].getUserId()
+          if (extId == extensionId && userId == req.session.userId){ // new user
+            newUser = users[i]
+            newUserIndex = i
+            if (oldUser != null){
+              req.session.userId = oldUser.getUserId()
+              users[newUserIndex] = null
+              users.splice(newUserIndex, 1);
+              console.log("oldUser.extensionList from new user")
+              console.log(oldUser.extensionList)
+              break
+            }
+          }
+          if (extId == extensionId && userId != req.session.userId){ // old user
+            oldUser = users[i]
+            oldUserIndex = i
+            if (newUser != null){
+              req.session.userId = userId
+              users[newUserIndex] = null
+              users.splice(newUserIndex, 1);
+              console.log("oldUser.extensionList from old user")
+              console.log(oldUser.extensionList)
+              break
+            }
           }
         }
       }
@@ -90,11 +177,17 @@ var router = module.exports = {
       thisObj.forceLogin(req, res)
     })
   },
+  getSurveyResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getSurveyResult(res)
+  },
   getBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getBatchReport(res, req.query.batchId, "")
+    users[index].getBatchReport(res, req.query.batchId)
   },
   getBatchResult: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -138,11 +231,17 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].sendHighVolumeSMSMessageAdvance(req, res)
   },
+  sendHighVolumeSMSMessageSurvey: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].sendHighVolumeSMSMessageSurvey(req, res)
+  },
   readCampaign: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getBatchReport(res, req.query.batchId, "")
+    users[index].getBatchReport(res, req.query.batchId)
   },
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -174,6 +273,12 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadHVTemplatePage(res)
+  },
+  loadHVSurveyPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadHVSurveyPage(res)
   },
   loadCampaignHistoryPage: function(req, res){
     var index = getUserIndex(req.session.userId)

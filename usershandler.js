@@ -3,6 +3,8 @@ var fs = require('fs')
 var async = require("async");
 const RCPlatform = require('./platform.js')
 const pgdb = require('./db')
+var router = require('./router');
+const ActiveAccount = require('./event-engine.js')
 require('dotenv').load()
 
 const MASK = "#!#"
@@ -11,17 +13,16 @@ function User(id) {
   this.id = id;
   this.extensionId = 0;
   this.accountId = 0;
+  this.userEmail = "" // for feedback only
   this.userName = ""
+  this.subscriptionId = ""
+  this.eventEngine = undefined
   this.rc_platform = new RCPlatform()
-
+  this.sendSurvey = false
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
-  this.sendReport = {
-      sendInProgress: false,
-      successCount: "Sending 0/0",
-      failedCount: "",
-      invalidNumbers: []
-  }
+
+  // High Volume SMS Report
   this.batchReport = {
     Sent_Count: 0,
     Queued_Count: 0,
@@ -30,11 +31,21 @@ function User(id) {
     Sending_Failed_Count: 0,
     Total_Cost: 0
   }
+  // High Volume SMS Result
   this.batchResult = {
     id:"",
     batchSize: 0,
     processedCount: 0,
     status:"Completed"
+  }
+  // Survey Report
+  this.surveyBatchReport = {
+    Sent_Count: 0,
+    Queued_Count: 0,
+    Delivered_Count: 0,
+    Delivered_Failed_Count: 0,
+    Sending_Failed_Count: 0,
+    Total_Cost: 0
   }
   this.batchFullReport = []
   this.smsBatchIds = []
@@ -51,6 +62,12 @@ function User(id) {
   this.delayInterval = 1510
   this.intervalTimer = null
   this.StartTimestamp = 0
+  this.sendReport = {
+      sendInProgress: false,
+      successCount: "Sending 0/0",
+      failedCount: "",
+      invalidNumbers: []
+  }
   return this
 }
 
@@ -98,6 +115,21 @@ var engine = User.prototype = {
         batchResult: this.batchResult
       })
     },
+    loadHVSurveyPage: function(res){
+      var isPending = false
+      this.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === this.accountId.toString())
+      if (this.eventEngine != undefined){
+        if (this.eventEngine.surveyCampain != undefined){
+          isPending = true
+        }
+      }
+      res.render('survey', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers,
+        smsBatchIds: this.smsBatchIds,
+        isPending: isPending
+      })
+    },
     login: function(req, res, callback){
       var thisReq = req
       if (req.query.code) {
@@ -109,6 +141,20 @@ var engine = User.prototype = {
             req.session.extensionId = extensionId;
             callback(null, extensionId)
             res.send('login success');
+            thisUser.deleteAllRegisteredWebHookSubscriptions()
+/*
+            thisUser.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === thisUser.accountId.toString())
+            //thisUser.deleteAllRegisteredWebHookSubscriptions()
+
+            if (thisUser.eventEngine == undefined){
+              console.log("create and add a new eventEngine")
+              thisUser.eventEngine = new ActiveAccount(thisUser.accountId, thisUser.subscriptionId)
+              thisUser.eventEngine.setup((err, result) => {
+                router.activeAccounts.push(thisUser.eventEngine)
+                thisUser.subscribeForNotification("")
+              })
+            }
+*/
             thisUser.createTable(function(err, result){
               console.log("a2p_user created")
             })
@@ -119,6 +165,8 @@ var engine = User.prototype = {
                     var jsonObj = response.json();
                     thisUser.accountId = jsonObj.account.id
                     var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
+                    if (jsonObj.contact.hasOwnProperty("email"))
+                      thisUser.userEmail = jsonObj.contact.email
                     thisUser.setUserName(fullName)
                   })
                   .catch(function(e) {
@@ -141,7 +189,7 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: function(req, res){
       var thisUser = this
-        this.rc_platform.getPlatform(function(err, p){
+      this.rc_platform.getPlatform(function(err, p){
           if (err){
             req.session.destroy();
             res.render('index')
@@ -225,6 +273,122 @@ var engine = User.prototype = {
           }
         })
     },
+    sendHighVolumeSMSMessageSurvey: function (req, res){
+      var customerList = []
+      var body = req.body
+      var requestBody = {
+          from: body.from_number,
+          messages: []
+      }
+      var csvColumnIndex = {}
+      var expire = parseInt(body.expire)
+      var startTime = new Date().getTime()
+      var surveyCampain = {
+        campaignName: body.campaign_name,
+        serviceNumber: body.from_number,
+        startDateTime: startTime,
+        endDateTime: startTime + (expire * 3600000),
+        batchId: "",
+        sampleMessage: "",
+        surveyResults: {},
+        surveyCounts:{
+          Cost: 0,
+          Total: 0,
+          Delivered: 0,
+          Unreachable: 0,
+          Replied: 0
+        },
+        audienceList: []
+      }
+      var commands = []
+      if (body.command_1 != null && body.command_1 != ""){
+        commands.push(body.command_1)
+        surveyCampain.surveyResults[body.command_1] = 0
+      }
+      if (body.command_2 != null && body.command_2 != ""){
+        commands.push(body.command_2)
+        surveyCampain.surveyResults[body.command_2] = 0
+      }
+      if (body.command_3 != null && body.command_3 != ""){
+        commands.push(body.command_3)
+        surveyCampain.surveyResults[body.command_3] = 0
+      }
+
+      if (req.files != undefined){
+        for (var f of req.files){
+          var currentFolder = process.cwd();
+          var tempFile = currentFolder + "/uploads/" + f.filename
+          var content = fs.readFileSync(tempFile, 'utf8');
+          var recipientsFromFile = content.trim().split("\r\n")
+          var header = recipientsFromFile[0]
+          var columns = header.trim().split(",")
+          for (var i=0; i<columns.length; i++){
+            csvColumnIndex[columns[i]] = i
+          }
+          var message = body.message
+          var toNumberColumnName = body.to_number_column
+          recipientsFromFile.shift() // remove the first row which is the header
+          surveyCampain.surveyCounts.Total = recipientsFromFile.length
+          for (var row of recipientsFromFile){
+            row = detectAndHandleCommas(row)
+            var columns = row.trim().split(",")
+            var msg = resembleMessage(message, columns, csvColumnIndex)
+            var toNumber = columns[csvColumnIndex[toNumberColumnName]]
+            toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
+            var group = {
+                to: [toNumber],
+                text: msg
+            }
+            requestBody.messages.push(group)
+
+            var audience = {
+              id: "",
+              phoneNumber: toNumber,
+              replied: false,
+              commands: commands,
+              result: "",
+              sent: false,
+              optout: false
+            }
+            surveyCampain.audienceList.push(audience)
+          }
+        }
+
+        var currentFolder = process.cwd();
+        for (var file of req.files){
+          var tempFile = currentFolder + "/uploads/" + file.filename
+          fs.unlinkSync(tempFile);
+        }
+        this.sendSurvey = true
+        this.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === this.accountId.toString())
+        //thisUser.deleteAllRegisteredWebHookSubscriptions()
+
+        if (this.eventEngine == undefined){
+          console.log("create and add a new eventEngine")
+          this.eventEngine = new ActiveAccount(this.accountId, this.subscriptionId)
+          router.activeAccounts.push(this.eventEngine)
+          this.eventEngine.setSurveyCampaign(surveyCampain)
+          var thisUser = this
+          this.subscribeForNotification("", (err, result) => {
+              if (err == null){
+                thisUser.sendBatchMessage(res, requestBody, body.campaign_name)
+              }
+          })
+        }else{
+          // may need to check if subscription is active!!!
+          this.eventEngine.setSurveyCampaign(surveyCampain)
+          /*
+          var thisUser = this
+          this.subscribeForNotification("", (err, result) => {
+              if (err == null){
+                thisUser.sendBatchMessage(res, requestBody, body.campaign_name)
+              }
+          })
+          */
+          this.sendBatchMessage(res, requestBody, body.campaign_name)
+        }
+      }
+    },
     sendHighVolumeSMSMessageAdvance: function(req, res){
       var body = req.body
       var requestBody = {
@@ -263,6 +427,7 @@ var engine = User.prototype = {
           var tempFile = currentFolder + "/uploads/" + file.filename
           fs.unlinkSync(tempFile);
         }
+        this.sendSurvey = false
         this.sendBatchMessage(res, requestBody, body.campaign_name)
       }
     },
@@ -357,6 +522,7 @@ var engine = User.prototype = {
       */
       //console.log(body.scheduledAt)
       //console.log(JSON.stringify(requestBody))
+      this.sendSurvey = false
       this.sendBatchMessage(res, requestBody, body.campaign_name)
     },
     sendBatchMessage: function(res, requestBody, campaignName){
@@ -392,7 +558,8 @@ var engine = User.prototype = {
         }
       })
     },
-    getBatchReport: function(res, batchId, pageToken){
+    getBatchReport: function(res, batchId){
+      console.log("getBatchReport")
       this.batchReport.Queued_Count = 0
       this.batchReport.Sent_Count = 0
       this.batchReport.Delivered_Count = 0
@@ -400,7 +567,8 @@ var engine = User.prototype = {
       this.batchReport.Sending_Failed_Count = 0
       this.batchReport.Total_Cost = 0
       this.batchFullReport = []
-      this._getBatchReport(res, batchId, pageToken)
+      console.log(this.sendSurvey)
+      this._getBatchReport(res, batchId, "")
     },
     _getBatchReport: function(res, batchId, pageToken){
       var thisUser = this
@@ -460,7 +628,93 @@ var engine = User.prototype = {
         }
       })
     },
+    getSurveyResult: function (res){
+      var now = new Date().getTime()
+      var expire = this.eventEngine.surveyCampain.endDateTime - now
+      var status = "Status: Survey is closed!"
+      var completion = true
+      if (expire >= 0){
+        status = "Status: Survey will be closed in " + formatEstimatedTimeLeft(expire/1000)
+        completion = false
+      }
+      if (this.eventEngine.surveyCampain.surveyCounts.Delivered > 0){
+        if (this.eventEngine.surveyCampain.surveyCounts.Delivered == this.eventEngine.surveyCampain.surveyCounts.Replied){
+          status= "Status: Survey is completed."
+          completion = true
+        }
+      }
+      res.send({
+          status: "ok",
+          surveyCompleted: completion,
+          surveyStatus: status,
+          surveyInfo: "",
+          surveyCounts: this.eventEngine.surveyCampain.surveyCounts,
+          surveyResults: this.eventEngine.surveyCampain.surveyResults
+        })
+    },
+    _getSurveyResult: function (batchId, pageToken){
+      console.log("_getSurveyReport")
+      var thisUser = this
+      var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
+      console.log(endpoint)
+      if (pageToken != "")
+        endpoint += "&pageToken=" + pageToken
+
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              var keepPolling = false
+              for (var message of jsonObj.records){
+                if (message.messageStatus == "Queued"){
+                  keepPolling = true
+                }else if (message.messageStatus == "Sent"){
+                  thisUser.eventEngine.surveyCampain.surveyCounts.Delivered++
+                }else if (message.messageStatus == "Delivered"){
+                  thisUser.eventEngine.surveyCampain.surveyCounts.Delivered++
+                  var client = thisUser.eventEngine.surveyCampain.audienceList.find(o => o.phoneNumber == message.to[0])
+                  if (client && client.sent == false){
+                    client.id = message.id
+                    client.sent = true
+                  }
+                }else if (message.messageStatus == "DeliveryFailed"){
+                  thisUser.eventEngine.surveyCampain.surveyCounts.Unreachable++
+                }else if (message.messageStatus == "SendingFailed"){
+                  thisUser.eventEngine.surveyCampain.surveyCounts.Unreachable++
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
+                thisUser.eventEngine.surveyCampain.surveyCounts.Cost += cost
+              }
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                setTimeout(function(){
+                  thisUser._getSurveyResult(batchId, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                if (keepPolling){
+                  setTimeout(function(){
+                    // reset surveyCounts
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Cost = 0
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Delivered = 0
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Unreachable = 0
+                    thisUser._getSurveyResult(batchId, "")
+                  }, 5000)
+                }else{
+                  console.log("DONE SURVEY")
+                }
+              }
+              console.log(thisUser.eventEngine.surveyCampain.audienceList)
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+            });
+        }else{
+          console.log("platform issue")
+        }
+      })
+    },
     getBatchResult: function(req, res){
+      console.log("getBatchResult")
         var thisUser = this
         var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
         var p = this.rc_platform.getPlatform(function(err, p){
@@ -470,6 +724,18 @@ var engine = User.prototype = {
                 var jsonObj = resp.json()
                 var processingTime = (Date.now() - thisUser.StartTimestamp) / 1000
                 thisUser.batchResult = jsonObj
+                console.log(jsonObj)
+                // implement for survey
+                if (thisUser.sendSurvey){
+                  if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
+                    console.log("Done Batch Result, call _getSurveyResult")
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Cost = 0
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Delivered = 0
+                    thisUser.eventEngine.surveyCampain.surveyCounts.Unreachable = 0
+                    thisUser._getSurveyResult(req.query.batchId, "")
+                  }
+                }
+                //
                 res.send({
                     status:"ok",
                     time: formatSendingTime(processingTime),
@@ -584,9 +850,11 @@ var engine = User.prototype = {
         }
       })
     },
+    /*
     readCampaign: function(req, res){
       this._getBatchReport(res, req.query.batchId, "")
     },
+    */
     loadCampaignHistoryPage: function(res){
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -607,7 +875,91 @@ var engine = User.prototype = {
         }
       })
     },
-    // Classic SMS
+    // Notifications
+    subscribeForNotification: function(phoneNumber, callback){
+      var thisUser = this
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          var eventFilters = [
+            `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`
+            //`/restapi/v1.0/account/~/a2p-sms/opt-outs?from=${process.env.DLC_NUMBER}`
+          ]
+          if (thisUser.subscriptionId == ""){
+            p.post('/restapi/v1.0/subscription', {
+                            eventFilters: eventFilters,
+                            deliveryMode: {
+                                transportType: 'WebHook',
+                                address: process.env.DELIVERY_MODE_ADDRESS
+                            },
+                            expiresIn: 630720000
+            })
+            .then(function (resp){
+              var jsonObj = resp.json()
+              console.log("Ready to receive telephonyStatus notification via WebHook.")
+              thisUser.subscriptionId = jsonObj.id
+              thisUser.eventEngine.subscriptionId = thisUser.subscriptionId
+              console.log("Create subscription")
+              console.log(thisUser.subscriptionId)
+              thisUser.updateActiveAccountsTable()
+              callback(null, "ok")
+            })
+            .catch(function(e){
+              console.log(e.message)
+              callback(e.message, "failed")
+            })
+          }else{
+            // maybe delete subscription
+            console.log("Update subscription")
+            p.put(`/restapi/v1.0/subscription/${thisUser.subscriptionId}`, {
+                            eventFilters: eventFilters,
+                            deliveryMode: {
+                                transportType: 'WebHook',
+                                address: process.env.DELIVERY_MODE_ADDRESS
+                            },
+                            expiresIn: 31536000
+            })
+            .then(function (resp){
+              var jsonObj = resp.json()
+              console.log("Update notification via WebHook.")
+              callback(null, "ok")
+            })
+            .catch(function(e){
+              console.log(e.message)
+              callback(e.message, "failed")
+            })
+          }
+        } else {
+          console.log(err);
+          callback(err, "failed")
+        }
+      })
+    },
+    /// Clean up WebHook subscriptions
+    deleteAllRegisteredWebHookSubscriptions: function() {
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get('/restapi/v1.0/subscription')
+          .then(function(resp){
+            var jsonObj = resp.json()
+            if (jsonObj.records.length > 0){
+              for (var record of jsonObj.records) {
+                if (record.deliveryMode.transportType == "WebHook"){
+                    p.delete('/restapi/v1.0/subscription/' + record.id)
+                    console.log("Deleted")
+                }
+              }
+              console.log("Deleted all")
+            }else{
+              console.log("No subscription to delete")
+            }
+          })
+          .catch(function(e){
+            console.log(e.message)
+          })
+        }
+      })
+    },
+    // Standard SMS
     sendSMSMessageAsync: function(req, res){
         this.recipientArr = []
         if (req.file != undefined){
@@ -808,7 +1160,7 @@ var engine = User.prototype = {
       res.send(this.sendReport)
     },
     postFeedbackToGlip: function(req){
-      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId)
+      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId, this.userEmail)
     },
     createTable: function (callback) {
       console.log("CREATE TABLE")
@@ -890,6 +1242,32 @@ var engine = User.prototype = {
           res.send({status:"ok", data: userStats})
         }
       })
+    },
+    updateActiveAccountsTable: function() {
+      console.log("updateActiveAccountsTable")
+      var query = "INSERT INTO a2p_sms_active_accounts (account_id, subscription_id)"
+      query += " VALUES ($1,$2)"
+      var values = [this.accountId, this.subscriptionId]
+      query += " ON CONFLICT (account_id) DO UPDATE SET subscription_id='" + this.subscriptionId + "'"
+
+      pgdb.insert(query, values, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+          console.log("QUERY: " + query)
+        }else{
+          console.log("updateActiveAccountsTable DONE");
+        }
+      })
+      /*
+      var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_accounts (account_id VARCHAR(15) PRIMARY KEY, extension_id VARCHAR(15), subscription_id VARCHAR(64))'
+      pgdb.create_table(query, (err, res) => {
+          if (err) {
+            console.log(err, err.message)
+          }else{
+            console.log("DONE")
+          }
+        })
+      */
     }
 }
 module.exports = User;
@@ -987,10 +1365,11 @@ function formatPhoneNumber(phoneNumberString) {
   return phoneNumberString
 }
 
-function post_message_to_group(params, mainCompanyNumber, accountId){
+function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   var https = require('https');
   var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
   message += "\nUser account Id: " + accountId
+  message += "\nUser contact email: " + userEmail
   message += "\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=" + accountId
   message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID++++++++++" + accountId + "User"
   var body = {

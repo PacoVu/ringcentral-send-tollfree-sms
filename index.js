@@ -124,6 +124,15 @@ app.get('/highvolume-manual', function (req, res) {
   }
 })
 
+app.get ('/highvolume-survey', function (req, res) {
+  console.log('load highvolume-survey')
+  if (req.session.extensionId != 0)
+    router.loadHVSurveyPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/about', function (req, res) {
   res.render('about')
 })
@@ -131,6 +140,14 @@ app.get('/about', function (req, res) {
 app.get('/getresult', function (req, res) {
   if (req.session.extensionId != 0)
     router.getSendSMSResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/getsurveyresult', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.getSurveyResult(req, res)
   else{
     res.render('index')
   }
@@ -230,6 +247,10 @@ app.post('/sendhighvolumemessage-advance', upload.any(), function (req, res, nex
   router.sendHighVolumeSMSMessageAdvance(req, res)
 })
 
+app.post('/sendhighvolumemessage-survey', upload.any(), function (req, res, next) {
+  console.log("post sendhighvolumemessage-survey")
+  router.sendHighVolumeSMSMessageSurvey(req, res)
+})
 
 app.post('/sendsms', function (req, res) {
   console.log("sendsms")
@@ -239,4 +260,33 @@ app.post('/sendsms', function (req, res) {
 app.post('/sendfeedback', function (req, res) {
   console.log("sendfeedback")
   router.postFeedbackToGlip(req, res)
+})
+
+// Receiving RingCentral webhooks notifications
+app.post('/webhookcallback', function(req, res) {
+    if(req.headers.hasOwnProperty("validation-token")) {
+        res.setHeader('Validation-Token', req.headers['validation-token']);
+        res.statusCode = 200;
+        res.end();
+    }else{
+        var body = []
+        req.on('data', function(chunk) {
+            body.push(chunk);
+        }).on('end', function() {
+            body = Buffer.concat(body).toString();
+            var jsonObj = JSON.parse(body)
+            var activeAccounts = router.getEngine()
+            if (activeAccounts.length){
+              var account = activeAccounts.find(o => o.subscriptionId === jsonObj.subscriptionId)
+              if (account)
+                account.processNotification(jsonObj)
+              else
+                console.log("Not my notification!!!")
+            }else{
+              console.log("Export does not work")
+            }
+            res.statusCode = 200;
+            res.end();
+        });
+    }
 })
