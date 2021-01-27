@@ -22,13 +22,15 @@ function startPollingResult(poll){
   if (poll){
     $("#sendingAni").css('display', 'inline');
     $("#polling_tips").css('display', 'inline');
-    $("#result_block").css('display', 'inline');
+    //$("#result_block").css('display', 'inline');
+    $("#result_block").show();
   }else{
     if (pollTimer)
       window.clearTimeout(pollTimer)
     pollTimer = null
     $("#sendingAni").css('display', 'none');
     $("#polling_tips").css('display', 'none');
+    $("#result_block").hide();
   }
 }
 
@@ -122,10 +124,11 @@ function readSurveyResult(){
       */
 
       report += "<div>" + res.surveyStatus + "</div>"
-      report += "<div># of targeted audiences: " + surveyCounts.Total + "</div>"
-      report += "<div># of reached audiences: " + surveyCounts.Delivered + "</div>"
-      report += "<div># of unreachable audiences: " + surveyCounts.Unreachable + "</div>"
-      report += "<div># of replied audiences: " + surveyCounts.Replied + "</div>"
+      report += "<div>Sample message: " + res.surveyQuestionair + "</div>"
+      report += "<div>Total voters: " + surveyCounts.Total + "</div>"
+      report += "<div>Reached voters: " + surveyCounts.Delivered + "/" + surveyCounts.Total + "</div>"
+      //report += "<div>Unreachable voters: " + surveyCounts.Unreachable + "</div>"
+      report += "<div>Voted voters: " + surveyCounts.Replied + "/" + surveyCounts.Delivered + "</div>"
 
       //report += "<div>Cost: " + surveyCounts.Cost.toFixed(3) + " USD</div>"
       $("#report").html(report)
@@ -167,7 +170,7 @@ function plotSurveyResult(result){
                        role: "annotation"
                     },
                     2]);
-
+    /*
     var options = {
       title: params[0][0],
       vAxis: {minValue: 0},
@@ -177,8 +180,17 @@ function plotSurveyResult(result){
       bar: {groupWidth: "40%"},
       legend: { position: "none" },
     };
+    */
+    var options = {
+      title: 'Results (# votes)',
+      width: 400,
+      height: 300,
+      pieHole: 0.4,
+    };
+
     var element = document.getElementById("survey_result")
-    var chart = new google.visualization.ColumnChart(element);
+    //var chart = new google.visualization.ColumnChart(element);
+    var chart = new google.visualization.PieChart(element);
     chart.draw(view, options);
 }
 ////

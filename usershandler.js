@@ -141,7 +141,7 @@ var engine = User.prototype = {
             req.session.extensionId = extensionId;
             callback(null, extensionId)
             res.send('login success');
-            thisUser.deleteAllRegisteredWebHookSubscriptions()
+            //thisUser.deleteAllRegisteredWebHookSubscriptions()
 /*
             thisUser.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === thisUser.accountId.toString())
             //thisUser.deleteAllRegisteredWebHookSubscriptions()
@@ -340,7 +340,9 @@ var engine = User.prototype = {
                 text: msg
             }
             requestBody.messages.push(group)
-
+            if (surveyCampain.sampleMessage == ""){
+              surveyCampain.sampleMessage = msg
+            }
             var audience = {
               id: "",
               phoneNumber: toNumber,
@@ -536,6 +538,8 @@ var engine = User.prototype = {
               thisUser.StartTimestamp = Date.now()
               thisUser.smsBatchIds.push(resp.json().id)
               thisUser.batchResult = jsonObj
+              if (thisUser.sendSurvey == true)
+                thisUser.eventEngine.surveyCampain.batchId = thisUser.smsBatchIds
               thisUser.addBatchToDB(campaignName, jsonObj)
               res.send({
                   status:"ok",
@@ -631,15 +635,15 @@ var engine = User.prototype = {
     getSurveyResult: function (res){
       var now = new Date().getTime()
       var expire = this.eventEngine.surveyCampain.endDateTime - now
-      var status = "Status: Survey is closed!"
+      var status = "Status: Vote is closed!"
       var completion = true
       if (expire >= 0){
-        status = "Status: Survey will be closed in " + formatEstimatedTimeLeft(expire/1000)
+        status = "Status: Vote will be closed in " + formatEstimatedTimeLeft(expire/1000)
         completion = false
       }
       if (this.eventEngine.surveyCampain.surveyCounts.Delivered > 0){
         if (this.eventEngine.surveyCampain.surveyCounts.Delivered == this.eventEngine.surveyCampain.surveyCounts.Replied){
-          status= "Status: Survey is completed."
+          status= "Status: Vote is completed."
           completion = true
         }
       }
@@ -647,7 +651,7 @@ var engine = User.prototype = {
           status: "ok",
           surveyCompleted: completion,
           surveyStatus: status,
-          surveyInfo: "",
+          surveyQuestionair: this.eventEngine.surveyCampain.sampleMessage,
           surveyCounts: this.eventEngine.surveyCampain.surveyCounts,
           surveyResults: this.eventEngine.surveyCampain.surveyResults
         })

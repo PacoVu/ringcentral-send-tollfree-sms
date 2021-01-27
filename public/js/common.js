@@ -110,7 +110,7 @@ function parseResultResponse(resp){
       //isPolling = true
       pollResult()
     }, 5000)
-  }else if (resp.result.status == "Completed"){
+  }else if (resp.result.status == "Completed" || resp.result.status == "Sent"){
     pendingBatch = false
     var createdAt = new Date(resp.result.creationTime).getTime()
     var lastUpdatedAt = new Date(resp.result.lastModifiedTime).getTime()

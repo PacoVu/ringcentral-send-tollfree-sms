@@ -12,7 +12,10 @@ const MASK = "#!#"
 
 window.onload = function init(){
   //var jsonObj = JSON.parse(window.batchResult)
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(onloaded);
   //if (jsonObj.status == "Processing" && jsonObj.id != ""){
+  /*
   if (window.isPending == "true"){
     pendingBatch = true
     currentBatchId = "xxxxx"
@@ -24,17 +27,27 @@ window.onload = function init(){
     $("#report_block").show()
     readSurveyResult()
     //pollResult()
-  }
-
-  else{
+  }else{
     $("#control_block").hide()
   }
-  google.charts.load('current', {'packages':['corechart']});
-  google.charts.setOnLoadCallback(onloaded);
+  */
 }
 
 function onloaded(){
-
+  if (window.isPending == "true"){
+    pendingBatch = true
+    currentBatchId = "xxxxx"
+    isPolling = false // force to start polling
+    //switchPollResult()
+    startPollingResult(false)
+    //$("#result_block").show()
+    $("#control_block").show()
+    $("#report_block").show()
+    readSurveyResult()
+    //pollResult()
+  }else{
+    $("#control_block").hide()
+  }
 }
 function readFileRecipients(elm, f){
   var file = null
