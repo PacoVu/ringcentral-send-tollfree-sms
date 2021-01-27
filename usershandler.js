@@ -12,6 +12,7 @@ function User(id) {
   this.extensionId = 0;
   this.accountId = 0;
   this.userName = ""
+  this.userEmail = ""
   this.rc_platform = new RCPlatform()
 
   this.phoneHVNumbers = []
@@ -119,6 +120,8 @@ var engine = User.prototype = {
                     var jsonObj = response.json();
                     thisUser.accountId = jsonObj.account.id
                     var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
+                    if (jsonObj.contact.hasOwnProperty("email"))
+                      thisUser.userEmail = jsonObj.contact.email
                     thisUser.setUserName(fullName)
                   })
                   .catch(function(e) {
@@ -808,7 +811,7 @@ var engine = User.prototype = {
       res.send(this.sendReport)
     },
     postFeedbackToGlip: function(req){
-      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId)
+      post_message_to_group(req.body, this.mainCompanyNumber, this.accountId, this.userEmail)
     },
     createTable: function (callback) {
       console.log("CREATE TABLE")
@@ -987,16 +990,17 @@ function formatPhoneNumber(phoneNumberString) {
   return phoneNumberString
 }
 
-function post_message_to_group(params, mainCompanyNumber, accountId){
+function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   var https = require('https');
   var message = params.message + "\n\nUser main company number: " + mainCompanyNumber
-  message += "\nUser account Id: " + accountId
+  message += "\nUser's account Id: " + accountId
+  message += "\nUser's email: " + userEmail
   message += "\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=" + accountId
   message += "\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID++++++++++" + accountId + "User"
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
-    "title": "SMS Toll-Free app user feedback - " + params.type,
+    "title": "High Volume SMS app user's feedback - " + params.type,
     "body": message
   }
   var post_options = {
