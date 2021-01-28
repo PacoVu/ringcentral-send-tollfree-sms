@@ -1,3 +1,25 @@
+var errorCodes = {}
+errorCodes["SMS-UP-410"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
+errorCodes["SMS-UP-430"] = "Spam content detected by SMS gateway."
+errorCodes["SMS-UP-431"] = "Number blacklisted due to spam."
+errorCodes["SMS-UP-500"] = "General SMS gateway error. Upstream is malfunctioning."
+errorCodes["SMS-CAR-104"] = "Carrier has not reported delivery status."
+errorCodes["SMS-CAR-199"] = "Carrier reports unknown message status."
+errorCodes["SMS-CAR-400"] = "Carrier does not support this kind of messaging."
+errorCodes["SMS-CAR-411"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
+errorCodes["SMS-CAR-412"] = "Destination subscriber unavailable."
+errorCodes["SMS-CAR-413"] = "Destination subscriber opted out."
+errorCodes["SMS-CAR-430"] = "Spam content detected by mobile carrier."
+errorCodes["SMS-CAR-431"] = "Message rejected by carrier with no specific reason."
+errorCodes["SMS-CAR-432"] = "Message is too long."
+errorCodes["SMS-CAR-433"] = "Message is malformed for the carrier."
+errorCodes["SMS-CAR-450"] = "P2P messaging volume violation."
+errorCodes["SMS-CAR-460"] = "Destination rejected short code messaging."
+errorCodes["SMS-CAR-500"] = "Carrier reported general service failure."
+errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
+errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
+errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
+errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
 
 function init(){
   var height = $(window).height() - 150;
@@ -62,21 +84,30 @@ function createFullReport(fullReports){
     updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
     var cost = (item.hasOwnProperty('cost')) ? item.cost : "0.000"
     var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : "-"
-    if (item.messageStatus == "SendingFailed")
-      html += "<div class='row col-xs-12 error'>"
+    if (item.messageStatus == "SendingFailed" || item.messageStatus == "DeliveryFailed")
+      html += "<div class='row col-xs-12 error small_font'>"
     else
-      html += "<div class='row col-xs-12'>"
+      html += "<div class='row col-xs-12 small_font'>"
     html += `<div class="col-sm-1 hasborder">${item.id}</div>`
     html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.from)}</div>`
     html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.to[0])}</div>`
 
     html += `<div class="col-sm-2 hasborder">${updatedDateStr}</div>`
-    html += `<div class="col-sm-2 hasborder">${item.messageStatus}</div>`
-    html += `<div class="col-sm-2 hasborder">$${cost}</div>`
+    html += `<div class="col-sm-1 hasborder">${item.messageStatus}</div>`
+    var errorCode = "-"
+    var errorDes = ""
+    if (item.hasOwnProperty('errorCode')){
+      errorCode = item.errorCode
+      for (var key of Object.keys(errorCodes)){
+        if (key == errorCode)
+          errorDes = errorCodes[key]
+      }
+    }
+    html += `<div class="col-sm-2 hasborder" title="${errorDes}">${errorCode}</div>`
+    html += `<div class="col-sm-1 hasborder">$${cost}</div>`
     html += `<div class="col-sm-1 hasborder">${segmentCount}</div>`
     html += "</div>"
   }
-
   $("#list").html(html)
 }
 function downloadReport(format){

@@ -270,6 +270,9 @@ ul > li > span {
 .error{
   color: red;
 }
+.small_font {
+  font-size: 0.8em;
+}
 .cost{
   max-width: 100px !important;
   width: 100px !important;

@@ -507,7 +507,7 @@ var engine = User.prototype = {
         fileContent = JSON.stringify(this.batchFullReport)
       }else{
         fullNamePath += '.csv'
-        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Cost,Segment"
         var timeOffset = parseInt(req.query.timeOffset)
         let dateOptions = { weekday: 'short' }
         for (var item of this.batchFullReport){
@@ -528,7 +528,11 @@ var engine = User.prototype = {
           updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
           updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
           fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
-          fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+          var errorCode = ""
+          if (item.hasOwnProperty('errorCode')){
+            errorCode = item.errorCode
+          }
+          fileContent +=  "," + item.messageStatus + "," + errorCode + "," + item.cost + "," + item.segmentCount
         }
       }
       try{
