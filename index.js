@@ -39,15 +39,19 @@ var router = require('./router');
 
 app.get('/', function (req, res) {
   console.log('load option page /')
-  if (req.session.extensionId != 0)
+  /*
+  if (req.session.extensionId != undefined){
+    console.log("ext id: " + req.session.extensionId)
     router.logout(req, res)
-  else{
+  }else{
     res.redirect('index')
   }
+  */
+  res.redirect('index')
 })
 
 app.get('/index', function (req, res) {
-  console.log('load option page /')
+  console.log('load index page /index')
   if (req.query.n != undefined && req.query.n == 1){
     router.logout(req, res)
   }else {
