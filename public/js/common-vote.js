@@ -94,52 +94,34 @@ function parseResultResponse(resp){
     $("#result").html(text)
 
     $("#report_block").show()
-    readSurveyResult()
+    readVoteResult()
   }
 }
 
-function readSurveyResult(){
-  var url = "getsurveyresult"
+function readVoteResult(){
+  var url = "getvoteresult"
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      //var keepPolling = true
       var report = ""
-      //alert(JSON.stringify(res))
-      var surveyCounts = res.surveyCounts
-      //var sentCount = surveyCounts.Delivered // + surveyCounts.Sent
-      /*
-      for (var key of Object.keys(surveyCounts)){
-        if (sentCount > 0 && sentCount == surveyCounts.Replied)
-          keepPolling = false
-        //if (key == "cost")
-        //  report += "<div>" + key.replace(/_/g, " ") + ": " + surveyCounts[key].toFixed(3) + " USD</div>"
-        if (key == "Sent" || key == "Queued" || key == "Cost")
-          ;
-        else
-          report += "<div>" + key.replace(/_/g, " ") + ": " + surveyCounts[key] + "</div>"
-      }
-      report += "</div>"
-      $("#report").html(report)
-      */
+      var voteCounts = res.voteCounts
+      report += "<div>" + res.voteStatus + "</div>"
+      report += "<div>Sample message: " + res.voteQuestionair + "</div>"
+      report += "<div>Total voters: " + voteCounts.Total + "</div>"
+      report += "<div>Reached voters: " + voteCounts.Delivered + "/" + voteCounts.Total + "</div>"
+      //report += "<div>Unreachable voters: " + voteCounts.Unreachable + "</div>"
+      report += "<div>Voted voters: " + voteCounts.Replied + "/" + voteCounts.Delivered + "</div>"
 
-      report += "<div>" + res.surveyStatus + "</div>"
-      report += "<div>Sample message: " + res.surveyQuestionair + "</div>"
-      report += "<div>Total voters: " + surveyCounts.Total + "</div>"
-      report += "<div>Reached voters: " + surveyCounts.Delivered + "/" + surveyCounts.Total + "</div>"
-      //report += "<div>Unreachable voters: " + surveyCounts.Unreachable + "</div>"
-      report += "<div>Voted voters: " + surveyCounts.Replied + "/" + surveyCounts.Delivered + "</div>"
-
-      //report += "<div>Cost: " + surveyCounts.Cost.toFixed(3) + " USD</div>"
+      //report += "<div>Cost: " + voteCounts.Cost.toFixed(3) + " USD</div>"
       $("#report").html(report)
-      if (!res.surveyCompleted){
+      if (!res.voteCompleted){
         window.setTimeout(function(){
-          readSurveyResult()
+          readVoteResult()
         }, 5000)
       }else{
-        // read survey result
+        // read vote result
       }
-      plotSurveyResult(res.surveyResults)
+      plotVoteResult(res.voteResults)
     }else if (res.status == "failed") {
       alert(res.message)
       window.location.href = "login"
@@ -149,7 +131,7 @@ function readSurveyResult(){
   });
 }
 
-function plotSurveyResult(result){
+function plotVoteResult(result){
     var params = [];
     var color = ['blue', 'green', 'orange']
     var arr = ['Results', '#', { role: "style" } ];
@@ -170,27 +152,27 @@ function plotSurveyResult(result){
                        role: "annotation"
                     },
                     2]);
-    /*
+
     var options = {
       title: params[0][0],
       vAxis: {minValue: 0},
       hAxis: {minValue: 0},
-      width: "50%",
+      width: 300,
       height: 200,
       bar: {groupWidth: "40%"},
       legend: { position: "none" },
     };
-    */
+    /*
     var options = {
       title: 'Results (# votes)',
       width: 400,
       height: 300,
       pieHole: 0.4,
     };
-
-    var element = document.getElementById("survey_result")
-    //var chart = new google.visualization.ColumnChart(element);
-    var chart = new google.visualization.PieChart(element);
+    */
+    var element = document.getElementById("vote_result")
+    var chart = new google.visualization.ColumnChart(element);
+    //var chart = new google.visualization.PieChart(element);
     chart.draw(view, options);
 }
 ////

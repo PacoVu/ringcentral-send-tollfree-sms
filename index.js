@@ -38,21 +38,22 @@ console.log("listen to port " + port)
 var router = require('./router');
 
 app.get('/', function (req, res) {
-  console.log('load option page /')
+  console.log('load index page /')
+  /*
   if (req.session.extensionId != 0)
     router.logout(req, res)
   else{
     res.redirect('index')
   }
+  */
+  res.redirect('index')
 })
 
 app.get('/index', function (req, res) {
-  console.log('load option page /')
+  console.log('load index page /index')
   if (req.query.n != undefined && req.query.n == 1){
     router.logout(req, res)
   }else {
-    //router.loadSendHighVolumeSMSPage(req, res)
-    //router.loadOptionPage(req, res)
     res.render('index')
   }
 })
@@ -124,10 +125,10 @@ app.get('/highvolume-manual', function (req, res) {
   }
 })
 
-app.get ('/highvolume-survey', function (req, res) {
-  console.log('load highvolume-survey')
+app.get ('/highvolume-vote', function (req, res) {
+  console.log('load highvolume-vote')
   if (req.session.extensionId != 0)
-    router.loadHVSurveyPage(req, res)
+    router.loadHVVotePage(req, res)
   else{
     res.render('index')
   }
@@ -145,9 +146,9 @@ app.get('/getresult', function (req, res) {
   }
 })
 
-app.get('/getsurveyresult', function (req, res) {
+app.get('/getvoteresult', function (req, res) {
   if (req.session.extensionId != 0)
-    router.getSurveyResult(req, res)
+    router.getVoteResult(req, res)
   else{
     res.render('index')
   }
@@ -247,9 +248,9 @@ app.post('/sendhighvolumemessage-advance', upload.any(), function (req, res, nex
   router.sendHighVolumeSMSMessageAdvance(req, res)
 })
 
-app.post('/sendhighvolumemessage-survey', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage-survey")
-  router.sendHighVolumeSMSMessageSurvey(req, res)
+app.post('/sendhighvolumemessage-vote', upload.any(), function (req, res, next) {
+  console.log("post sendhighvolumemessage-vote")
+  router.sendHighVolumeSMSMessageVote(req, res)
 })
 
 app.post('/sendsms', function (req, res) {

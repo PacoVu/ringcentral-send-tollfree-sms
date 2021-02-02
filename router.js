@@ -177,11 +177,11 @@ var router = module.exports = {
       thisObj.forceLogin(req, res)
     })
   },
-  getSurveyResult: function(req, res){
+  getVoteResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getSurveyResult(res)
+    users[index].getVoteResult(res)
   },
   getBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -231,11 +231,11 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].sendHighVolumeSMSMessageAdvance(req, res)
   },
-  sendHighVolumeSMSMessageSurvey: function(req, res){
+  sendHighVolumeSMSMessageVote: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].sendHighVolumeSMSMessageSurvey(req, res)
+    users[index].sendHighVolumeSMSMessageVote(req, res)
   },
   readCampaign: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -274,11 +274,11 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].loadHVTemplatePage(res)
   },
-  loadHVSurveyPage: function(req, res){
+  loadHVVotePage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].loadHVSurveyPage(res)
+    users[index].loadHVVotePage(res)
   },
   loadCampaignHistoryPage: function(req, res){
     var index = getUserIndex(req.session.userId)

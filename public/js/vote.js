@@ -25,7 +25,7 @@ window.onload = function init(){
     //$("#result_block").show()
     $("#control_block").show()
     $("#report_block").show()
-    readSurveyResult()
+    readVoteResult()
     //pollResult()
   }else{
     $("#control_block").hide()
@@ -43,7 +43,7 @@ function onloaded(){
     //$("#result_block").show()
     $("#control_block").show()
     $("#report_block").show()
-    readSurveyResult()
+    readVoteResult()
     //pollResult()
   }else{
     $("#control_block").hide()
@@ -281,15 +281,13 @@ function canSendMessages() {
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
   $.ajax({
-      url: "/sendhighvolumemessage-survey",
+      url: "/sendhighvolumemessage-vote",
       type: 'POST',
       data: formData,
       success: function (res) {
           if (res.status == "ok"){
             pendingBatch = true
-            //isPolling = false // force to start polling
             currentBatchId = res.result.id
-            //switchPollResult()
             startPollingResult(true)
             parseResultResponse(res)
           }else if (res.status == "failed"){

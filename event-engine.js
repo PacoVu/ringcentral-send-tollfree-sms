@@ -4,8 +4,7 @@ function ActiveAccount(accountId, subscriptionId){
   this.accountId = accountId
   //this.extensionId = extensionId
   this.subscriptionId = subscriptionId
-  this.surveyCampain = undefined
-  this.sentTime = ""
+  this.voteInfo = undefined
 }
 
 var engine = ActiveAccount.prototype = {
@@ -13,33 +12,38 @@ var engine = ActiveAccount.prototype = {
       console.log("setup ActiveAccount Engine")
       callback(null, "")
     },
-    setSurveyCampaign: function (campaign){
-      this.surveyCampain = campaign
-      this.sentTime = new Date().getTime()
-      console.log(this.surveyCampain)
-      //console.log(this.surveyCampain.audienceList)
+    setVoteInfo: function (voteInfo){
+      this.voteInfo = voteInfo
+      console.log(this.voteInfo)
     },
     processNotification: function(jsonObj){
       // parse tel notification payload
       console.log(jsonObj)
       var body = jsonObj.body
-      //console.log(JSON.stringify(requestBody))
-      if (this.surveyCampain.serviceNumber == body.to[0]){
+      if (this.voteInfo.serviceNumber == body.to[0]){
         var cost = (body.hasOwnProperty('cost')) ? body.cost : 0
-        this.surveyCampain.surveyCounts.Cost += cost
+        this.voteInfo.voteCounts.Cost += cost
         var now = new Date().getTime()
-        if (now > this.surveyCampain.endDateTime){
-          console.log("Survey has been closed")
+        if (now > this.voteInfo.endDateTime){
+          console.log("vote has been closed")
+          this.voteInfo.completed = true
           return
         }
-        var client = this.surveyCampain.audienceList.find(o => o.phoneNumber == body.from)
+        var client = this.voteInfo.voterList.find(o => o.phoneNumber == body.from)
         if (client && !client.replied){
           client.replied = true
-          this.surveyCampain.surveyCounts.Replied++
+          this.voteInfo.voteCounts.Replied++
+          //
+          //if (this.voteInfo.voteCounts.Delivered > 0){
+            if (this.voteInfo.voteCounts.Delivered == this.voteInfo.voteCounts.Replied){
+              this.voteInfo.completed = true
+            }
+          //}
+          //
           for (var command of client.commands){
             if (body.text.trim().toLowerCase() == command.toLowerCase()){
               client.result = command
-              this.surveyCampain.surveyResults[command]++
+              this.voteInfo.voteResults[command]++
               console.log("Client reply message: " + body.text)
               break
             }
@@ -47,8 +51,8 @@ var engine = ActiveAccount.prototype = {
           if (client.result == ""){
             console.log("Client reply message: " + body.text)
           }
-          console.log(this.surveyCampain.audienceList)
-          console.log(this.surveyCampain)
+          console.log(this.voteInfo.voterList)
+          console.log(this.voteInfo)
           console.log("======")
         }
       }
