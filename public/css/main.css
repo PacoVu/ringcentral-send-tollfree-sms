@@ -342,11 +342,11 @@ ul > li > span {
 /* Conversation */
 /* Chat containers */
 .container {
-  border: 2px solid #dedede;
+  border: 1px solid #dedede;
   background-color: #f1f1f1;
-  border-radius: 5px;
+  border-radius: 0px 10px 10px 10px;
   padding: 10px;
-  margin: 10px 0;
+  margin: 6px 0;
   width: 100% !important;
 }
 
@@ -354,6 +354,7 @@ ul > li > span {
 .darker {
   border-color: #ccc;
   background-color: #ddd;
+  border-radius: 10px 0px 10px 10px;
 }
 
 /* Clear floats */
@@ -363,7 +364,7 @@ ul > li > span {
   display: table;
 }
 
-/* Style images */
+/* Style metadata */
 .container span {
   float: left;
   max-width: 160px;
@@ -373,13 +374,14 @@ ul > li > span {
   margin-bottom: -10px;
 }
 
-/* Style the right image */
+/* Style the right metadata */
 .container span.right {
   float: right;
   margin-left: 20px;
   margin-right:-40px;
   margin-top: -10px;
   font-size: 0.8em;
+  color: #999;
 }
 
 /* Style time text */
