@@ -106,7 +106,7 @@ function readVoteResult(){
       var report = ""
       var voteCounts = res.voteCounts
       report += "<div>" + res.voteStatus + "</div>"
-      report += "<div>Sample message: " + res.voteQuestionair + "</div>"
+      report += "<div>Message: " + res.voteQuestionair + "</div>"
       report += "<div>Total voters: " + voteCounts.Total + "</div>"
       report += "<div>Reached voters: " + voteCounts.Delivered + "/" + voteCounts.Total + "</div>"
       //report += "<div>Unreachable voters: " + voteCounts.Unreachable + "</div>"

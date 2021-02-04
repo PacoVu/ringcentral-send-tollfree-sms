@@ -1,30 +1,30 @@
 const User = require('./usershandler.js')
-const ActiveAccount = require('./event-engine.js')
+const ActiveUser = require('./event-engine.js')
 const pgdb = require('./db')
 const async = require('async')
 require('dotenv').load()
 var users = []
 
-var activeAccounts = []
-exports.activeAccounts = activeAccounts
+var activeUsers = []
+exports.activeUsers = activeUsers
 autoStart()
 function autoStart(){
   console.log("autoStart")
-  var query = `SELECT * FROM a2p_sms_active_accounts`
+  var query = `SELECT * FROM a2p_sms_active_users`
   pgdb.read(query, (err, result) => {
     if (err){
       console.error(err.message);
-      createActiveAccountsTable()
+      createActiveUsersTable()
     }else{
       if (result.rows){
         async.each(result.rows,
           function(item, callback){
-            console.log("account info: " + item.account_id + " / " + item.subscription_id)
-            var account = new ActiveAccount(item.account_id, item.subscription_id)
-            account.setup((err, result) => {
+            console.log("Extension info: " + item.extension_id + " / " + item.subscription_id)
+            var aUser = new ActiveUser(item.extension_id, item.subscription_id)
+            aUser.setup((err, result) => {
               if (err == null){
-                activeAccounts.push(account)
-                console.log("activeAccounts.length: " + activeAccounts.length)
+                activeUsers.push(aUser)
+                console.log("activeUsers.length: " + activeUsers.length)
                 callback(null, result)
               }
             })
@@ -37,9 +37,9 @@ function autoStart(){
   })
 }
 
-function createActiveAccountsTable() {
-  console.log("createActiveAccountsTable")
-  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_accounts (account_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64))'
+function createActiveUsersTable() {
+  console.log("createActiveUsersTable")
+  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_users (extension_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64))'
   pgdb.create_table(query, (err, res) => {
       if (err) {
         console.log(err, err.message)
@@ -73,7 +73,7 @@ function getUserIndexByExtensionId(extId){
 
 var router = module.exports = {
   getEngine: function(){
-    return activeAccounts
+    return activeUsers
   },
   loadLogin: function(req, res){
     if (req.session.userId == 0 || req.session.extensionId == 0) {
@@ -201,11 +201,23 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getSendSMSResult(req, res)
   },
+  readMessageList: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readMessageList(req, res, "")
+  },
   downloadBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].downloadBatchReport(req, res)
+  },
+  downloadMessageStore: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadMessageStore(req, res)
   },
   downloadSendSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -285,6 +297,12 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadCampaignHistoryPage(res)
+  },
+  loadMessageStorePage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadMessageStorePage(res)
   },
   setDelayInterVal: function(req, res){
     var index = getUserIndex(req.session.userId)

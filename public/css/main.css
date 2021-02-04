@@ -338,3 +338,60 @@ ul > li > span {
 .hasborder {
   border: 1px dotted purple;
 }
+
+/* Conversation */
+/* Chat containers */
+.container {
+  border: 2px solid #dedede;
+  background-color: #f1f1f1;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 10px 0;
+  width: 100% !important;
+}
+
+/* Darker chat container */
+.darker {
+  border-color: #ccc;
+  background-color: #ddd;
+}
+
+/* Clear floats */
+.container::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+/* Style images */
+.container span {
+  float: left;
+  max-width: 160px;
+  width: 100%;
+  margin-right: 10px;
+  border-radius: 50%;
+  margin-bottom: -10px;
+}
+
+/* Style the right image */
+.container span.right {
+  float: right;
+  margin-left: 20px;
+  margin-right:-40px;
+  margin-top: -10px;
+  font-size: 0.8em;
+}
+
+/* Style time text */
+.time-right {
+  float: right;
+  color: #aaa;
+  font-size: 0.8em;
+}
+
+/* Style time text */
+.time-left {
+  float: left;
+  color: #999;
+  font-size: 0.8em;
+}

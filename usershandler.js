@@ -4,7 +4,7 @@ var async = require("async");
 const RCPlatform = require('./platform.js')
 const pgdb = require('./db')
 var router = require('./router');
-const ActiveAccount = require('./event-engine.js')
+const ActiveUser = require('./event-engine.js')
 require('dotenv').load()
 
 const MASK = "#!#"
@@ -109,7 +109,7 @@ var engine = User.prototype = {
     },
     loadHVVotePage: function(res){
       var isPending = false
-      this.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === this.accountId.toString())
+      this.eventEngine = router.activeUsers.find(o => o.extensionId.toString() === this.extensionId.toString())
       if (this.eventEngine != undefined){
         if (this.eventEngine.voteInfo != undefined){
           isPending = true
@@ -155,7 +155,7 @@ var engine = User.prototype = {
                     console.error(e.message);
                   });
               }else{
-                console.log("CANNOT LOGIN")
+                console.log(err + " => CANNOT LOGIN")
               }
             })
           }else {
@@ -344,16 +344,16 @@ var engine = User.prototype = {
           fs.unlinkSync(tempFile);
         }
         this.sendVote = true
-        this.eventEngine = router.activeAccounts.find(o => o.accountId.toString() === this.accountId.toString())
+        this.eventEngine = router.activeUsers.find(o => o.extensionId.toString() === this.extensionId.toString())
         //thisUser.deleteAllRegisteredWebHookSubscriptions()
 
         if (this.eventEngine == undefined){
           console.log("create and add a new eventEngine")
-          this.eventEngine = new ActiveAccount(this.accountId, this.subscriptionId)
-          router.activeAccounts.push(this.eventEngine)
+          this.eventEngine = new ActiveUser(this.extensionId, this.subscriptionId)
+          router.activeUsers.push(this.eventEngine)
           this.eventEngine.setVoteInfo(voteInfo)
           var thisUser = this
-          this.subscribeForNotification("", (err, result) => {
+          this.subscribeForNotification(body.from_number, (err, result) => {
               if (err == null){
                 thisUser.sendBatchMessage(res, requestBody, body.campaign_name, "vote")
               }
@@ -510,11 +510,14 @@ var engine = User.prototype = {
             .then(function (resp) {
               var jsonObj = resp.json()
               thisUser.StartTimestamp = Date.now()
-              thisUser.smsBatchIds.push(resp.json().id)
+              thisUser.smsBatchIds.push(jsonObj.id)
               thisUser.batchResult = jsonObj
-              if (thisUser.sendVote == true)
-                thisUser.eventEngine.voteInfo.batchId = thisUser.smsBatchIds
-              thisUser.addBatchToDB(campaignName, jsonObj, type)
+              if (thisUser.sendVote == true){
+                thisUser.eventEngine.voteInfo.batchId = jsonObj.id
+                thisUser.addVoteDataToDB(campaignName, jsonObj, type)
+              }else{
+                thisUser.addBatchToDB(campaignName, jsonObj, type)
+              }
               res.send({
                   status:"ok",
                   time: formatSendingTime(0),
@@ -553,6 +556,7 @@ var engine = User.prototype = {
       var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
       if (pageToken != "")
         endpoint += "&pageToken=" + pageToken
+      //console.log(endpoint)
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.get(endpoint)
@@ -613,6 +617,9 @@ var engine = User.prototype = {
       //var completion = true
       if (expire >= 0){
         status = "Status: Vote will be closed in " + formatEstimatedTimeLeft(expire/1000)
+        if (this.eventEngine.voteInfo.completed){
+          status= "Status: Vote is completed."
+        }
       }else{
         if (this.eventEngine.voteInfo.completed){
           status= "Status: Vote is completed."
@@ -676,6 +683,7 @@ var engine = User.prototype = {
                     thisUser._getVoteResult(batchId, "")
                   }, 5000)
                 }else{
+                  thisUser.updateVoteDataInDB()
                   console.log("DONE VOTE")
                 }
               }
@@ -733,6 +741,128 @@ var engine = User.prototype = {
               })
           }
         })
+    },
+    readMessageList: function (req, res, pageToken){
+      console.log("readMessageList")
+      console.log("pageToken " + pageToken)
+      var thisUser = this
+      var readParams = {
+        view: "Detailed",//req.body.view,
+        dateFrom: req.body.dateFrom,
+        dateTo: req.body.dateTo,
+        perPage: 1000
+      }
+      if (req.body.direction != "Both")
+        readParams['direction'] = req.body.direction
+
+      if (req.body.phoneNumbers)
+        readParams['phoneNumber'] = JSON.parse(req.body.phoneNumbers)
+
+      var endpoint = "/account/~/a2p-sms/messages"
+
+      if (pageToken == "")
+        thisUser.batchFullReport = []
+      else
+        readParams['pageToken'] = pageToken
+      var clientPhoneNumbers = []
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint, readParams)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
+              /*
+              for (var record of jsonObj.records){
+                //
+                id
+                batchId
+                from
+                to
+                creationTime
+                lastModifiedTime
+                messageStatus	Enum (5)
+                text
+                cost
+                direction	Enum (2)
+                errorCode
+                //
+                if (record.direction == "Inbound"){
+                  var number = clientPhoneNumbers.find(n => n === record.from)
+                  if (number == undefined)
+                    clientPhoneNumbers.push(record.from)
+                }else if (record.direction == "Outbound"){
+                  var number = clientPhoneNumbers.find(n => n === record.to[0])
+                  if (number == undefined)
+                    clientPhoneNumbers.push(record.to[0])
+                }
+                //console.log(record)
+              }
+              */
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                setTimeout(function(){
+                  thisUser.readMessageList(req, res, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                res.send({
+                    status: "ok",
+                    result: thisUser.batchFullReport, //jsonObj.records,
+                    //clientNumbers: clientPhoneNumbers
+                  })
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+            });
+        }else{
+          console.log("platform issue")
+        }
+      })
+    },
+    downloadMessageStore: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId()
+      var fileContent = ""
+      if (req.query.format == "JSON"){
+        fullNamePath += '_messages.json'
+        fileContent = JSON.stringify(this.batchFullReport)
+      }else{
+        fullNamePath += '_messages.csv'
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment,Direction,Text"
+        var timeOffset = parseInt(req.query.timeOffset)
+        let dateOptions = { weekday: 'short' }
+        for (var item of this.batchFullReport){
+          var from = formatPhoneNumber(item.from)
+          var to = formatPhoneNumber(item.to[0])
+          //var date = new Date(item.createdAt)
+          var date = new Date(item.creationTime)
+          var timestamp = date.getTime() - timeOffset
+          var createdDate = new Date (timestamp)
+          var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+          createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+          createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+          //date = new Date(item.lastUpdatedAt)
+          date = new Date(item.lastModifiedTime)
+          var timestamp = date.getTime() - timeOffset
+          var updatedDate = new Date (timestamp)
+          var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+          updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+          updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+          fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+          fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+          fileContent +=  "," + item.direction + ',"' + item.text + '"'
+        }
+      }
+      try{
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+      }
     },
     downloadBatchReport: function(req, res){
       var dir = "reports/"
@@ -846,6 +976,34 @@ var engine = User.prototype = {
         }
       })
     },
+    loadMessageStorePage: function(res){
+      /*
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          var batches = JSON.parse(result.rows[0].batches)
+          res.render('message-store', {
+            userName: this.getUserName(),
+            phoneNumbers: this.phoneHVNumbers,
+            campaigns: batches
+          })
+        }else{ // no history
+          res.render('message-store', {
+            userName: this.getUserName(),
+            phoneNumbers: this.phoneHVNumbers,
+            campaigns: []
+          })
+        }
+      })
+      */
+      res.render('message-store', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers
+      })
+    },
     /*
     loadCampaignHistoryPage: function(res){
       var thisUser = this
@@ -887,10 +1045,22 @@ var engine = User.prototype = {
       var thisUser = this
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
+          var eventFilters = []
+          /*
+          for (var item of thisUser.phoneHVNumbers){
+            var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+            eventFilters.push(filter)
+          }
+          */
+          var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${phoneNumber}`
+          eventFilters.push(filter)
+          /*
           var eventFilters = [
             `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`
             //`/restapi/v1.0/account/~/a2p-sms/opt-outs?from=${process.env.DLC_NUMBER}`
           ]
+          */
+          console.log(eventFilters)
           if (thisUser.subscriptionId == ""){
             p.post('/restapi/v1.0/subscription', {
                             eventFilters: eventFilters,
@@ -907,7 +1077,7 @@ var engine = User.prototype = {
               thisUser.eventEngine.subscriptionId = thisUser.subscriptionId
               console.log("Create subscription")
               console.log(thisUser.subscriptionId)
-              thisUser.updateActiveAccountsTable()
+              thisUser.updateActiveUsersTable()
               callback(null, "ok")
             })
             .catch(function(e){
@@ -1222,42 +1392,13 @@ var engine = User.prototype = {
         }
       })
     },
-    addVoteDataToDB: function(campaignName, batchInfo, type){
+    addVoteDataToDB: function(campaignName, type){
       var thisUser = this
-      /*
-      var voteInfo = {
-        campaignName: body.campaign_name,
-        serviceNumber: body.from_number,
-        startDateTime: startTime,
-        endDateTime: startTime + (expire * 3600000),
-        batchId: "",
-        sampleMessage: "",
-        voteResults: {},
-        voteCounts:{
-          Cost: 0,
-          Total: 0,
-          Delivered: 0,
-          Unreachable: 0,
-          Replied: 0
-        },
-        voterList: [
-          {
-            id: "",
-            phoneNumber: toNumber,
-            replied: false,
-            commands: commands,
-            result: "",
-            sent: false,
-            optout: false
-          }
-        ]
-      }
-      */
       var newBatch = {
         campaign: campaignName,
-        creationTime: batchInfo.creationTime,
-        batchId: batchInfo.id,
-        batchSize: batchInfo.batchSize,
+        creationTime: this.batchResult.creationTime,
+        batchId: this.batchResult.id,
+        batchSize: this.batchResult.batchSize,
         type: type
       }
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
@@ -1270,7 +1411,8 @@ var engine = User.prototype = {
           var batches = JSON.parse(result.rows[0].batches)
           batches.push(newBatch)
           var query = 'UPDATE a2p_sms_users SET '
-          query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"
+          query += "batches='" + JSON.stringify(batches)
+          query += "', stats='" + JSON.stringify(thisUser.eventEngine.voteInfo) + "' WHERE user_id='" + thisUser.extensionId + "'"
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -1279,8 +1421,8 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [newBatch]
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
-          var query = "INSERT INTO a2p_sms_users VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), JSON.stringify(thisUser.eventEngine.voteInfo)]
+          var query = "INSERT INTO a2p_sms_users VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING"
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -1288,6 +1430,16 @@ var engine = User.prototype = {
             console.log("stored batch in to db")
           })
         }
+      })
+    },
+    updateVoteDataInDB: function(){
+      var query = 'UPDATE a2p_sms_users SET '
+      query += "stats='" + JSON.stringify(this.eventEngine.voteInfo) + "' WHERE user_id='" + this.extensionId + "'"
+      pgdb.update(query, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+        }
+        console.log("updated batch data")
       })
     },
     // not used
@@ -1321,19 +1473,19 @@ var engine = User.prototype = {
       })
     },
     */
-    updateActiveAccountsTable: function() {
-      console.log("updateActiveAccountsTable")
-      var query = "INSERT INTO a2p_sms_active_accounts (account_id, subscription_id)"
+    updateActiveUsersTable: function() {
+      console.log("updateActiveUsersTable")
+      var query = "INSERT INTO a2p_sms_active_users (extension_id, subscription_id)"
       query += " VALUES ($1,$2)"
-      var values = [this.accountId, this.subscriptionId]
-      query += " ON CONFLICT (account_id) DO UPDATE SET subscription_id='" + this.subscriptionId + "'"
+      var values = [this.extensionId, this.subscriptionId]
+      query += " ON CONFLICT (extension_id) DO UPDATE SET subscription_id='" + this.subscriptionId + "'"
 
       pgdb.insert(query, values, (err, result) =>  {
         if (err){
           console.error(err.message);
           console.log("QUERY: " + query)
         }else{
-          console.log("updateActiveAccountsTable DONE");
+          console.log("updateActiveUsersTable DONE");
         }
       })
     }

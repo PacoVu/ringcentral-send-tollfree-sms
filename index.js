@@ -98,10 +98,28 @@ app.get ('/campaign', function (req, res) {
   }
 })
 
+app.get ('/message-store', function (req, res) {
+  console.log('loadMessageStorePage')
+  if (req.session.extensionId != 0)
+    router.loadMessageStorePage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/read_campaign', function (req, res) {
   console.log('readCampaign')
   if (req.session.extensionId != 0)
     router.getBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/read_message_store', function (req, res) {
+  console.log('readMessageStore')
+  if (req.session.extensionId != 0)
+    router.readMessageList(req, res)
   else{
     res.render('index')
   }
@@ -173,6 +191,14 @@ app.get('/getbatchresult', function (req, res) {
 app.get('/downloadbatchreport', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/downloadmessagestore', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadMessageStore(req, res)
   else{
     res.render('index')
   }
@@ -276,11 +302,11 @@ app.post('/webhookcallback', function(req, res) {
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
-            var activeAccounts = router.getEngine()
-            if (activeAccounts.length){
-              var account = activeAccounts.find(o => o.subscriptionId === jsonObj.subscriptionId)
-              if (account)
-                account.processNotification(jsonObj)
+            var aUsers = router.getEngine()
+            if (aUsers.length){
+              var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
+              if (eventEngine)
+                eventEngine.processNotification(jsonObj)
               else
                 console.log("Not my notification!!!")
             }else{

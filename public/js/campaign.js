@@ -26,11 +26,11 @@ function readCampaign(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       var report = "<div><div>Creation Time: " + createdDateStr + "</div>"
-      for (var key of Object.keys(res.result)){
+      for (var key of Object.keys(res.summaryReport)){
         if (key == "Total_Cost")
-          report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key].toFixed(3) + " USD</div>"
+          report += "<div>" + key.replace(/_/g, " ") + ": " + res.summaryReport[key].toFixed(3) + " USD</div>"
         else
-          report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key] + "</div>"
+          report += "<div>" + key.replace(/_/g, " ") + ": " + res.summaryReport[key] + "</div>"
       }
       report += "</div>"
       $("#report").html(report)

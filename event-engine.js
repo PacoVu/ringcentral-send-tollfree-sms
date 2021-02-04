@@ -1,15 +1,16 @@
 const pgdb = require('./db')
 
-function ActiveAccount(accountId, subscriptionId){
-  this.accountId = accountId
-  //this.extensionId = extensionId
+function ActiveUser(extensionId, subscriptionId){
+  //this.accountId = accountId
+  this.extensionId = extensionId
   this.subscriptionId = subscriptionId
   this.voteInfo = undefined
 }
 
-var engine = ActiveAccount.prototype = {
+var engine = ActiveUser.prototype = {
     setup: function(callback){
-      console.log("setup ActiveAccount Engine")
+      console.log("setup ActiveUser Engine")
+      this.loadVoteDataFromDB()
       callback(null, "")
     },
     setVoteInfo: function (voteInfo){
@@ -20,7 +21,7 @@ var engine = ActiveAccount.prototype = {
       // parse tel notification payload
       console.log(jsonObj)
       var body = jsonObj.body
-      if (this.voteInfo.serviceNumber == body.to[0]){
+      if (this.voteInfo != undefined && this.voteInfo.serviceNumber == body.to[0]){
         var cost = (body.hasOwnProperty('cost')) ? body.cost : 0
         this.voteInfo.voteCounts.Cost += cost
         var now = new Date().getTime()
@@ -53,10 +54,33 @@ var engine = ActiveAccount.prototype = {
           }
           console.log(this.voteInfo.voterList)
           console.log(this.voteInfo)
+          this.updateVoteDataInDB()
           console.log("======")
         }
       }
-
+    },
+    loadVoteDataFromDB: function(){
+      var thisUser = this
+      var query = `SELECT stats FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          thisUser.voteInfo = JSON.parse(result.rows[0].stats)
+          console.log(thisUser.voteInfo)
+        }
+      })
+    },
+    updateVoteDataInDB: function(){
+      var query = 'UPDATE a2p_sms_users SET '
+      query += "stats='" + JSON.stringify(this.voteInfo) + "' WHERE user_id='" + this.extensionId + "'"
+      pgdb.update(query, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+        }
+        console.log("updated batch data")
+      })
     },
     processNotification_0: function(jsonObj){
       // parse tel notification payload
@@ -114,7 +138,7 @@ var engine = ActiveAccount.prototype = {
     }
 };
 
-module.exports = ActiveAccount;
+module.exports = ActiveUser;
 
 function updateAnalyticsTable(accountId, extension){
   var tableName = "rt_analytics_" + accountId
