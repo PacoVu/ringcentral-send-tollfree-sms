@@ -259,14 +259,14 @@ var engine = User.prototype = {
             }
             requestBody.messages.push(group)
           }
-          //console.log(JSON.stringify(requestBody))
         }
         var currentFolder = process.cwd();
         for (var file of req.files){
           var tempFile = currentFolder + "/uploads/" + file.filename
           fs.unlinkSync(tempFile);
         }
-        this.sendBatchMessage(res, requestBody, body.campaign_name)
+        //this.sendBatchMessage(res, requestBody, body.campaign_name)
+        this.sendBatchMessage(res, requestBody, body.campaign_name, "customized")
       }
     },
     sendHighVolumeSMSMessage: function(req, res){
@@ -358,11 +358,10 @@ var engine = User.prototype = {
         requestBody["sendAt"] = body.scheduledAt + ":00Z"
       }
       */
-      //console.log(body.scheduledAt)
-      //console.log(JSON.stringify(requestBody))
-      this.sendBatchMessage(res, requestBody, body.campaign_name)
+      //this.sendBatchMessage(res, requestBody, body.campaign_name)
+      this.sendBatchMessage(res, requestBody, body.campaign_name, "group")
     },
-    sendBatchMessage: function(res, requestBody, campaignName){
+    sendBatchMessage: function(res, requestBody, campaignName, type){
       var thisUser = this
       //console.log(JSON.stringify(requestBody))
       var p = this.rc_platform.getPlatform(function(err, p){
@@ -373,7 +372,7 @@ var engine = User.prototype = {
               thisUser.StartTimestamp = Date.now()
               thisUser.smsBatchIds.push(resp.json().id)
               thisUser.batchResult = jsonObj
-              thisUser.addBatchToDB(campaignName, jsonObj)
+              thisUser.addBatchToDB(campaignName, type)
               res.send({
                   status:"ok",
                   time: formatSendingTime(0),
@@ -495,6 +494,93 @@ var engine = User.prototype = {
           }
         })
     },
+    readMessageList: function (req, res, pageToken){
+      console.log("readMessageList")
+      var thisUser = this
+      var readParams = {
+        view: "Detailed",//req.body.view,
+        dateFrom: req.body.dateFrom,
+        dateTo: req.body.dateTo,
+        perPage: 1000
+      }
+      if (req.body.direction != "Both")
+        readParams['direction'] = req.body.direction
+
+      if (req.body.phoneNumbers)
+        readParams['phoneNumber'] = JSON.parse(req.body.phoneNumbers)
+
+      var endpoint = "/account/~/a2p-sms/messages"
+
+      if (pageToken == "")
+        thisUser.batchFullReport = []
+      else
+        readParams['pageToken'] = pageToken
+      var clientPhoneNumbers = []
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint, readParams)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                setTimeout(function(){
+                  thisUser.readMessageList(req, res, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                res.send({
+                    status: "ok",
+                    result: thisUser.batchFullReport
+                })
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+              res.send({
+                status: "failed",
+                message: e.message
+              })
+            });
+        }else{
+          console.log("platform issue")
+          res.send({
+            status: "failed",
+            message: "Platform issue"
+          })
+        }
+      })
+    },
+    downloadMessageStore: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + this.getExtensionId()
+      var fileContent = ""
+      if (req.query.format == "JSON"){
+        fullNamePath += '_messages.json'
+        fileContent = JSON.stringify(this.batchFullReport)
+      }else{
+        fullNamePath += '_messages.csv'
+        fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Cost,Segment,Direction,Text"
+        var timeOffset = parseInt(req.query.timeOffset)
+        let dateOptions = { weekday: 'short' }
+        for (var item of this.batchFullReport){
+          var from = formatPhoneNumber(item.from)
+          var to = formatPhoneNumber(item.to[0])
+          fileContent += "\n" + item.id + "," + from + "," + to + "," + item.creationTime + "," + item.lastModifiedTime
+          fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+          fileContent +=  "," + item.direction + ',"' + item.text + '"'
+        }
+      }
+      try{
+        fs.writeFileSync('./'+ fullNamePath, fileContent)
+        var link = "/downloads?filename=" + fullNamePath
+        res.send({"status":"ok","message":link})
+      }catch (e){
+        console.log("cannot create report file")
+        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+      }
+    },
     downloadBatchReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -507,27 +593,13 @@ var engine = User.prototype = {
         fileContent = JSON.stringify(this.batchFullReport)
       }else{
         fullNamePath += '.csv'
-        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Cost,Segment"
+        fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Error Code,Cost,Segment"
         var timeOffset = parseInt(req.query.timeOffset)
         let dateOptions = { weekday: 'short' }
         for (var item of this.batchFullReport){
           var from = formatPhoneNumber(item.from)
           var to = formatPhoneNumber(item.to[0])
-          //var date = new Date(item.createdAt)
-          var date = new Date(item.creationTime)
-          var timestamp = date.getTime() - timeOffset
-          var createdDate = new Date (timestamp)
-          var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-          createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-          createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-          //date = new Date(item.lastUpdatedAt)
-          date = new Date(item.lastModifiedTime)
-          var timestamp = date.getTime() - timeOffset
-          var updatedDate = new Date (timestamp)
-          var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-          updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
-          updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-          fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+          fileContent += "\n" + item.id + "," + from + "," + to + "," + item.creationTime + "," + item.lastModifiedTime
           var errorCode = ""
           if (item.hasOwnProperty('errorCode')){
             errorCode = item.errorCode
@@ -612,6 +684,12 @@ var engine = User.prototype = {
             campaigns: []
           })
         }
+      })
+    },
+    loadMessageStorePage: function(res){
+      res.render('message-store', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers
       })
     },
     // Classic SMS
@@ -831,13 +909,14 @@ var engine = User.prototype = {
         }
       })
     },
-    addBatchToDB: function(campaignName, batchInfo){
+    addBatchToDB: function(campaignName, type){
       var thisUser = this
       var newBatch = {
         campaign: campaignName,
-        creationTime: batchInfo.creationTime,
-        batchId: batchInfo.id,
-        batchSize: batchInfo.batchSize
+        creationTime: this.batchResult.creationTime,
+        batchId: this.batchResult.id,
+        batchSize: this.batchResult.batchSize,
+        type: type
       }
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -847,6 +926,10 @@ var engine = User.prototype = {
         if (!err && result.rows.length > 0){
           // attach to array then update db
           var batches = JSON.parse(result.rows[0].batches)
+          for (var batch of batches){
+            if (!batch.hasOwnProperty('type'))
+              batch['type'] = "group"
+          }
           batches.push(newBatch)
           var query = 'UPDATE a2p_sms_users SET '
           query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"

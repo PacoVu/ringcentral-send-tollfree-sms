@@ -101,10 +101,28 @@ app.get ('/campaign', function (req, res) {
   }
 })
 
+app.get('/message-store', function (req, res) {
+  console.log('loadMessageStorePage')
+  if (req.session.extensionId != 0)
+    router.loadMessageStorePage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/read_campaign', function (req, res) {
   console.log('readCampaign')
   if (req.session.extensionId != 0)
     router.getBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/read_message_store', function (req, res) {
+  console.log('readMessageStore')
+  if (req.session.extensionId != 0)
+    router.readMessageList(req, res)
   else{
     res.render('index')
   }
@@ -159,6 +177,14 @@ app.get('/getbatchresult', function (req, res) {
 app.get('/downloadbatchreport', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/downloadmessagestore', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadMessageStore(req, res)
   else{
     res.render('index')
   }

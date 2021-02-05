@@ -22,7 +22,7 @@ body {
 button:focus {
   outline:0;
 }
-
+/*
 .left-middle-align {
   margin: 0;
   height: 50px;
@@ -96,6 +96,8 @@ ul > li > span {
   margin-left: 5px;
   margin-right: 5px;
 }
+*/
+
 #button_header {
   margin-bottom: 10px;
 }
@@ -270,9 +272,6 @@ ul > li > span {
 .error{
   color: red;
 }
-.small_font {
-  font-size: 0.8em;
-}
 .cost{
   max-width: 100px !important;
   width: 100px !important;
@@ -338,6 +337,75 @@ ul > li > span {
   background: #D1F6FA;
 }
 
+#conversation {
+  background-color: #D1F6FA;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  height: 400px;
+}
+
 .hasborder {
   border: 1px dotted purple;
+}
+
+.small_font{
+  font-size: 0.9em;
+}
+/* Conversation */
+/* Chat containers */
+.container {
+  border: 1px solid #dedede;
+  background-color: #f1f1f1;
+  border-radius: 0px 10px 10px 10px;
+  padding: 10px;
+  margin: 6px 0;
+  width: 100% !important;
+}
+
+/* Darker chat container */
+.darker {
+  border-color: #ccc;
+  background-color: #ddd;
+  border-radius: 10px 0px 10px 10px;
+}
+
+/* Clear floats */
+.container::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+/* Style metadata */
+.container span {
+  float: left;
+  max-width: 160px;
+  width: 100%;
+  margin-right: 10px;
+  border-radius: 50%;
+  margin-bottom: -10px;
+}
+
+/* Style the right metadata */
+.container span.right {
+  float: right;
+  margin-left: 20px;
+  margin-right:-40px;
+  margin-top: -10px;
+  font-size: 0.8em;
+  color: #999;
+}
+
+/* Style time text */
+.time-right {
+  float: right;
+  color: #aaa;
+  font-size: 0.8em;
+}
+
+/* Style time text */
+.time-left {
+  float: left;
+  color: #999;
+  font-size: 0.8em;
 }

@@ -107,3 +107,29 @@
   border-bottom: none!important;
   box-shadow: 0 1px 3px 0 #cccccc;
 }
+
+ul > li > span {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+/* Middle menu and dropdown */
+.left-align-nav li:hover {
+  background-color: #0684bd;
+}
+
+.left-align-nav li a:hover {
+  color: #ffffff!important;
+}
+
+.left-align-nav li.active a:hover {
+  color: #0684bd!important;
+}
+
+.dropdown:hover ul.dropdown-menu {
+  display: block;
+}
+
+.dropdown a.dropdown-toggle {
+  background: white;
+}

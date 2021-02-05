@@ -62,19 +62,34 @@
   <nav id="menu_header" class="navbar navbar-default no-border">
     <span class="left-middle-align">
       <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
-      <span class="title">Send High Volume SMS</span>
+      <span class="title">High Volume SMS</span>
     </span>
-    <ul class="nav navbar-nav navbar-left middle-align">
-      <li>
-        <span><a href="/campaign"><b>My Campaigns</b></a></span>
+    <ul class="nav navbar-nav navbar-left left-align-nav">
+      <li><a href="/campaign">My Campaigns</a></li>
+      <li><a href="/message-store">My Message Store</a></li>
+      <!--li class="active"><a>Send High Volume SMS</a></li-->
+      <li class="dropdown active">
+        <a data-toggle="dropdown" class="dropdown-toggle" href="#">Send High Volume SMS <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          <li><a href="/highvolume-manual">Manual Input</a></li>
+          <li><a href="/highvolume-template">Template Input</a></li>
+        </ul>
       </li>
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
-      <li><span><b><%- userName %></b></span></li>&nbsp;&nbsp;
-      <!--li><span>|</span></li-->
+      <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
+      <li class="dropdown">
+        <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          <li><a href="javascript:openWindow()">Report Issues</a></li>
+          <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+        </ul>
+      </li>
+      <!--
       <li><a href="javascript:openWindow()">Report Issues</a></li>
       <li><span>|</span></li>
       <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+      -->
       <li><span>|</span></li>
       <li><a href="/about">Help</a></li>
       <li><span>|</span></li>
@@ -84,8 +99,10 @@
   <section id='content'>
     <div class="col-xs-12">
       <div class="row col-sm-2">
+        <!--
         <div>&#9745; Manual Input</div>
         <div>&#9744; <a href="/highvolume-template">Template Input</a></div>
+        -->
       </div>
       <div class="col-sm-7">
         <div class="form-inline">
@@ -123,8 +140,8 @@
             </div-->
             <hr style="margin: 2px !important"></hr>
             <div>
-              <button class="btn-noborder" onclick="addCustomizedMessage(event)"><span style="font-size:1.2em">+</span> New message group</button>
-              <span class="claimed">(Message will be sent to multiple recipients individually. Recipients will not see each other number!)</span>
+              <button class="btn-rc" onclick="addCustomizedMessage(event)" title="Message will be sent to multiple recipients individually. Recipients will not see each other number!">Add new message group</button>
+              <!--span class="claimed">(Message will be sent to multiple recipients individually. Recipients will not see each other number!)</span-->
             </div>
             <div>
               <label class="label-input" for="message">&nbsp;&nbsp;</label>

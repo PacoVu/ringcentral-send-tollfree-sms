@@ -41,13 +41,15 @@ function readCampaign(){
   var date = new Date(valArr[1])
   var timestamp = date.getTime() - timeOffset
   var createdDate = new Date (timestamp)
-  var createdDateStr = createdDate.toLocaleDateString("en-US")
-  createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+  var createdDateStr = createdDate.toISOString()
+  createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
   var url = `read_campaign?batchId=${valArr[0]}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      var report = "<div><div>Creation Time: " + createdDateStr + "</div>"
+      var fromNumber = createFullReport(res.fullReport)
+      var report = "<div><div>Creation date and time: " + createdDateStr + "</div>"
+      report += `<div>Sent from phone number: ${fromNumber}</div>`
       for (var key of Object.keys(res.result)){
         if (key == "Total_Cost")
           report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key].toFixed(3) + " USD</div>"
@@ -56,10 +58,12 @@ function readCampaign(){
       }
       report += "</div>"
       $("#report").html(report)
-      $("#download_json").css('display', 'block');
-      $("#download_csv").css('display', 'block');
-      $("#campaign-report").css('display', 'block');
-      createFullReport(res.fullReport)
+      $("#downloads").show()
+      //$("#download_json").css('display', 'block');
+      //$("#download_csv").css('display', 'block');
+      //$("#campaign-report").css('display', 'block');
+      $("#campaign-report").show()
+      //createFullReport(res.fullReport)
     }else if (res.status == "failed") {
       alert(res.message)
       window.location.href = "login"
@@ -71,31 +75,39 @@ function readCampaign(){
 function createFullReport(fullReports){
   var html = ""
   var timeOffset = new Date().getTimezoneOffset()*60000;
+  var fromNumber = ""
   for (var item of fullReports){
+    /*
     var date = new Date(item.creationTime)
     var timestamp = date.getTime() - timeOffset
     var createdDate = new Date (timestamp)
     var createdDateStr = createdDate.toLocaleDateString("en-US")
     createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-    date = new Date(item.lastModifiedTime)
+    */
+    if (fromNumber == "")
+      fromNumber = formatPhoneNumber(item.from)
+    var date = new Date(item.lastModifiedTime)
     var timestamp = date.getTime() - timeOffset
     var updatedDate = new Date (timestamp)
-    var updatedDateStr = createdDate.toLocaleDateString("en-US")
-    updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+    var updatedDateStr = updatedDate.toISOString()
+    updatedDateStr = updatedDateStr.replace("T", " ").substring(0, 19)
+
+    //var updatedDateStr = updatedDate.toLocaleDateString("en-US")
+    //updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
     var cost = (item.hasOwnProperty('cost')) ? item.cost : "0.000"
     var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : "-"
     if (item.messageStatus == "SendingFailed" || item.messageStatus == "DeliveryFailed")
       html += "<div class='row col-xs-12 error small_font'>"
     else
       html += "<div class='row col-xs-12 small_font'>"
-    html += `<div class="col-sm-1 hasborder">${item.id}</div>`
-    html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.from)}</div>`
+    //html += `<div class="col-sm-1 hasborder">${item.id}</div>`
+    //html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.from)}</div>`
     html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.to[0])}</div>`
 
     html += `<div class="col-sm-2 hasborder">${updatedDateStr}</div>`
-    html += `<div class="col-sm-1 hasborder">${item.messageStatus}</div>`
+    html += `<div class="col-sm-2 hasborder">${item.messageStatus}</div>`
     var errorCode = "-"
-    var errorDes = ""
+    var errorDes = "-"
     if (item.hasOwnProperty('errorCode')){
       errorCode = item.errorCode
       for (var key of Object.keys(errorCodes)){
@@ -103,12 +115,14 @@ function createFullReport(fullReports){
           errorDes = errorCodes[key]
       }
     }
-    html += `<div class="col-sm-2 hasborder" title="${errorDes}">${errorCode}</div>`
+    //html += `<div class="col-sm-2 hasborder" title="${errorDes}">${errorCode}</div>`
+    html += `<div class="col-sm-4 hasborder">${errorDes}</div>`
     html += `<div class="col-sm-1 hasborder">$${cost}</div>`
     html += `<div class="col-sm-1 hasborder">${segmentCount}</div>`
     html += "</div>"
   }
   $("#list").html(html)
+  return fromNumber
 }
 function downloadReport(format){
   var timeOffset = new Date().getTimezoneOffset()*60000;

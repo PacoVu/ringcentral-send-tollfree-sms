@@ -108,11 +108,23 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getSendSMSResult(req, res)
   },
+  readMessageList: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readMessageList(req, res, "")
+  },
   downloadBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].downloadBatchReport(req, res)
+  },
+  downloadMessageStore: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadMessageStore(req, res)
   },
   downloadSendSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -180,6 +192,12 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadCampaignHistoryPage(res)
+  },
+  loadMessageStorePage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadMessageStorePage(res)
   },
   setDelayInterVal: function(req, res){
     var index = getUserIndex(req.session.userId)
