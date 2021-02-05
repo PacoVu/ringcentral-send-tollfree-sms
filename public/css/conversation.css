@@ -279,8 +279,8 @@
     padding: 0;
     margin-bottom: 10px;
     /*font-size: .85rem;*/
-    font-size: .75em;
-    min-width: 80px;
+    font-size: .70em;
+    min-width: 60px;
     display: flex;
     flex-direction: row;
     align-items: center;

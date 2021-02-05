@@ -138,10 +138,10 @@ function createConversationItem(item){
     line += '<li class="chat-left">'
     line += `<div class="chat-avatar chat-name">From<br>${item.from}</div>`
     line += `<div class="chat-text">${item.text}</div>`
-    line += `<div class="chat-hour">Sent<br>${dateTime[1]}</div>`
+    line += `<div class="chat-hour">sent<br>${dateTime[1]}</div>`
   }else{
     line += '<li class="chat-right">'
-    line += `<div class="chat-hour">Received<br>${dateTime[1]}</div>`
+    line += `<div class="chat-hour">received<br>${dateTime[1]}</div>`
     line += `<div class="chat-text">${item.text}</div>`
     line += `<div class="chat-avatar chat-name">From<br>${item.from}</div>`
   }
