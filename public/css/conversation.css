@@ -182,7 +182,7 @@
 									Chat right side
 	************************************************
 ************************************************/
-
+/*
 .selected-user {
     width: 100%;
     padding: 0 15px;
@@ -201,7 +201,7 @@
 .selected-user span.name {
     font-weight: 700;
 }
-
+*/
 .chat-container {
     position: relative;
     padding: 1rem;
@@ -239,7 +239,7 @@
 .chat-container li .chat-name {
     /*font-size: .75rem;*/
     font-size: 0.8em;
-    color: #999999;
+    color: #f5f0f0;
     text-align: left;
 }
 
@@ -278,23 +278,23 @@
 .chat-container li .chat-hour {
     padding: 0;
     margin-bottom: 10px;
-    /*font-size: .85rem;*/
     font-size: .70em;
     min-width: 60px;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin: 0 0 0 15px;
+    margin: 0 0 0 0px;
+    color: #f5f0f0;
 }
 
 .chat-container li .chat-hour > span {
     font-size: 16px;
-    color: #9ec94a;
+    color: #f5f0f0;
 }
 
 .chat-container li.chat-right > .chat-hour {
-    margin: 0 15px 0 0;
+    margin: 0 0px 0 0;
 }
 
 @media (max-width: 767px) {
@@ -364,12 +364,13 @@ ul {
     box-shadow: none;
 }
 .separator {
-  background-color: #a7c9d1;
   border-top: 1px solid #f4f5fb;
   margin-bottom: 5px;
 }
+
 .date-line {
-  font-size: 0.8em;
+  font-size: 0.9em;
+  color: #f5f0f0;
   align-items: center;
   justify-content: center;
   text-align: center;

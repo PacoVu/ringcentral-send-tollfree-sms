@@ -37,6 +37,7 @@ function User(id) {
     processedCount: 0,
     status:"Completed"
   }
+  this.downloadFileName = ""
   this.batchFullReport = []
   this.smsBatchIds = []
   this.mainCompanyNumber = ""
@@ -494,9 +495,10 @@ var engine = User.prototype = {
           }
         })
     },
-    readMessageList: function (req, res, pageToken){
+    readMessageList: function (req, res){
       console.log("readMessageList")
-      var thisUser = this
+      this.batchFullReport = []
+      this.downloadFileName = `${req.body.dateFrom.substring(0, 10)}_${req.body.dateTo.substring(0, 10)}`
       var readParams = {
         view: "Detailed",//req.body.view,
         dateFrom: req.body.dateFrom,
@@ -509,29 +511,86 @@ var engine = User.prototype = {
       if (req.body.phoneNumbers)
         readParams['phoneNumber'] = JSON.parse(req.body.phoneNumbers)
 
+      if (req.body.pageToken)
+          readParams['pageToken'] = req.body.pageToken
+      this._readMessageList(res, readParams)
+    },
+    _readMessageList: function (res, readParams){
+      //console.log("_readMessageList")
+      var thisUser = this
       var endpoint = "/account/~/a2p-sms/messages"
 
-      if (pageToken == "")
-        thisUser.batchFullReport = []
-      else
-        readParams['pageToken'] = pageToken
-      var clientPhoneNumbers = []
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.get(endpoint, readParams)
             .then(function (resp) {
               var jsonObj = resp.json()
+              //console.log(jsonObj.paging)
               thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
-              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-                setTimeout(function(){
-                  thisUser.readMessageList(req, res, jsonObj.paging.nextPageToken)
-                }, 1200)
+              //if (page == "next"){
+                if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                  // limits to 4000 messages
+                  if (thisUser.batchFullReport.length >= 4000){
+                    // return messages list with nextPageToken
+                    res.send({
+                        status: "ok",
+                        result: thisUser.batchFullReport,
+                        pageTokens: {
+                          nextPage: jsonObj.paging.nextPageToken,
+                          //previousPage: jsonObj.paging.previousPageToken
+                        }
+                    })
+                    return
+                  }else{ // continue reading next page
+                    setTimeout(function(){
+                      readParams['pageToken'] = jsonObj.paging.nextPageToken
+                      thisUser._readMessageList(res, readParams)
+                    }, 1200)
+                  }
+                }else{
+                  res.send({
+                      status: "ok",
+                      result: thisUser.batchFullReport,
+                      pageTokens: {
+                        nextPage: undefined,//jsonObj.paging.nextPageToken,
+                        //previousPage: undefined//jsonObj.paging.previousPageToken
+                      }
+                  })
+                }
+              /*
               }else{
-                res.send({
-                    status: "ok",
-                    result: thisUser.batchFullReport
-                })
+                if (jsonObj.paging.hasOwnProperty("previousPageToken")){
+                  // limits to 4000 messages
+                  if (thisUser.batchFullReport.length >= 4000){
+                    // return messages list with nextPageToken
+                    console.log("reach 4000 limits")
+                    res.send({
+                        status: "ok",
+                        result: thisUser.batchFullReport,
+                        pageTokens: {
+                          nextPage: jsonObj.paging.nextPageToken,
+                          //previousPage: jsonObj.paging.previousPageToken
+                        }
+                    })
+                    return
+                  }else{ // continue reading next page
+                    setTimeout(function(){
+                      readParams['pageToken'] = jsonObj.paging.previousPageToken
+                      thisUser._readMessageList(res, readParams, page)
+                    }, 1200)
+                  }
+                }else{
+                  res.send({
+                      status: "ok",
+                      result: thisUser.batchFullReport,
+                      pageTokens: {
+                        nextPage: undefined,//jsonObj.paging.nextPageToken,
+                        //previousPage: undefined//jsonObj.paging.previousPageToken
+                      }
+                  })
+                }
               }
+              */
             })
             .catch(function (e) {
               console.log('ERR ' + e.message || 'Server cannot send messages');
@@ -554,7 +613,7 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + this.getExtensionId()
+      var fullNamePath = dir + this.downloadFileName //this.getExtensionId()
       var fileContent = ""
       if (req.query.format == "JSON"){
         fullNamePath += '_messages.json'

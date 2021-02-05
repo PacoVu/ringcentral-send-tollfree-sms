@@ -112,10 +112,6 @@
           <% } %>
         </select>&nbsp;&nbsp;
         <button id="readmessagestore" class="btn-rc" onclick="readMessageStore()" style="display:inline">Read</button>
-        <span class="block_space" id="downloads" style="float: right; display: none">
-          <a href="javascript:downloadMessageStore('CSV')" style="display: inline">Download (CSV)</a>&nbsp;&nbsp;|&nbsp;
-          <a href="javascript:downloadMessageStore('JSON')" style="display: inline">Download (JSON)</a>
-        </span>
       </div>
     </div>
     <div class="row col-xs-12">
@@ -123,19 +119,31 @@
     </div>
     <div id='message-store' class="row col-xs-12" style="margin-top:20px; display:block;">
       <div class="col-sm-3">
-        <div id="left_pane" style="display: none">
+        <div id="left_pane" style="float: right; display: none">
           <label>Conversation filter:</label>
           <select class="selectpicker filter-select" data-width="140px" id="recipients_list" onchange="recipientSelected()" style="display: inline;" title="Recipient"></select>
-          <!--div class="block_space" id="downloads">
-            <hr style="margin: 2px !important"></hr>
-            <a id="download_csv" href="javascript:downloadMessageStore('CSV')" style="display: block">Download Message Store (CSV)</a>
-            <a id="download_json" href="javascript:downloadMessageStore('JSON')" style="display: block">Download Message Store (JSON)</a>
-          </div-->
         </div>
       </div>
-      <div class="col-sm-7" style="border-left: 1px dotted gray">
+      <div class="col-sm-4" style="border-left: 1px dotted gray;">
+        <div id="pages" style="display: block;">
+          <span id="conversation-header" style="float: left;"></span>
+          <span style="float: right;">
+            <span id="total"></span>
+            <!--
+            <a id="prev-page" href="#" style="display: none">prev page</a>
+            <span id="hyphen" style="display: none">&nbsp;&nbsp;|&nbsp;</span>
+            -->
+            <a id="next-block" href="#" style="display: none">next block</a>
+          </span>
+        </div>
         <div id="conversation" class="col-xl-8 col-lg-8 col-md-8 col-sm-9 col-9"></div>
-    </div>
+      </div>
+      <div class="col-sm-2">
+        <span class="block_space" id="downloads" style="display: none">
+          <a href="javascript:downloadMessageStore('CSV')" style="display: inline">Download (CSV)</a><br>
+          <a href="javascript:downloadMessageStore('JSON')" style="display: inline">Download (JSON)</a>
+        </span>
+      </div>
   </section>
   <%- include('_footer') %>
 </body>
