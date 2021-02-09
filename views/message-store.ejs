@@ -96,21 +96,25 @@
     <div id="content_header" class="col-xs-12">
       <div class="form-inline">
         <label for="fromDate">From Date</label>
-        <input type="text" id="fromdatepicker" class="form-control text-input"></input>&nbsp;&nbsp;
+        <input type="text" id="fromdatepicker" size="10" class="form-control text-input"></input>&nbsp;&nbsp;
         <label for="toDate">To Date</label>
-        <input type="text" id="todatepicker" class="form-control text-input"></input>&nbsp;
+        <input type="text" id="todatepicker" size="10" class="form-control text-input"></input>&nbsp;
         <label for="direction">Direction</label>
-        <select class="selectpicker filter-select" data-width="120px" id="direction" style="display: inline" title="Direction">
+        <select class="selectpicker filter-select" data-width="100" id="direction" style="display: inline" title="Direction">
           <option value="Inbound">Inbound</option>
           <option value="Outbound">Outbound</option>
           <option value="Both" selected>Both</option>
         </select>&nbsp;&nbsp;
-        <label for="from_number">Phone Number</label>
-        <select id="from_number" multiple class="selectpicker filter-select" data-width="140px" title="All my numbers">
+        <label for="my_numbers">My Number</label>
+        <select id="my_numbers" multiple class="selectpicker filter-select" data-width="140" title="All my numbers">
           <% for (var item of phoneNumbers) { %>
             <option value="<%- item.number %>"><%= item.format %></option>
           <% } %>
         </select>&nbsp;&nbsp;
+
+        <label for="recipients">Recipient Number</label>
+        <input type="tel" id="recipient_number" class="form-control text-input" name="recipient_number"></input>&nbsp;&nbsp;
+
         <button id="readmessagestore" class="btn-rc" onclick="readMessageStore()" style="display:inline">Read</button>
       </div>
     </div>

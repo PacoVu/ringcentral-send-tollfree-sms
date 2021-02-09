@@ -47,9 +47,30 @@ function readMessageStore(token){
   configs['dateTo'] = toDateStr
 
   configs['direction'] = $('#direction').val();
-  if ($('#from_number').val() != ""){
-    configs['phoneNumbers'] = JSON.stringify($('#from_number').val());
+
+  var recipientNumber = $('#recipient_number').val().trim()
+  if ($('#my_numbers').val() != ""){
+    var numbersFilter = $('#my_numbers').val()
+    if (recipientNumber != ""){
+      if (validateRicipientNumber(recipientNumber))
+        numbersFilter.push(recipientNumber)
+      else{
+        $('#recipient_number').focus()
+        return
+      }
+    }
+    configs['phoneNumbers'] = JSON.stringify(numbersFilter);
+  }else{
+    if (recipientNumber != ""){
+      if (validateRicipientNumber(recipientNumber))
+        configs['phoneNumbers'] = JSON.stringify([recipientNumber]);
+      else{
+        $('#recipient_number').focus()
+        return
+      }
+    }
   }
+
   configs['timeOffset'] = timeOffset
   messageList = []
   var readingAni = "<img src='./img/loading.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
@@ -116,7 +137,8 @@ function readMessageStore(token){
         $("#next-page").hide()
       }
     }else{
-      alert("error")
+      $("#conversation").html("")
+      alert(res.message)
     }
   });
   posting.fail(function(response){
@@ -206,6 +228,14 @@ function downloadMessageStore(format){
     else
       alert(res.message)
   });
+}
+
+function validateRicipientNumber(number){
+  if (number[0] != "+"){
+    alert("Please enter recipient phone number with the plus (+) sign in front of country code!")
+    return false
+  }
+  return true
 }
 
 function logout(){

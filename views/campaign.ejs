@@ -74,10 +74,13 @@
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
-      <!--li><span>|</span></li-->
-      <li><a href="javascript:openWindow()">Report Issues</a></li>
-      <li><span>|</span></li>
-      <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+      <li class="dropdown">
+        <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          <li><a href="javascript:openWindow()">Report Issues</a></li>
+          <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+        </ul>
+      </li>
       <li><span>|</span></li>
       <li><a href="/about">Help</a></li>
       <li><span>|</span></li>
@@ -90,15 +93,12 @@
         <label class="label-input">Campaign Name</label>
         <select size="20" id="campaigns" class="selectpicker filter-select">
             <% var timeOffset = new Date().getTimezoneOffset()*60000; %>
-            <% let dateOptions = { weekday: 'short' } %>
-            <% let timeOptions = { hour: '2-digit',minute: '2-digit' } %>
             <% for (var item of campaigns) { %>
             <% var date = new Date(item.creationTime) %>
             <% var timestamp = date.getTime() - timeOffset %>
             <% date = new Date (timestamp) %>
             <% var dateStr = date.toISOString() %>
             <% dateStr = dateStr.replace("T", " ").substring(0, 16) %>
-
             <option value="<%- item.batchId %>/<%- item.creationTime %>"><%= item.campaign %> - <%= dateStr %></option>
             <% } %>
         </select>

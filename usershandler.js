@@ -733,9 +733,15 @@ var engine = User.prototype = {
         }
         if (!err && result.rows.length > 0){
           var batches = JSON.parse(result.rows[0].batches)
+          var batchList = []
+          for (var batch of batches){
+            if (batch.type != "tollfree"){
+              batchList.push(batch)
+            }
+          }
           res.render('campaign', {
             userName: this.getUserName(),
-            campaigns: batches
+            campaigns: batchList
           })
         }else{ // no history
           res.render('campaign', {
@@ -793,6 +799,7 @@ var engine = User.prototype = {
         })
         if (this.recipientArr.length > 0){
           console.log("CONTINUE PROSESSING")
+          this.addTFBatchToDB()
           this.sendMessages()
         }
     },
@@ -846,7 +853,6 @@ var engine = User.prototype = {
                       //console.log(thisUser.sendReport['successCount'])
                       if (thisUser.index >= totalCount){
                         console.log('DONE SEND MESSAGE!');
-                        //thisUser.sendReport['sendInProgress'] = false
                       }
                     })
                     .catch(function(e){
@@ -1011,32 +1017,42 @@ var engine = User.prototype = {
         }
       })
     },
-    // not used
-    readUsersStats: function(req, res){
-      var query = `SELECT * FROM a2p_sms_users`
+    addTFBatchToDB: function(){
+      var thisUser = this
+      var newBatch = {
+        campaign: "Campaign Name",
+        creationTime: new Date().toISOString(),
+        batchId: "a2psms",
+        batchSize: this.recipientArr.length,
+        type: "tollfree"
+      }
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (err){
           console.error(err.message);
         }
         if (!err && result.rows.length > 0){
-          var userStats = []
-          for (var item of result.rows){
-            var user = {
-              userId: item.user_id,
-              accountId: item.account_id,
-              stats: []
+          // attach to array then update db
+          var batches = JSON.parse(result.rows[0].batches)
+          batches.push(newBatch)
+          var query = 'UPDATE a2p_sms_users SET '
+          query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"
+          pgdb.update(query, (err, result) =>  {
+            if (err){
+              console.error(err.message);
             }
-            var batches = JSON.parse(item.batches)
-            for (var batch of batches){
-              var stat ={
-                batchSize: batch.batchSize,
-                sentDate: batch.creationTime
-              }
-              user.stats.push(stat)
+            console.log("updated batch data")
+          })
+        }else{ // add new to db
+          var batches = [newBatch]
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
+          var query = "INSERT INTO a2p_sms_users VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+          pgdb.insert(query, values, (err, result) =>  {
+            if (err){
+              console.error(err.message);
             }
-            userStats.push(user)
-          }
-          res.send({status:"ok", data: userStats})
+            console.log("stored batch in to db")
+          })
         }
       })
     }

@@ -109,11 +109,11 @@
           <form id="sms-form" class="form-group" enctype="multipart/form-data">
             <div class="block_space">
               <label class="label-input">Campaign Name</label>
-              <input type="text" id="campaign_name" class="form-control text-input" name="campaign_name"></input>
+              <input type="text" id="campaign_name" size="37" class="form-control text-input" name="campaign_name"></input>
             </div>
             <div class="block_space">
               <label class="label-input">From number</label>
-              <select size="20" id="from_number" name="from_number" class="selectpicker filter-select">
+              <select data-width="291" id="from_number" name="from_number" class="selectpicker filter-select">
                 <% for (var item of phoneNumbers) { %>
                   <option value="<%- item.number %>"><%= item.format %> - <%= item.type %></option>
                 <% } %>
@@ -130,9 +130,6 @@
             </div>
             <div class="block_space">
               <label class="label-input">Recipient's number column</label>
-              <!--span>From number</span>
-              <input type="text" id="from-number-column" name="from_number_column" class="form-control" value="fromNumber"></input>
-              <span>To Number</span-->
               <input type="text" id="to-number-column" name="to_number_column" class="form-control" placeholder="enter column name"></input>
             </div>
 

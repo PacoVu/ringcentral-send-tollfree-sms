@@ -29,10 +29,18 @@ window.onload = function init(){
 
 function readFileRecipients(elm, f){
   var file = null
-  if (f != null)
+  if (f != null){
     file = f
-  else
+  }else{
     file = elm.files[0]
+    // reset inputs when selected template file changed
+    $("#message").val("")
+    $("#sample").html("")
+    $("#to-number-column").val("")
+    totalRecipients = 0
+    totalMessageSegments = 0
+    calculateEstimatedCost()
+  }
 
   if (file) {
     var reader = new FileReader();
@@ -54,19 +62,7 @@ function readFileRecipients(elm, f){
         row = detectAndHandleCommas(row)
         sampleRow = row.trim().split(",")
       }
-      /*
-      for (var i=1; i<recipientsFromFile.length; i++){
-        var row = recipientsFromFile[i]
-        // need to detect double quotes from each col in a sample row
-        row = detectAndHandleCommas(row)
-        var columns = row.trim().split(",")
-        if (i == 1){
-          sampleRow = columns
-          break
-        }
-      }
-      */
-    };
+    }
   }else{
     totalRecipients = 0
     totalMessageSegments = 0
