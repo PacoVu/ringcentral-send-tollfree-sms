@@ -150,6 +150,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].sendHighVolumeSMSMessageAdvance(req, res)
   },
+  sendIndividualMessage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].sendIndividualMessage(req, res)
+  },
   readCampaign: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

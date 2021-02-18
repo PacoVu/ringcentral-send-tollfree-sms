@@ -63,12 +63,12 @@
     <ul class="nav navbar-nav navbar-left left-align-nav">
       <li class="active"><a>My Campaigns</a></li>
       <li><a href="/message-store">My Message Store</a></li>
-      <!--li><a href="/highvolume-manual">Send High Volume SMS</a></li-->
+
       <li class="dropdown">
         <a data-toggle="dropdown" class="dropdown-toggle" href="#">Send High Volume SMS <b class="caret"></b></a>
         <ul class="dropdown-menu">
-          <li><a href="/highvolume-manual">Manual Input</a></li>
-          <li><a href="/highvolume-template">Template Input</a></li>
+          <li><a href="/highvolume-manual" title="One-to-many text messages">Broadcast Message</a></li>
+          <li><a href="/highvolume-template" title="Personalized mail merge text messages">Tailored Message</a></li>
         </ul>
       </li>
     </ul>
@@ -127,7 +127,7 @@
           <div class="col-sm-2 hasborder">Last Updated</div>
           <div class="col-sm-2 hasborder">Status</div>
           <div class="col-sm-4 hasborder">Failed Reason</div>
-          <div class="col-sm-1 hasborder">Cost (USD)</div>
+          <div class="col-sm-1 hasborder">Cost</div>
           <div class="col-sm-1 hasborder">Segment</div>
         </div></div>
         <div id="list" class="row col-xs-12"></div>

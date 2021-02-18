@@ -250,14 +250,19 @@ app.post('/sendmessage', upload.single('attachment'), function (req, res) {
    }
 })
 
-app.post('/sendhighvolumemessage', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage")
+app.post('/sendbroadcastmessages', upload.any(), function (req, res, next) {
+  console.log("post sendbroadcastmessages")
   router.sendHighVolumeSMSMessage(req, res)
 })
 
-app.post('/sendhighvolumemessage-advance', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage-advance")
+app.post('/sendtailoredmessages', upload.any(), function (req, res, next) {
+  console.log("post sendtailoredmessages")
   router.sendHighVolumeSMSMessageAdvance(req, res)
+})
+
+app.post('/sendindividualmessage', upload.any(), function (req, res, next) {
+  console.log("post sendindividualmessage")
+  router.sendIndividualMessage(req, res)
 })
 
 

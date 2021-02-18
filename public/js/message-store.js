@@ -2,6 +2,8 @@ var messageList = undefined
 var recipientPhoneNumbers = []
 var timeOffset = 0
 var dateStr = ""
+var selectedRecipient = ""
+var pageToken = undefined
 function init(){
   $( "#fromdatepicker" ).datepicker({ dateFormat: "yy-mm-dd"});
   $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
@@ -15,7 +17,6 @@ function init(){
   }
   $( "#fromdatepicker" ).datepicker('setDate', new Date(year, month, day));
   $( "#todatepicker" ).datepicker('setDate', new Date());
-
   timeOffset = new Date().getTimezoneOffset()*60000;
 
   var height = $(window).height() - 150;
@@ -36,9 +37,11 @@ function readMessageStore(token){
   var tempTime = tempDate.getTime() + timeOffset
   var fromDateStr = new Date(tempTime).toISOString()
   configs['dateFrom'] = fromDateStr
-  //configs['dateFrom'] = $("#fromdatepicker").val() + "T00:00:00.001Z"
-  if (token)
+
+  if (token){
     configs['pageToken'] = token
+    pageToken = token
+  }
 
   tempDate = new Date($("#todatepicker").val() + "T23:59:59.999Z")
   tempTime = tempDate.getTime() + timeOffset
@@ -59,12 +62,19 @@ function readMessageStore(token){
         return
       }
     }
-    configs['phoneNumbers'] = JSON.stringify(numbersFilter);
+    configs['phoneNumbers'] = JSON.stringify(numbersFilter)
   }else{
+    // force to add all my numbers
+    var numbersFilter = []
+    $("#my_numbers option").each(function()
+    {
+        numbersFilter.push($(this).val())
+    });
     if (recipientNumber != ""){
-      if (validateRicipientNumber(recipientNumber))
-        configs['phoneNumbers'] = JSON.stringify([recipientNumber]);
-      else{
+      if (validateRicipientNumber(recipientNumber)){
+        numbersFilter.push(recipientNumber)
+        configs['phoneNumbers'] = JSON.stringify(numbersFilter)
+      }else{
         $('#recipient_number').focus()
         return
       }
@@ -83,10 +93,9 @@ function readMessageStore(token){
       messageList = res.result
       recipientPhoneNumbers = []
       dateStr = ""
-      var html = '<div class="chat-container"><ul class="chat-box">'
-      //var html =''
+      //var html = '<div class="chat-container"><ul class="chat-box">'
       for (var message of messageList){
-        html += createConversationItem(message, false)
+        //html += createConversationItem(message, false)
         if (message.direction == "Outbound"){
           var number = recipientPhoneNumbers.find(n => n === message.to[0])
           if (number == undefined)
@@ -97,8 +106,9 @@ function readMessageStore(token){
             recipientPhoneNumbers.push(message.from)
         }
       }
-      html += "</ul></div>"
-      $("#conversation").html(html)
+      //html += "</ul></div>"
+      //$("#conversation").html(html)
+
       $("#left_pane").show()
       $("#downloads").show()
       $("#recipients_list").empty()
@@ -113,9 +123,13 @@ function readMessageStore(token){
         })));
       }
       $('#recipients_list').selectpicker('refresh');
+      if (selectedRecipient != ""){
+        $("#recipients_list").val(selectedRecipient).change();
+      }else{
+        $("#recipients_list").val("all recipients").change();
+      }
+      recipientSelected()
 
-      $("#total").html(`${messageList.length} messages`)
-      $("#conversation-header").html("Conversations with all recipients")
       // make page link
       /*
       if (res.pageTokens.previousPage){
@@ -147,13 +161,13 @@ function readMessageStore(token){
 }
 
 function recipientSelected(){
-  var number = $("#recipients_list").val()
+  selectedRecipient = $("#recipients_list").val()
   if (messageList != undefined){
-    $("#conversation-header").html(`Conversations with ${number}`)
+    $("#conversation-header").html(`Conversations with ${selectedRecipient}`)
     var html = '<div class="chat-container"><ul class="chat-box chatContainerScroll">'
     dateStr = ""
     var totalMessage = 0
-    if (number == "all recipients"){
+    if (selectedRecipient == "all recipients"){
       totalMessage = messageList.length
         for (var msg of messageList){
           html += createConversationItem(msg, false)
@@ -161,12 +175,12 @@ function recipientSelected(){
     }else {
       for (var msg of messageList){
         if (msg.direction == "Inbound"){
-          if (number == msg.from){
+          if (selectedRecipient == msg.from){
             html += createConversationItem(msg, true)
             totalMessage++
           }
         }else if (msg.direction == "Outbound"){
-          if (number == msg.to[0]){
+          if (selectedRecipient == msg.to[0]){
             html += createConversationItem(msg, true)
             totalMessage++
           }
@@ -197,22 +211,22 @@ function createConversationItem(item, conversation){
     if (conversation)
       line += `<div class="chat-avatar chat-name"><br>${item.from}</div>`
     else
-      line += `<div class="chat-avatar chat-name">${item.from}<br>to: ${item.to[0]}</div>`
+      line += `<div class="chat-avatar chat-name">fr:${item.from}<br>to: ${item.to[0]}</div>`
     if (item.messageStatus == "Delivered"){
       line += `<div class="chat-text">${item.text}</div>`
       line += `<div class="chat-hour">sent<br>${dateTime[1]}</div>`
     }else{
       line += `<div class="chat-text error">${item.text}</div>`
-      line += `<div class="chat-hour">failed<br>${dateTime[1]}</div>`
+      line += `<div class="chat-hour">${item.messageStatus}<br>${dateTime[1]}</div>`
     }
-  }else{
+  }else{ // Inbound
     line += '<li class="chat-right">'
     line += `<div class="chat-hour">received<br>${dateTime[1]}</div>`
     line += `<div class="chat-text">${item.text}</div>`
     if (conversation)
-      line += `<div class="chat-avatar chat-name"><br>${item.from}</div>`
+      line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">Reply</a><br>${item.from}</div>`
     else
-      line += `<div class="chat-avatar chat-name">${item.from}<br>to: ${item.to[0]}</div>`
+      line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">Reply</a><br>fr:${item.from}<br>to: ${item.to[0]}</div>`
   }
   line += '</li>'
   return line

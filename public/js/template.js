@@ -228,7 +228,7 @@ function canSendMessages() {
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
   $.ajax({
-      url: "/sendhighvolumemessage-advance",
+      url: "/sendtailoredmessages",
       type: 'POST',
       data: formData,
       success: function (res) {

@@ -309,7 +309,7 @@ function canSendMessages() {
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
   $.ajax({
-      url: "/sendhighvolumemessage",
+      url: "/sendbroadcastmessages",
       type: 'POST',
       data: formData,
       success: function (res) {

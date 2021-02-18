@@ -229,6 +229,39 @@ var engine = User.prototype = {
           }
         })
     },
+    sendIndividualMessage: function(req, res){
+      var body = req.body
+      var requestBody = {
+          from: body.from,
+          text: body.message,
+          messages: [{to:[body.to]}]
+      }
+      var thisUser = this
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.post("/account/~/a2p-sms/batch", requestBody)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              res.send({
+                  status:"ok",
+                  message: body.message
+              })
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message);
+              res.send({
+                  status:"error",
+                  message: e.message
+              })
+            });
+        }else{
+          res.send({
+            status: "failed",
+            message: "You have been logged out. Please login again."
+          })
+        }
+      })
+    },
     sendHighVolumeSMSMessageAdvance: function(req, res){
       var body = req.body
       var requestBody = {
