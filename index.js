@@ -36,6 +36,7 @@ var server = require('http').createServer(app);
 server.listen(port);
 console.log("listen to port " + port)
 var router = require('./router');
+var aUsers = router.getEngine()
 
 app.get('/', function (req, res) {
   console.log('load index page /')
@@ -107,16 +108,33 @@ app.get ('/message-store', function (req, res) {
   }
 })
 
-app.get('/read_campaign', function (req, res) {
-  console.log('readCampaign')
+app.get("/pollnewmessages", function (req, res) {
   if (req.session.extensionId != 0)
-    router.getBatchReport(req, res)
+    router.pollNewMessages(req, res)
   else{
     res.render('index')
   }
 })
 
-app.post('/read_message_store', function (req, res) {
+app.get('/read-campaign-summary', function (req, res) {
+  console.log('readCampaignSummary')
+  if (req.session.extensionId != 0)
+    router.readCampaignSummary(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/read-campaign-details', function (req, res) {
+  console.log('readCampaignDetails')
+  if (req.session.extensionId != 0)
+    router.readCampaignDetails(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/read-message-store', function (req, res) {
   console.log('readMessageStore')
   if (req.session.extensionId != 0)
     router.readMessageList(req, res)
@@ -125,10 +143,11 @@ app.post('/read_message_store', function (req, res) {
   }
 })
 
-app.get ('/highvolume-template', function (req, res) {
-  console.log('load highvolume-template')
+
+app.get('/read-campaigns', function (req, res) {
+  console.log('load readCampaignsLogFromDB')
   if (req.session.extensionId != 0)
-    router.loadHVTemplatePage(req, res)
+    router.readCampaignsLogFromDB(req, res)
   else{
     res.render('index')
   }
@@ -143,10 +162,19 @@ app.get('/highvolume-manual', function (req, res) {
   }
 })
 
-app.get ('/highvolume-vote', function (req, res) {
-  console.log('load highvolume-vote')
+app.get('/highvolume-sms', function (req, res) {
+  console.log('load highvolume-sms')
   if (req.session.extensionId != 0)
-    router.loadHVVotePage(req, res)
+    router.loadHVSMSPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get ('/conversation-sms', function (req, res) {
+  console.log('load conversation-sms')
+  if (req.session.extensionId != 0)
+    router.loadConvSMSPage(req, res)
   else{
     res.render('index')
   }
@@ -154,6 +182,14 @@ app.get ('/highvolume-vote', function (req, res) {
 
 app.get('/about', function (req, res) {
   res.render('about')
+})
+
+app.get('/settings', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.loadSettingsPage(req, res)
+  else{
+    res.render('index')
+  }
 })
 
 app.get('/getresult', function (req, res) {
@@ -188,9 +224,33 @@ app.get('/getbatchresult', function (req, res) {
   }
 })
 
+app.get('/deletecampainresult', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.deleteCampainResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/downloadcampainresult', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadSurveyCampainResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/downloadbatchreport', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadBatchReport(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/downloadvotereport', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadVoteReport(req, res)
   else{
     res.render('index')
   }
@@ -264,19 +324,19 @@ app.post('/sendmessage', upload.single('attachment'), function (req, res) {
    }
 })
 
-app.post('/sendhighvolumemessage', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage")
-  router.sendHighVolumeSMSMessage(req, res)
+app.post('/sendbroadcastmessages', upload.any(), function (req, res, next) {
+  console.log("post sendbroadcastmessages")
+  router.sendBroadcastMessage(req, res)
 })
 
-app.post('/sendhighvolumemessage-advance', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage-advance")
-  router.sendHighVolumeSMSMessageAdvance(req, res)
+app.post('/sendindividualmessage', upload.any(), function (req, res, next) {
+  console.log("post sendindividualmessage")
+  router.sendIndividualMessage(req, res)
 })
 
-app.post('/sendhighvolumemessage-vote', upload.any(), function (req, res, next) {
-  console.log("post sendhighvolumemessage-vote")
-  router.sendHighVolumeSMSMessageVote(req, res)
+app.post('/sendhvmessages', upload.any(), function (req, res, next) {
+  console.log("post sendhvmessages")
+  router.sendHighVolumeMessage(req, res)
 })
 
 app.post('/sendsms', function (req, res) {
@@ -287,6 +347,26 @@ app.post('/sendsms', function (req, res) {
 app.post('/sendfeedback', function (req, res) {
   console.log("sendfeedback")
   router.postFeedbackToGlip(req, res)
+})
+
+app.post('/uploadcontact', upload.any(), function (req, res, next) {
+  console.log("post uploadcontact")
+  router.uploadContacts(req, res)
+})
+
+app.post('/setwebhook', function (req, res) {
+  console.log("setwebhook")
+  router.setWebhookAddress(req, res)
+})
+
+app.get('/readwebhook', function (req, res) {
+  console.log("readwebhook")
+  router.readWebhookAddress(req, res)
+})
+
+app.get('/deletewebhook', function (req, res) {
+  console.log("deletewebhook")
+  router.deleteWebhookAddress(req, res)
 })
 
 // Receiving RingCentral webhooks notifications
@@ -302,7 +382,6 @@ app.post('/webhookcallback', function(req, res) {
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
-            var aUsers = router.getEngine()
             if (aUsers.length){
               var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
               if (eventEngine)

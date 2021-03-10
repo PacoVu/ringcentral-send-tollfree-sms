@@ -1,0 +1,30 @@
+<div id="hidden-div-feedback" style="display: none">
+  <form id="send_feedback_form">
+      <span class="control-label">How was your experience?</span>
+        &nbsp;&nbsp;
+        <label>
+          <input class="image-option" type="radio" name="emoji" value="positive" checked/>
+          <img src="./img/positive.png">
+        </label>
+        &nbsp;&nbsp;
+        <label>
+          <input class="image-option" type="radio" name="emoji" value="neutral"/>
+          <img src="./img/neutral.png">
+        </label>
+        &nbsp;&nbsp;
+        <label>
+          <input class="image-option" type="radio" name="emoji" value="negative"/>
+          <img src="./img/negative.png">
+        </label>
+      </br></br>
+      <div>
+        <textarea id="free_text" cols=70 rows="5" autofocus placeholder="Describe your experience here..."></textarea>
+      </div>
+      <span>Type: </span>
+      <select class="selectpicker filter-select" id="feedback_type">
+        <option value="Bug report" selected>Bug</option>
+        <option value="Suggestion">Suggestion</option>
+        <option value="Others">Others</option>
+      </select>
+  </form>
+</div>

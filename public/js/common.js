@@ -86,12 +86,15 @@ function formatSendingTime(processingTime){
   return `${hour}:${mins}:${secs}`
 }
 
-function formatPhoneNumber(phoneNumberString) {
+function formatPhoneNumber(phoneNumberString, countryCode) {
   var cleaned = ('' + phoneNumberString).replace(/\D/g, '')
   var match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/)
   if (match) {
     var intlCode = (match[1] ? '+1 ' : '')
-    return [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('')
+    if (countryCode)
+      return [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('')
+    else
+      return ['(', match[2], ') ', match[3], '-', match[4]].join('')
   }
   return phoneNumberString
 }
@@ -201,4 +204,26 @@ function submitFeedback(params){
     alert(res.message)
   });
   return true
+}
+
+function _alert(msg, title, focusField){
+  if (title == undefined)
+    title = "Error"
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;color:white">${title}</div>`,
+      message: msg,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-error').append(msg);
+      },
+      buttons: [{
+        label: 'Close',
+        action: function(dialog) {
+          dialog.close();
+          if (focusField)
+            $(focusField).focus()
+        }
+      }]
+  });
+  return false;
 }

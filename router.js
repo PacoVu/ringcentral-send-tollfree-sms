@@ -1,5 +1,6 @@
 const User = require('./usershandler.js')
 const ActiveUser = require('./event-engine.js')
+const RCPlatform = require('./platform.js')
 const pgdb = require('./db')
 const async = require('async')
 require('dotenv').load()
@@ -10,24 +11,45 @@ exports.activeUsers = activeUsers
 autoStart()
 function autoStart(){
   console.log("autoStart")
-  var query = `SELECT * FROM a2p_sms_active_users`
+  createUserTable()
+  //createActiveUsersTable()
+  var query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users`
   pgdb.read(query, (err, result) => {
     if (err){
       console.error(err.message);
-      createActiveUsersTable()
     }else{
       if (result.rows){
         async.each(result.rows,
           function(item, callback){
-            console.log("Extension info: " + item.extension_id + " / " + item.subscription_id)
-            var aUser = new ActiveUser(item.extension_id, item.subscription_id)
-            aUser.setup((err, result) => {
-              if (err == null){
-                activeUsers.push(aUser)
-                console.log("activeUsers.length: " + activeUsers.length)
-                callback(null, result)
-              }
-            })
+            console.log("Extension info: " + item.user_id + " / " + item.subscription_id)
+            //var aUser = new ActiveUser(item.extension_id, item.subscription_id)
+            // create platform
+            if (item.access_tokens){
+              var platform = new RCPlatform()
+              //console.log(item.access_tokens)
+              platform.autoLogin(item.access_tokens, (err, res) => {
+                var aUser = new ActiveUser(item.user_id, item.subscription_id)
+                if (!err){
+                  console.log("has platform")
+                  aUser.setup(platform, (err, result) => {
+                    if (err == null){
+                      activeUsers.push(aUser)
+                      console.log("activeUsers.length: " + activeUsers.length)
+                    }
+                    callback(null, result)
+                  })
+                }else{
+                  console.log("No platform")
+                  aUser.setup(null, (err, result) => {
+                    if (err == null){
+                      activeUsers.push(aUser)
+                      console.log("activeUsers.length: " + activeUsers.length)
+                    }
+                    callback(null, result)
+                  })
+                }
+              })
+            }
           },
           function (err){
             console.log("autoStart completed")
@@ -36,17 +58,30 @@ function autoStart(){
     }
   })
 }
-
+/*
 function createActiveUsersTable() {
   console.log("createActiveUsersTable")
-  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_users (extension_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64))'
+  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_users (user_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
   pgdb.create_table(query, (err, res) => {
       if (err) {
-        console.log(err, err.message)
+        console.log(err.message)
       }else{
-        console.log("DONE")
+        console.log("A.U.T DONE")
       }
     })
+}
+*/
+function createUserTable() {
+  console.log("createUserTable")
+  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
+  query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, votes TEXT, contacts TEXT, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
+  pgdb.create_table(query, (err, res) => {
+    if (err) {
+      console.log(err.message)
+    }else{
+      console.log("U.T DONE")
+    }
+  })
 }
 
 function getUserIndex(id){
@@ -177,17 +212,29 @@ var router = module.exports = {
       thisObj.forceLogin(req, res)
     })
   },
+  pollNewMessages: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].pollNewMessages(res)
+  },
   getVoteResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].getVoteResult(res)
   },
-  getBatchReport: function(req, res){
+  readCampaignSummary: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getBatchReport(res, req.query.batchId)
+    users[index].readCampaignSummary(res, req.query.batchId)
+  },
+  readCampaignDetails: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readCampaignDetails(res, req.query.batchId)
   },
   getBatchResult: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -207,11 +254,35 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].readMessageList(req, res, "")
   },
+  readCampaignsLogFromDB: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readCampaignsLogFromDB(res)
+  },
+  deleteCampainResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteCampainResult(req, res)
+  },
+  downloadSurveyCampainResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadSurveyCampainResult(req, res)
+  },
   downloadBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].downloadBatchReport(req, res)
+  },
+  downloadVoteReport: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadVoteReport(req, res)
   },
   downloadMessageStore: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -231,30 +302,56 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].sendSMSMessageAsync(req, res)
   },
-  sendHighVolumeSMSMessage: function(req, res){
+  sendBroadcastMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].sendHighVolumeSMSMessage(req, res)
+    users[index].sendBroadcastMessage(req, res)
   },
-  sendHighVolumeSMSMessageAdvance: function(req, res){
+  sendIndividualMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].sendHighVolumeSMSMessageAdvance(req, res)
+    users[index].sendIndividualMessage(req, res)
   },
-  sendHighVolumeSMSMessageVote: function(req, res){
+  sendHighVolumeMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].sendHighVolumeSMSMessageVote(req, res)
+    users[index].sendHighVolumeMessage(req, res)
   },
+  uploadContacts: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].uploadContacts(req, res)
+  },
+  setWebhookAddress: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].setWebhookAddress(req, res)
+  },
+  deleteWebhookAddress: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteWebhookAddress(res)
+  },
+  readWebhookAddress: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readWebhookAddress(res)
+  },
+  /*
   readCampaign: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].getBatchReport(res, req.query.batchId)
   },
+  */
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -280,17 +377,23 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].loadHVManualPage(res)
   },
-  loadHVTemplatePage: function(req, res){
+  loadConvSMSPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].loadHVTemplatePage(res)
+    users[index].loadConvSMSPage(res)
   },
-  loadHVVotePage: function(req, res){
+  loadSettingsPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].loadHVVotePage(res)
+    users[index].loadSettingsPage(res)
+  },
+  loadHVSMSPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadHVSMSPage(res)
   },
   loadCampaignHistoryPage: function(req, res){
     var index = getUserIndex(req.session.userId)

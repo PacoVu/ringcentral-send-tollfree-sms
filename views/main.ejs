@@ -48,10 +48,10 @@
       <% } else { %>
         <h2>Options</h2>
         <% if (lowVolume == true && highVolume == true) { %>
-        <div>1. <a href="/highvolume-manual">Send High Volume SMS (up to 250K per day)</a></div>
-        <div>2. <a href="/standard">Send Standard Toll-Free SMS (up to 56K per day)</a></div>
+        <div>1. <a href="/highvolume-sms">Send High Volume SMS (up to 250K messages per day)</a></div>
+        <div>2. <a href="/standard">Send Standard Toll-Free SMS (up to 56K messages per day)</a></div>
         <% } else if (lowVolume == true && highVolume ==  false) { %>
-        <div>1. <a href="/standard">Send Standard Toll-Free SMS (up to 56K per day)</a></div>
+        <div>1. <a href="/standard">Send Standard Toll-Free SMS (up to 56K messages per day)</a></div>
         <div>2. <a target="_blank" href="https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html">Send Request for Provisioning High Volume SMS (up to 250K per day)</a></div>
         <% } %>
       <% } %>
