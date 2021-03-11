@@ -678,7 +678,7 @@ var engine = User.prototype = {
         message: "",
         voteResults: {},
         autoReplyMessages: {},
-        autoReply: false, //body.auto_reply,
+        autoReply: false,
         allowCorrection: allowCorrection,
         voteCommands: [],
         voteCounts:{
@@ -708,29 +708,15 @@ var engine = User.prototype = {
       }
 
       // auto reply
-      /*
-      if (voteInfo.autoReply){
-        if (body.reply_1 != null && body.reply_1 != ""){
-          voteInfo.autoReplyMessages[body.command_1] = body.reply_1
-        }
-        if (body.reply_2 != null && body.reply_2 != ""){
-          voteInfo.autoReplyMessages[body.command_2] = body.reply_2
-        }
-        if (body.reply_3 != null && body.reply_3 != ""){
-          voteInfo.autoReplyMessages[body.command_3] = body.reply_3
-        }
-      }
-      */
-
-      if (body.reply_1_enabler != null && body.reply_1_message != ""){
+      if (body.reply_1_message != null && body.reply_1_message != ""){
           voteInfo.autoReplyMessages[body.command_1] = body.reply_1_message
           voteInfo.autoReply = true
       }
-      if (body.reply_2_enabler  != null && body.reply_2_message != ""){
+      if (body.reply_2_message  != null && body.reply_2_message != ""){
           voteInfo.autoReplyMessages[body.command_2] = body.reply_2_message
           voteInfo.autoReply = true
       }
-      if (body.reply_3_enabler != null && body.reply_3_message != ""){
+      if (body.reply_3_message != null && body.reply_3_message != ""){
           voteInfo.autoReplyMessages[body.command_3] = body.reply_3_message
           voteInfo.autoReply = true
       }
@@ -856,7 +842,7 @@ var engine = User.prototype = {
         unreachableCount: 0,
         totalCost: 0
       }
-      /*
+
       console.log(this.batchSummaryReport)
       console.log("=====voteInfo=====")
       console.log(voteInfo)
@@ -866,7 +852,7 @@ var engine = User.prototype = {
         message: "Testing"
       })
       return
-      */
+
       this.eventEngine.setPlatform(this.rc_platform)
       this.sendBatchMessage(res, requestBody, "vote", voteInfo)
     },
@@ -971,7 +957,7 @@ var engine = User.prototype = {
         unreachableCount: 0,
         totalCost: 0
       }
-      /*
+
       console.log(JSON.stringify(requestBody))
       console.log(this.batchSummaryReport)
 
@@ -981,7 +967,7 @@ var engine = User.prototype = {
         message: "Testing"
       })
       return
-      */
+
       this.sendBatchMessage(res, requestBody, sendMode, null)
     },
     /*

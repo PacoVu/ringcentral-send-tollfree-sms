@@ -339,70 +339,51 @@ function showConversation(recipient, name){
     $("#total").html(`${totalMessage} messages`)
     html += "</ul></div>"
     $("#conversation").html(html)
-    $("#conversation").animate({ scrollTop: $("#conversation")[0].scrollHeight}, 1000);
+    $("#conversation").animate({ scrollTop: $("#conversation")[0].scrollHeight}, 100);
     $("#send-text").focus()
   }
 }
 
 function createConversationItem(item, conversation){
   var line = ""
-
   var date = new Date(item.lastModifiedTime)
-  //console.log(utcToLocal(date.getTime()))
   var timestamp = date.getTime() - timeOffset
   var createdDate = new Date (timestamp)
   let dateOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'  }
   var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-  //createdDateStr += updatedDate.toLocaleDateString("en-US")
-  //var timeStr =  createdDate.toLocaleTimeString("en-US", {timeStyle: 'short'})
   var timeStr =  createdDate.toISOString().substr(11, 5)
-  //var updatedDateStr = updatedDate.toISOString()
-  //updatedDateStr = updatedDateStr.substring(0, 19)
-  //var dateTime = updatedDateStr.split("T")
-  if (dateStr != createdDateStr/*dateTime[0]*/){
-    dateStr = createdDateStr //dateTime[0]
+  if (dateStr != createdDateStr){
+    dateStr = createdDateStr
     // create date separation
     line += `<li class="separator"><div class="date-line">----- ${dateStr} -----</div></li>`
   }
   if (item.direction == "Inbound"){
     line += '<li class="chat-left">'
-
-    if (conversation)
-      ;//line += `<div class="chat-avatar chat-name"><br>${item.from}</div>`
-    else
-      line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">Reply</a><br>${getContactName(item.from)}</div>`
-
-    line += `<div class="chat-text">${item.text}</div>`
-    line += `<div class="chat-hour">received<br>${timeStr}</div>`
-    /*
-    if (item.messageStatus == "Delivered"){
+    if (conversation){
+      line += `<div class="chat-avatar chat-name">${timeStr}</div>`
       line += `<div class="chat-text">${item.text}</div>`
-      line += `<div class="chat-hour">received<br>${timeStr}</div>`
     }else{
-      line += `<div class="chat-text error">${item.text}</div>`
-      line += `<div class="chat-hour error">Failed<br>${timeStr}</div>` //${item.messageStatus}
+      line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">${getContactName(item.from)}</a><br>${timeStr}</div>`
+      line += `<div class="chat-text">${item.text}</div>`
     }
-    */
-
   }else{ // Outbound
     line += '<li class="chat-right">'
+    if (conversation){
+      if (item.messageStatus == "Delivered"){
+        line += `<div class="chat-text">${item.text}</div>`
+        line += `<div class="chat-avatar chat-name">${timeStr}</div>`
 
-    /*
-    line += `<div class="chat-hour">sent<br>${timeStr}</div>`
-    line += `<div class="chat-text">${item.text}</div>`
-    */
-
-    if (item.messageStatus == "Delivered"){
-      line += `<div class="chat-hour">sent<br>${timeStr}</div>`
-      line += `<div class="chat-text">${item.text}</div>`
+      }else{
+        line += `<div class="chat-text error">${item.text}</div>`
+        line += `<div class="chat-avatar chat-name">${timeStr}</div>` //${item.messageStatus}
+      }
     }else{
-      line += `<div class="chat-hour error">failed<br>${timeStr}</div>` //${item.messageStatus}
-      line += `<div class="chat-text error">${item.text}</div>`
-    }
-    if (conversation)
-      ;//line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">Reply</a><br>${item.from}</div>`
-    else{
-      line += `<div class="chat-avatar chat-name"><br>To: ${getContactName(item.to[0])}</div>`
+      if (item.messageStatus == "Delivered"){
+        line += `<div class="chat-text">${item.text}</div>`
+      }else{
+        line += `<div class="chat-text error">${item.text}</div>`
+      }
+      line += `<div class="chat-avatar chat-name">${timeStr}<br>To: ${getContactName(item.to[0])}</div>`
     }
   }
   line += '</li>'

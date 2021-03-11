@@ -44,21 +44,15 @@ function enableManualInput(elm){
   var option = $('input[name=enable_manual_input]:checked').val()
   if (option == "manual"){
     $("#manual-input").show()
-    $("#csv-option").css("visibility","hidden")
-    $("#to-number-column").hide()
-    $("#columns").hide()
-    // check name and from number
-    if (checkCampainNameField() == false){
-      return
-    }
-    if (checkFromField() == false){
-      return
-    }
-    nextView("next")
+    //$("#csv-option").css("visibility","hidden")
+    $("#csv-option").hide()
+    $("#recipient-phone-number").hide()
+    $("#to-number-column").val("")
+    $("#csv-template-columns").hide()
+    $("#attachment").val("")
+    $("#recipients").focus()
   }else{
-    $("#csv-option").css("visibility","visible")
-    $("#columns").show()
-    $("#to-number-column").show()
+    $("#csv-option").show()
     $("#manual-input").hide()
   }
 }
@@ -138,7 +132,7 @@ function resetSentCampaign(){
 
   $('#block_1').show()
   $('#block_2').hide()
-  $('#block_3').hide()
+  //$('#block_3').hide()
   $("#sms-form").hide()
   //showBlock("preview")
   $("#submit").hide()
@@ -185,8 +179,9 @@ function nextView(direction){
     case 'block_1':
 
       $('#block_2').hide()
-      $("#prevBtn").css("display", "none")
-      $("#nextBtn").css("display", "inline")
+      $("#prevBtn").hide() //css("display", "none")
+      $("#nextBtn").show() //css("display", "inline")
+      $("#submit").hide()
       // don't hide when come back
       //if($("#submit").is(":visible"))
       //  $("#submit").hide()
@@ -220,19 +215,22 @@ function nextView(direction){
       // don't uncheck once set.
       //$("#expect_response").prop('checked', false);
       $('#block_1').hide()
-      $('#block_3').hide()
+      //$('#block_3').hide()
       $("#review-block").show()
 
       $("#prevBtn").css("display", "inline")
       //var check = $("#expect-response").is(":checked")
       //_alert(check)
-      if ($("#expect-response").is(":checked"))
-        $("#nextBtn").show()
-        //$("#nextBtn").css("display", "inline")
-      else
-        $("#nextBtn").hide()
+      $("#nextBtn").hide()
       $("#submit").show()
+      /*
+      if ($("#expect-response").is(":checked"))
+        $("#submit").hide()
+      else
+        $("#submit").show()
+      */
       break;
+    /*
     case 'block_3':
       if ($("#enable-manual-input").is(":checked")){
         var text = checkToNumberField()
@@ -267,12 +265,27 @@ function nextView(direction){
       $('#block_2').hide()
       $("#command_1").focus()
       break;
+      */
     default:
 
       return
   }
   currentBlock = newBlock
   $(`#${view}`).show()
+}
+
+function showAutoReplyFields(elm){
+  if (elm.checked){
+    $(`#reply-1`).show()
+    $(`#reply-2`).show()
+    $(`#reply-3`).show()
+    $(`#reply-1`).focus()
+  }else{
+    $(`#reply-1`).hide()
+    $(`#reply-2`).hide()
+    $(`#reply-3`).hide()
+  }
+  updatePreview("reply")
 }
 
 function showAutoReply(elm, index){
@@ -330,8 +343,8 @@ function enableExpectingResponse(elm){
     for (var i=1; i<4; i++){
       $(`#command_${i}`).val("")
       $(`#reply-${i}`).val("")
-      $(`#reply-${i}`).hide()
-      $(`#reply-${i}-enabler`).prop('checked', false)
+      //$(`#reply-${i}`).hide()
+      //$(`#reply-enabler`).prop('checked', false)
     }
     $('#allow-correction').prop('checked', false)
     updatePreview('response')
@@ -360,10 +373,11 @@ function readFileRecipients(elm, f){
       var recipientsFromFile = e.target.result.trim().split("\r\n")
       var header = recipientsFromFile[0]
       var columns = header.trim().split(",")
-      displayColumns(columns)
+
       for (var i=0; i<columns.length; i++){
         csvColumnIndex[columns[i]] = i
       }
+
       var message = $("#message").val()
 
       totalRecipients = recipientsFromFile.length - 1
@@ -374,7 +388,9 @@ function readFileRecipients(elm, f){
         row = detectAndHandleCommas(row)
         sampleRow = row.trim().split(",")
       }
-      nextView("next")
+      displayColumns(columns)
+      $("#recipient-phone-number").show()
+      $("#csv-template-columns").show()
     };
   }else{
     totalRecipients = 0
@@ -382,7 +398,10 @@ function readFileRecipients(elm, f){
     totalMessageSegments = 0
     calculateEstimatedCost()
     $("#columns").html("-")
+    $("#template-columns").html("-")
     $("#columns").hide()
+    $("#recipient-phone-number").hide()
+    $("#csv-template-columns").hide()
   }
 }
 
@@ -425,9 +444,18 @@ function detectAndHandleCommas(row){
 function displayColumns(columns){
   $("#columns").show()
   var html = "|&nbsp;"
-  for (var col of columns)
-    html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
-  $("#columns").html(html)
+  var recipientCol = "|&nbsp;"
+  for (var col of columns){
+    //html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+    var value = sampleRow[csvColumnIndex[`${col}`]]
+    if (!isNaN(value)){
+      recipientCol += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+    }else{
+      html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+    }
+  }
+  $("#columns").html(recipientCol)
+  $("#template-columns").html(html)
 }
 
 function checkPos(){
@@ -600,7 +628,7 @@ function qaTextMessage(msg){
 function disableSubmitBtn(flag){
   $("#submit").prop('disabled', flag);
 }
-
+/*
 function isAllReady() {
   var ready = true
   if (checkCampainNameField() == false){
@@ -629,15 +657,9 @@ function isAllReady() {
       return false
     }
   }
-  /*
-  if ($("#auto-reply").is(":checked")){
-    if (!checkAutoReplyFields())
-      return false
-  }
-  */
   return true
 }
-
+*/
 // submit form using ajax seems not enforce required inputs
 function checkFromField(){
   if ($("#from-number").val() == ""){
@@ -753,17 +775,12 @@ function checkCommandFields(){
         _alert("Support <b>a single word</b> response only!", "Stop", `#command_${i}`)
         //$(`#command_${i}`).focus()
         return false
-      }else if ($(`#reply-${i}-enabler`).is(":checked")){ // reply enabler checked
-        if ($(`#reply-${i}`).val().trim() == ""){
-          _alert(`Please provide an <b>auto-reply</b> message for option ${i}!`, "Stop", `#reply-${i}`)
-          //$(`#reply-${i}`).focus()
-          return false
-        }
       }
-    }else if ($(`#reply-${i}-enabler`).is(":checked")){ // reply enabler checked
-      _alert(`Please provide a <b>response word</b> for option ${i}!`, "Stop", `#command_${i}`)
-      //$(`#command_${i}`).focus()
-      return false
+    }else{
+      if ($(`#reply-${i}`).val() != ""){
+        _alert(`Please provide <b>a response word</b> for option ${i}!`, "Stop", `#command_${i}`)
+        return false
+      }
     }
   }
   if (!hasCommand){
@@ -771,20 +788,6 @@ function checkCommandFields(){
     _alert("Please enter at least one response option!", "Stop", '#command_1')
   }
   return hasCommand
-}
-
-function checkAutoReplyFields(){
-  var ready = false
-  if ($("#reply-1").val().trim() != ""){
-    ready = true
-  }
-  if ($("#reply-2").val().trim() != ""){
-    ready = true
-  }
-  if ($("#reply-3").val().trim() != ""){
-    ready = true
-  }
-  return ready
 }
 
 function sendBatchMessage(e) {
@@ -829,30 +832,8 @@ function canSendMessages() {
     if (!checkCommandFields()){
       return //_alert("Please enter at least one response option!")
     }
-/*
-    for (var i = 1; i < 4; i++){
-      var id = `#reply-${i}-enabler`
-      if ($(`${id}`).is(":checked")){
-        id = `#reply-${i}`
-        if ($(`${id}`).val() == "")
-          return _alert(`Please provide auto-reply message for option ${i}!`)
-      }
-    }
-*/
   }
-  /*
-  if ($("#auto-reply").is(":checked")){
-    if (!checkAutoReplyFields())
-      return _alert("Please provide auto-reply message(s)!")
-  }
-  */
 
-  return alert("All Passed")
-  /*
-  $("#result_block").hide()
-  $("#report_block").hide()
-  $("#vote_report_block").hide()
-  */
   //showBlock("result")
   var form = $("#sms-form");
   var formData = new FormData(form[0]);

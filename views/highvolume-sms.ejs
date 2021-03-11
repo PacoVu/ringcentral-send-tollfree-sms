@@ -80,14 +80,31 @@
                   </div>
                   <div class="block_space">
                     <!--div>Manually enter phone numbers <input type="checkbox" id="enable-manual-input" name="enable_manual_input" onchange="enableManualInput(this)"></input></div-->
-                    <div id="csv-option">Load from a CSV file <input type="file" id="attachment" name="attachment" class="form-control" onchange="readFileRecipients(this, null)" data-toggle="popover" data-placement="right" data-content="Select a CSV template file or enable manual input mode."></input></div>
+                    <div id="csv-option">Load a CSV file <input type="file" id="attachment" name="attachment" class="form-control" onchange="readFileRecipients(this, null)" data-toggle="popover" data-placement="right" data-content="Select a CSV template file or enable manual input mode."></input></div>
                   </div>
-
                 </div>
+                <!-- new test -->
+                <div id="manual-input" class="block_space" style="display: none">
+                  <label class="">Recipient's phone number</label><br>
+                  <textarea rows="4" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
+                </div>
+                <div class="block_space" id="recipient-phone-number" style="display: none">
+                  <label class="">Recipient's phone number columns</label><br>
+                  <div id="columns" class="form-control" style="display: none">-</div>
+                  <br>
+                  <label class="">Recipient's number column</label><br>
+                  <input type="text" id="to-number-column" size="37" name="to_number_column" onchange="updateSampleRecipient()" class="form-control" placeholder="Enter recipient column name" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Please specify the name of a column containing recipients' phone number."></input>
+                </div>
+
                 <br>
                 <!--a class="form-control navbutton" href="javascript:nextView('second_block')">Next</a-->
               </div>
               <div id="block_2" class="input_page" style="display: none">
+                <div id="csv-template-columns" class="block_space" style="display: none">
+                  <label class="">Template columns</label><br>
+                  <div id="template-columns" class="form-control">-</div>
+                </div>
+              <!--
                 <div id="manual-input" class="block_space" style="display: none">
                   <textarea rows="4" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="recipient number&#10;+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
                 </div>
@@ -99,7 +116,7 @@
                   <label class="">Recipient's number column</label><br>
                   <input type="text" id="to-number-column" size="37" name="to_number_column" onchange="updateSampleRecipient()" class="form-control" placeholder="Enter recipient column name" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Please specify the name of a column containing recipients' phone number."></input>
                 </div>
-
+              -->
                 <hr style="margin: 2px !important"></hr>
 
                 <div class="block_space">
@@ -115,22 +132,48 @@
                 </div>
                 <div class="block_space">
                   <!--label class="label-input">Recipient response</label-->
-                  <span>Expect recipient's response <input type="checkbox" id="expect-response" name="expect_response" onchange="enableExpectingResponse(this)"></input></span>
+                  <span>Request response <input type="checkbox" id="expect-response" name="expect_response" onchange="enableExpectingResponse(this)"></input></span>
+                  <!--span class="auto-reply-option">Auto-reply </span><input id="reply-enabler" name="reply_enabler" type="checkbox" onchange="showAutoReplyFields(this)"></input-->
                 </div>
                 <!--
                 <a class="form-control navbutton" href="javascript:nextView('first_block')">Prev</a>
                 <a class="form-control navbutton" href="javascript:nextView('third_block')">Next</a>
                 -->
-                <br>
-              </div>
-              <div id="block_3" class="input_page" style="display: none">
-                <!--div class="block_space">
-                  <label class="label-input">Sample message</label><br>
-                  <p id="sample_message" style="max-width: 500px!important"></p>
-                </div-->
                 <div id="recipient-response-block" style="display: none">
                   <div class="block_space">
-                    <!--label class="label-input"></label-->
+                    <div>
+                      <div class="block_space">
+                        <span>Option 1: </span><input type="text" id="command_1" name="command_1" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                        <input class="form-control text-input reply-option" type="text" id="reply-1" name="reply_1_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
+                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-1-enabler" name="reply_1_enabler" type="checkbox" onchange="showAutoReply(this, 1)"></input-->
+                      </div>
+                      <div class="block_space">
+                        <span>Option 2: </span><input type="text" id="command_2" name="command_2" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                        <input class="form-control text-input reply-option" type="text" id="reply-2" name="reply_2_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
+                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-2-enabler" name="reply_2_enabler" type="checkbox" onchange="showAutoReply(this, 2)"></input-->
+                      </div>
+                      <div class="block_space">
+                        <span>Option 3: </span><input type="text" id="command_3" name="command_3" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                        <input class="form-control text-input reply-option" type="text" id="reply-3" name="reply_3_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
+                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-3-enabler" name="reply_3_enabler" type="checkbox" onchange="showAutoReply(this, 3)"></input-->
+                      </div>
+                    </div>
+                  </div>
+                  <div class="block_space">
+                    <span>Can respond more than once </span><input id="allow-correction" type="checkbox" name="allowed_correction"></input>
+                  </div>
+                  <div class="block_space">
+                    <span>Response time period:
+                      <input type="number" id="expire" name="expire" min="1" max="144" class="form-control" value="2"></input><span class="tail-word"> hours</span>
+                    </span>
+
+                  </div>
+                  <hr style="margin: 2px !important"></hr>
+                </div>
+              </div>
+              <!--div id="block_3" class="input_page" style="display: none">
+                <div id="recipient-response-block" style="display: none">
+                  <div class="block_space">
                     <div>
                       <div class="block_space">
                         <span>Option 1: </span><input type="text" id="command_1" name="command_1" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
@@ -156,11 +199,9 @@
                     </div>
                   </div>
                   <div class="block_space">
-                    <!--label class="label-input"></label-->
                     <span>Can respond more than once </span><input id="allow-correction" type="checkbox" name="allowed_correction"></input>
                   </div>
                   <div class="block_space">
-                    <!--label class="label-input"></label-->
                     <span>Response time period:
                       <input type="number" id="expire" name="expire" min="1" max="144" class="form-control" value="2"></input><span class="tail-word"> hours</span>
                     </span>
@@ -168,30 +209,13 @@
                   </div>
 
                   <hr style="margin: 2px !important"></hr>
-                  <!--
-                  <div class="block_space">
-                    <span>Enable auto-reply to recipient's response </span><input id="auto-reply" type="checkbox" name="auto_reply" onchange="setAutoReply(this)"></input>
-                  </div>
-                  <div id="auto-reply-block" style="display: none">
-                    <div class="block_space">
-                      <input type="text" id="reply-1" name="reply_1" oninput="updatePreview('reply')" placeholder="Enter reply text to option 1" size="40" class="form-control text-input"></input>
-                    </div>
-                    <div class="block_space">
-                      <input type="text" id="reply-2" name="reply_2" placeholder="Enter reply text to option 2" size="40" class="form-control text-input"></input>
-                    </div>
-                    <div class="block_space">
-                      <input type="text" id="reply-3" name="reply_3" placeholder="Enter reply text to option 3" size="40" class="form-control text-input"></input>
-                    </div>
-                  </div>
-                  -->
                 </div>
                 <br>
-                <!--a class="form-control navbutton" href="javascript:nextView('second_block')">Prev</a-->
-              </div>
+              </div-->
               <div class="block_space">
-                <a id="prevBtn" style="display: none" class="form-control navbutton" href="javascript:nextView('prev')">Prev</a>
-                <a id="nextBtn" style="display: inline" class="form-control navbutton" href="javascript:nextView('next')">Next</a>
-                <button id="submit" type="submit" class="form-control btn-rc" style="float: right" disabled onclick="sendBatchMessage(event)">Submit</button>
+                <input type="button" id="prevBtn" style="display: none" class="form-control rc-oval-btn" onclick="nextView('prev')" value="Prev"></input>
+                <input type="button" id="nextBtn" style="display: inline;float: right" class="form-control rc-oval-btn" onclick="nextView('next')" value="Next"></input>
+                <button id="submit" type="submit" class="form-control btn-rc" style="float: right;display: none" disabled onclick="sendBatchMessage(event)">Submit</button>
               </div>
               </form>
             </div>

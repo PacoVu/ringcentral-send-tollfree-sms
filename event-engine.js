@@ -181,8 +181,8 @@ var engine = ActiveUser.prototype = {
                       text: repliedMsg,
                       messages: [{to:[body.from]}]
                   }
-                console.log(requestBody)
-                this.sendMessage(requestBody)
+                  console.log(requestBody)
+                  this.sendMessage(requestBody)
                 }
               }
               needUpdateDd = true
