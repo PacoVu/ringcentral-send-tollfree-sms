@@ -847,12 +847,13 @@ var engine = User.prototype = {
       console.log("=====voteInfo=====")
       console.log(voteInfo)
       console.log(requestBody)
+/*      
       res.send({
         status: "Failed",
         message: "Testing"
       })
       return
-
+*/
       this.eventEngine.setPlatform(this.rc_platform)
       this.sendBatchMessage(res, requestBody, "vote", voteInfo)
     },
@@ -960,104 +961,16 @@ var engine = User.prototype = {
 
       console.log(JSON.stringify(requestBody))
       console.log(this.batchSummaryReport)
-
+/*
       console.log(requestBody)
       res.send({
         status: "Failed",
         message: "Testing"
       })
       return
-
+*/
       this.sendBatchMessage(res, requestBody, sendMode, null)
     },
-    /*
-    sendBroadcastMessage: function(req, res){
-      var body = req.body
-      var requestBody = {
-          from: body.from_number,
-          text: body.message_0,
-          messages: []
-      }
-      // add recipients from free text field
-      if (body.recipients_0.trim() != ""){
-        var mainRecipients = body.recipients_0.trim().split("\n")
-        for (var recipient of mainRecipients){
-          recipient = recipient.trim()
-          recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-          var item = {
-            to:[recipient]
-          }
-          requestBody.messages.push(item)
-        }
-      }
-      if (req.files != undefined){
-        for (var f of req.files){
-          var recipientsFromFile = readRecipientFile(f.filename)
-          if (f.fieldname == "attachment_0"){ // main text
-            // add recipients read from file
-            for (var recipient of recipientsFromFile){
-              recipient = recipient.trim()
-              recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-              var item = {
-                to:[recipient]
-              }
-              requestBody.messages.push(item)
-            }
-          }
-        }
-      }
-      var subRecipientsIndexArr = body.group_index.split("_")
-      for (var sub of subRecipientsIndexArr){
-        var attachment = `attachment_${sub}`
-        var recipients = `recipients_${sub}`
-        var subMessage = `message_${sub}`
-        if (req.files != undefined){
-          for (var f of req.files){
-            if (attachment == f.fieldname){
-              var subRecipients = readRecipientFile(f.filename)
-              for (var recipient of subRecipients){
-                recipient = recipient.trim()
-                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-                var group = {
-                    to: [recipient],
-                    text: body[subMessage]
-                  }
-                requestBody.messages.push(group)
-              }
-              break
-            }
-          }
-        }
-        // check free text field
-        if (body[recipients] != undefined){
-          var subRecipients = body[recipients].trim().split("\n")
-          if (subRecipients.length){
-            for (var recipient of subRecipients){
-              if (recipient != ""){
-                recipient = recipient.trim()
-                recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-                var group = {
-                    to: [recipient],
-                    text: body[subMessage]
-                  }
-                requestBody.messages.push(group)
-              }
-            }
-          }
-        }
-      }
-
-      var currentFolder = process.cwd();
-      for (var file of req.files){
-        var tempFile = currentFolder + "/uploads/" + file.filename
-        fs.unlinkSync(tempFile);
-      }
-      //console.log(body.scheduledAt)
-      //console.log(JSON.stringify(requestBody))
-      //this.sendVote = false
-      this.sendBatchMessage(res, requestBody, body.campaign_name, "group")
-    },
-    */
     sendBatchMessage: async function(res, requestBody, type, voteInfo){
       var thisUser = this
       //console.log(JSON.stringify(requestBody))

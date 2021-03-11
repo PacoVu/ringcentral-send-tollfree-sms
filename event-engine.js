@@ -7,6 +7,10 @@ function ActiveUser(extensionId, subscriptionId){
   this.voteCampaignArr = []
   this.incomingMessageArr = []
   this.rc_platform = undefined
+  this.autoDeleteTimer = undefined
+  this.updateStatusTimer = undefined
+  this.deleteInterval = 3600000
+  this.updateInterval = 60000
 }
 
 var engine = ActiveUser.prototype = {
@@ -38,6 +42,13 @@ var engine = ActiveUser.prototype = {
       })
       */
       this.readWebhookInfoFromDB()
+      var thisUser = this
+      this.autoDeleteTimer = setInterval(function(){
+        thisUser.autoDeleteVoteCampaign()
+      }, this.deleteInterval)
+      this.updateStatusTimer = setInterval(function(){
+        thisUser.detectExpiredVoteCampaign()
+      }, this.updateInterval)
     },
     setVoteInfo: function (voteInfo, serviceNumber){
       var newCampaign = true
@@ -196,7 +207,7 @@ var engine = ActiveUser.prototype = {
               // => resend reminder
               var requestBody = {
                   from: body.to[0],
-                  text: "Please reply with a correct reponse!",
+                  text: "Please reply with a correct response!",
                   messages: [{to:[body.from]}]
               }
               this.sendMessage(requestBody)
@@ -291,6 +302,49 @@ var engine = ActiveUser.prototype = {
         }
       })
     },
+    autoDeleteVoteCampaign: function(){ // call via timer every hr
+      console.log("autoDeleteVoteCampaign")
+      var now = new Date().getTime()
+      var changed = false
+      for (var item of this.voteCampaignArr){
+        for (var i = item.campaigns.length; i--;) {
+          //var campaign = item.campaigns[i]
+          var twentyFourHrs = (now - item.campaigns[i].endDateTime) / 1000
+          console.log(twentyFourHrs)
+          if (item.campaigns[i].status != "Active" && twentyFourHrs > 600){ //86400
+            console.log("Delete after closed/completed for 24 hours")
+            item.campaigns[i].campaigns.splice(i, 1);
+            changed = true
+          }
+        }
+      }
+      if (changed)
+        this.updateVoteDataInDB()
+    },
+    detectExpiredVoteCampaign: function(){ // call via timer every minute
+      /*
+      if (this.voteCampaignArr.length == 0){
+        clearInterval(this.updateStatusTimer)
+        return
+      }
+      */
+      var now = new Date().getTime()
+      var changed = false
+      for (var item of this.voteCampaignArr){
+        for (var i = item.campaigns.length; i--;) {
+          var campaign = item.campaigns[i]
+          if (item.campaigns[i].status == "Active"){
+            if (now > item.campaigns[i].endDateTime){
+              item.campaigns[i].status = "Closed"
+              changed = true
+            }
+          }
+        }
+      }
+      console.log("detectExpiredVoteCampaign")
+      if (changed)
+        this.updateVoteDataInDB()
+    },
     readWebhookInfoFromDB: function(){
       var thisUser = this
       var query = `SELECT webhooks FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
@@ -316,11 +370,11 @@ var engine = ActiveUser.prototype = {
         if (err){
           console.error(err.message);
         }
-        callback(null, "updated batch data")
+        callback(null, "updated vote campaign data")
       })
     },
     postResults: function (data){
-      if (this.webhooks == undefined)
+      if (this.webhooks == undefined || this.webhooks.url == "")
         return
       var https = require('https');
       console.log(data)
@@ -340,7 +394,6 @@ var engine = ActiveUser.prototype = {
         post_options.headers[`${this.webhooks.headerName}`] = this.webhooks.headerValue
       }
       console.log(post_options)
-      return
       var post_req = https.request(post_options, function(res) {
           var response = ""
           res.on('data', function (chunk) {
