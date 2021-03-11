@@ -6,6 +6,7 @@ npm-debug.log*
 
 # Dependency directories
 node_modules/
+4.0-node_modules/
 tempFile/
 reports/
 # Optional npm cache directory

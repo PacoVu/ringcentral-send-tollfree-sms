@@ -113,7 +113,7 @@ app.get('/message-store', function (req, res) {
 app.get('/read_campaign', function (req, res) {
   console.log('readCampaign')
   if (req.session.extensionId != 0)
-    router.getBatchReport(req, res)
+    router.readCampaign(req, res)
   else{
     res.render('index')
   }

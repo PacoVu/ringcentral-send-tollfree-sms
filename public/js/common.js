@@ -101,6 +101,7 @@ function parseResultResponse(resp){
   $("#control_block").show()
   $("#status").html("Status: " + resp.result.status)
   if (resp.result.status == "Processing"){
+    //alert(JSON.stringify(resp))
     pendingBatch = true
     // show the time since batch request was submited
     $("#time").html("Duration: " + resp.time)
@@ -136,18 +137,24 @@ function readReport(){
     if (res.status == "ok"){
       var report = "<div>"
       /*
-        for (var key of Object.keys(res.result)){
-          report += "<div>" + key + " = " + res.result[key] + "</div>"
-        }
-      */
       for (var key of Object.keys(res.result)){
         if (key == "Total_Cost")
           report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key].toFixed(3) + " USD</div>"
         else
           report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key] + "</div>"
       }
+      */
+      var batchReport = res.result
+      report += `<div>Queued: ${batchReport.queuedCount}</div>`
+      report += `<div>Sent: ${batchReport.sentCount}</div>`
+      report += `<div>Delivered: ${batchReport.deliveredCount}</div>`
+      report += `<div>Unreached: ${batchReport.unreachableCount}</div>`
+      report += `<div>Total cost: ${batchReport.totalCost.toFixed(3)} USD</div>`
       report += "</div>"
       $("#report").html(report)
+      if (batchReport.live){
+        readReport()
+      }
     }else if (res.status == "failed") {
       alert(res.message)
       window.location.href = "login"

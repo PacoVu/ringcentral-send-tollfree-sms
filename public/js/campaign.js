@@ -20,7 +20,7 @@ errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
 errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
 errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
 errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
-
+var campaignList = []
 function init(){
   var height = $(window).height() - 150;
     window.onresize = function() {
@@ -32,24 +32,111 @@ function init(){
     var swindow = height - $("#menu_header").height()
     swindow -= $("#content_header").height()
     $("#list").height(swindow)
+
+    campaignList = JSON.parse(window.campaigns)
 }
 
-
 function readCampaign(){
-  var valArr = $("#campaigns").val().split("/")
+  var batchId = $("#campaigns").val()
+  var campaign = campaignList.find(o => o.batchId === batchId)
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var date = new Date(valArr[1])
-  var timestamp = date.getTime() - timeOffset
+  var timestamp = campaign.creationTime - timeOffset
   var createdDate = new Date (timestamp)
   var createdDateStr = createdDate.toISOString()
   createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-  var url = `read_campaign?batchId=${valArr[0]}`
+  var url = `read_campaign?batchId=${batchId}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      //createDetailedReport(res.fullReport)
+      var serviceNumber = createFullReport(res.fullReport)
+      var batchReport = res.result
+      var timeOffset = new Date().getTimezoneOffset()*60000;
+      var timestamp = campaign.creationTime - timeOffset
+      var createdDate = new Date (timestamp)
+      var createdDateStr = createdDate.toISOString()
+      createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
+      var report = "<div><div>Creation date and time: " + createdDateStr + "</div>"
+      report += `<div>Service phone number: ${serviceNumber}</div>`
+      /*
+      for (var key of Object.keys(res.result)){
+        if (key == "totalCost")
+          report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key].toFixed(3) + " USD</div>"
+        else
+          report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key] + "</div>"
+      }
+      */
+      report += `<div>Queued #: ${batchReport.queuedCount}</div>`
+      report += `<div>Sent #: ${batchReport.sentCount}</div>`
+      report += `<div>Delivered #: ${batchReport.deliveredCount}</div>`
+      report += `<div>Unreached #: ${batchReport.unreachableCount}</div>`
+      report += `<div>Total cost: ${batchReport.totalCost.toFixed(3)} USD</div>`
+
+      report += "</div>"
+      $("#report").html(report)
+      $("#downloads").show()
+      //$("#download_json").css('display', 'block');
+      //$("#download_csv").css('display', 'block');
+      //$("#campaign-report").css('display', 'block');
+      $("#campaign-report").show()
+      /*
+      $("#campaign-title").html(campaign.campaignName)
+      var report = `<div>`
+      report += `<div class="info-line"><img class="icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
+      report += `<div class="info-line"><img class="icon" src="../img/sender.png"></img> ${formatPhoneNumber(campaign.serviceNumber)}</div>`
+      report += `<div class="info-line"><img class="icon" src="../img/recipient.png"></img> ${campaign.totalCount} recipients </div>`
+
+      report += `<div class="info-line"><img class="icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
+      var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
+      report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
+
+      report += "</div>"
+      $("#campaign-details").html(report)
+      var params = [];
+      var arr = ['Results', '#', { role: "style" } ];
+      params.push(arr);
+      var item = ["Pending", batchReport.queuedCount, "#f04b3b"];
+      params.push(item);
+      item = ["Delivered", batchReport.deliveredCount, "#2f95a5"]
+      params.push(item);
+      item = ["Sending Failed", batchReport.sendingFailedCount, "white"]
+      params.push(item);
+      item = ["Delivery Failed", batchReport.deliveryFailedCount, "white"]
+      params.push(item);
+
+      plotBatchReport(params)
+
+      $("#downloads").show()
+      //$("#download_json").css('display', 'block');
+      //$("#download_csv").css('display', 'block');
+      //$("#campaign-report").css('display', 'block');
+      $("#campaign-report").show()
+      //createFullReport(res.fullReport)
+      */
+    }else if (res.status == "failed") {
+      alert(res.message)
+      window.location.href = "login"
+    }else{
+      alert(res.message)
+    }
+  });
+}
+/*
+function readCampaign(){
+  var batchId = $("#campaigns").val()
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+
+  var url = `read_campaign?batchId=${batchId}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
       var fromNumber = createFullReport(res.fullReport)
+      var timestamp = res.result.creationTime - timeOffset
+      var createdDate = new Date (timestamp)
+      var createdDateStr = createdDate.toISOString()
+      createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
       var report = "<div><div>Creation date and time: " + createdDateStr + "</div>"
-      report += `<div>Sent from phone number: ${fromNumber}</div>`
+      report += `<div>Sent from phone number: ${res.result.serviceNumber}</div>`
       for (var key of Object.keys(res.result)){
         if (key == "Total_Cost")
           report += "<div>" + key.replace(/_/g, " ") + ": " + res.result[key].toFixed(3) + " USD</div>"
@@ -72,6 +159,7 @@ function readCampaign(){
     }
   });
 }
+*/
 function createFullReport(fullReports){
   var html = ""
   var timeOffset = new Date().getTimezoneOffset()*60000;

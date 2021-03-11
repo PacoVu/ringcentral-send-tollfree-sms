@@ -160,7 +160,7 @@ var router = module.exports = {
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getBatchReport(res, req.query.batchId, "")
+    users[index].readCampaign(res, req.query.batchId, "")
   },
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)

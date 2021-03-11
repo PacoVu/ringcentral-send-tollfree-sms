@@ -23,6 +23,7 @@ function User(id) {
       failedCount: "",
       invalidNumbers: []
   }
+  /*
   this.batchReport = {
     Sent_Count: 0,
     Queued_Count: 0,
@@ -30,6 +31,22 @@ function User(id) {
     Delivered_Failed_Count: 0,
     Sending_Failed_Count: 0,
     Total_Cost: 0
+  }
+  */
+  this.batchSummaryReport = {
+    live: false,
+    campaignName: "",
+    creationTime: 0,
+    type: "",
+    serviceNumber: "",
+    message: "",
+    batchId: "",
+    totalCount: 0,
+    queuedCount: 0,
+    deliveredCount: 0,
+    sentCount: 0,
+    unreachableCount: 0,
+    totalCost: 0
   }
   this.batchResult = {
     id:"",
@@ -299,7 +316,21 @@ var engine = User.prototype = {
           var tempFile = currentFolder + "/uploads/" + file.filename
           fs.unlinkSync(tempFile);
         }
-        //this.sendBatchMessage(res, requestBody, body.campaign_name)
+        this.batchSummaryReport = {
+          live: true,
+          campaignName: body.campaign_name,
+          type: "customized",
+          serviceNumber: body.from_number,
+          message: body.message,
+          totalCount: 0,
+          creationTime: 0,
+          batchId: "",
+          queuedCount: 0,
+          deliveredCount: 0,
+          sentCount: 0,
+          unreachableCount: 0,
+          totalCost: 0
+        }
         this.sendBatchMessage(res, requestBody, body.campaign_name, "customized")
       }
     },
@@ -392,21 +423,40 @@ var engine = User.prototype = {
         requestBody["sendAt"] = body.scheduledAt + ":00Z"
       }
       */
-      //this.sendBatchMessage(res, requestBody, body.campaign_name)
+      this.batchSummaryReport = {
+        live: true,
+        campaignName: body.campaign_name,
+        type: "group",
+        serviceNumber: requestBody.from,
+        message: requestBody.text,
+        creationTime: 0,
+        batchId: "",
+        totalCount: 0,
+        queuedCount: 0,
+        deliveredCount: 0,
+        sentCount: 0,
+        unreachableCount: 0,
+        totalCost: 0
+      }
       this.sendBatchMessage(res, requestBody, body.campaign_name, "group")
     },
     sendBatchMessage: function(res, requestBody, campaignName, type){
       var thisUser = this
       //console.log(JSON.stringify(requestBody))
+      this.batchFullReport = []
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
           p.post("/account/~/a2p-sms/batch", requestBody)
             .then(function (resp) {
               var jsonObj = resp.json()
               thisUser.StartTimestamp = Date.now()
-              thisUser.smsBatchIds.push(resp.json().id)
+              thisUser.smsBatchIds.push(jsonObj.id)
+              thisUser.batchSummaryReport.creationTime = thisUser.StartTimestamp
+              thisUser.batchSummaryReport.batchId = jsonObj.id
+              thisUser.batchSummaryReport.totalCount = jsonObj.batchSize
               thisUser.batchResult = jsonObj
-              thisUser.addBatchToDB(campaignName, type)
+              thisUser.addBatchDataToDB()
+              thisUser._getBatchResult(jsonObj.id)
               res.send({
                   status:"ok",
                   time: formatSendingTime(0),
@@ -428,56 +478,93 @@ var engine = User.prototype = {
         }
       })
     },
-    getBatchReport: function(res, batchId, pageToken){
-      this.batchReport.Queued_Count = 0
-      this.batchReport.Sent_Count = 0
-      this.batchReport.Delivered_Count = 0
-      this.batchReport.Delivered_Failed_Count = 0
-      this.batchReport.Sending_Failed_Count = 0
-      this.batchReport.Total_Cost = 0
+    readCampaign: function(res, batchId){
+      this.batchSummaryReport = {
+        live: false,
+        campaignName: "",
+        type: "",
+        serviceNumber: "",
+        message: "",
+        creationTime: 0,
+        batchId: batchId,
+        totalCount: 0,
+        queuedCount: 0,
+        deliveredCount: 0,
+        sentCount: 0,
+        unreachableCount: 0,
+        totalCost: 0
+      }
       this.batchFullReport = []
-      this._getBatchReport(res, batchId, pageToken)
+      this._getCampaignReport(res, batchId, "")
     },
-    _getBatchReport: function(res, batchId, pageToken){
+    _getCampaignReport: function(res, batchId, pageToken){
       var thisUser = this
-      var endpoint = "/account/~/a2p-sms/messages?batchId=" + batchId
+      var endpoint = "/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batchId
+      }
       if (pageToken != "")
-        endpoint += "&pageToken=" + pageToken
+        params['pageToken'] = pageToken
+
       var p = this.rc_platform.getPlatform(function(err, p){
         if (p != null){
-          p.get(endpoint)
+          p.get(endpoint, params)
             .then(function (resp) {
               var jsonObj = resp.json()
+              var keepPolling = false
               thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
-              for (var message of jsonObj.records){ // used to be .messages
-                //console.log(message)
-                //console.log("========")
-                if (message.messageStatus.toLowerCase() == "queued")
-                  thisUser.batchReport.Queued_Count++
-                else if (message.messageStatus.toLowerCase() == "sent")
-                  thisUser.batchReport.Sent_Count++
-                else if (message.messageStatus.toLowerCase() == "delivered")
-                  thisUser.batchReport.Delivered_Count++
-                else if (message.messageStatus.toLowerCase() == "deliveryfailed"){
-                  thisUser.batchReport.Delivered_Failed_Count++
-                }else if (message.messageStatus.toLowerCase() == "sendingfailed"){
-                  thisUser.batchReport.Sending_Failed_Count++
+              for (var message of jsonObj.records){
+                switch (message.messageStatus) {
+                  case "Queued":
+                    keepPolling = true
+                    thisUser.batchSummaryReport.queuedCount++
+                    break;
+                  case "Delivered":
+                    console.log("Delivered status")
+                    thisUser.batchSummaryReport.deliveredCount++
+                    break
+                  case "Sent":
+                    thisUser.batchSummaryReport.sentCount++
+                    break;
+                  case "DeliveryFailed":
+                  case "SendingFailed":
+                    thisUser.batchSummaryReport.unreachableCount++
+                    break;
+                  default:
+                    break
                 }
                 var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
-                thisUser.batchReport.Total_Cost += cost
+                thisUser.batchSummaryReport.totalCost += cost
               }
               //console.log(jsonObj.paging)
               if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-                //console.log("Read next page")
+                console.log("Read next page")
                 setTimeout(function(){
                   thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
                 }, 1200)
               }else{
-                res.send({
-                    status: "ok",
-                    result: thisUser.batchReport,
-                    fullReport: thisUser.batchFullReport
+                if (keepPolling){
+                  setTimeout(function(){
+                    console.log("call getBatchResult again from polling")
+                    thisUser.batchSummaryReport.queuedCount = 0
+                    thisUser.batchSummaryReport.deliveredCount = 0
+                    thisUser.batchSummaryReport.sentCount = 0
+                    thisUser.batchSummaryReport.unreachableCount = 0
+                    thisUser.batchSummaryReport.totalCost = 0
+                    thisUser.batchFullReport = []
+                    thisUser._getBatchReport(batchId, "")
+                  }, 5000)
+                }else{
+                  thisUser._updateCampaignDB((err, result) => {
+                    thisUser.batchSummaryReport.live = false
+                    console.log("DONE SEND BATCH")
                   })
+                  res.send({
+                      status: "ok",
+                      result: thisUser.batchSummaryReport,
+                      fullReport: thisUser.batchFullReport
+                    })
+                }
               }
             })
             .catch(function (e) {
@@ -496,6 +583,128 @@ var engine = User.prototype = {
         }
       })
     },
+    getBatchReport: function(res, batchId, pageToken){
+      console.log("client poll getBatchReport")
+      res.send({
+        status: "ok",
+        result: this.batchSummaryReport
+      })
+    },
+    _getBatchReport: function(batchId, pageToken){
+      console.log("_getBatchReport")
+      var thisUser = this
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      console.log(endpoint)
+      var params = {
+        batchId: batchId
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint, params)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              var keepPolling = false
+              thisUser.batchFullReport = thisUser.batchFullReport.concat(jsonObj.records)
+              for (var message of jsonObj.records){
+                switch (message.messageStatus) {
+                  case "Queued":
+                    keepPolling = true
+                    thisUser.batchSummaryReport.queuedCount++
+                    break;
+                  case "Delivered":
+                    console.log("Delivered status")
+                    thisUser.batchSummaryReport.deliveredCount++
+                    break
+                  case "Sent":
+                    thisUser.batchSummaryReport.sentCount++
+                    break;
+                  case "DeliveryFailed":
+                  case "SendingFailed":
+                    thisUser.batchSummaryReport.unreachableCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
+                thisUser.batchSummaryReport.totalCost += cost
+              }
+              if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+                console.log("has nextPageToken")
+                setTimeout(function(){
+                  thisUser._getBatchReport(batchId, jsonObj.paging.nextPageToken)
+                }, 1200)
+              }else{
+                if (keepPolling){
+                  setTimeout(function(){
+                    console.log("call getBatchResult again from polling")
+                    thisUser.batchSummaryReport.queuedCount = 0
+                    thisUser.batchSummaryReport.deliveredCount = 0
+                    thisUser.batchSummaryReport.sentCount = 0
+                    thisUser.batchSummaryReport.unreachableCount = 0
+                    thisUser.batchSummaryReport.totalCost = 0
+                    thisUser.batchFullReport = []
+                    thisUser._getBatchReport(batchId, "")
+                  }, 5000)
+                }else{
+                  //this.postResults()
+                  // update local db
+                  thisUser._updateCampaignDB((err, result) => {
+                    thisUser.batchSummaryReport.live = false
+                    console.log("DONE SEND BATCH")
+                  })
+                }
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+            });
+        }else{
+          console.log("platform issue")
+        }
+      })
+    },
+    getBatchResult: function(req, res){
+      console.log("getBatchResult")
+      var processingTime = (Date.now() - this.StartTimestamp) / 1000
+      res.send({
+          status:"ok",
+          time: formatSendingTime(processingTime),
+          result: this.batchResult,
+          type: this.batchType
+        })
+    },
+    _getBatchResult: function(batchId){
+      console.log("getBatchResult")
+      var thisUser = this
+      var endpoint = "/account/~/a2p-sms/batch/" + batchId
+      var p = this.rc_platform.getPlatform(function(err, p){
+        if (p != null){
+          p.get(endpoint)
+            .then(function (resp) {
+              var jsonObj = resp.json()
+              thisUser.batchResult = jsonObj
+              if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
+                  console.log("Done Batch Result, call _getBatchReport")
+                  console.log("CALL _getBatchReport FROM getBatchResult()")
+                  thisUser._getBatchReport(jsonObj.id, "")
+              }else{
+                setTimeout(function() {
+                  thisUser._getBatchResult(batchId)
+                },2000)
+              }
+            })
+            .catch(function (e) {
+              console.log('ERR ' + e.message || 'Server cannot send messages');
+            });
+        }else{
+          console.log("platform issue")
+        }
+      })
+    },
+    /*
     getBatchResult: function(req, res){
         var thisUser = this
         var endpoint = "/account/~/a2p-sms/batch/" + req.query.batchId
@@ -528,6 +737,7 @@ var engine = User.prototype = {
           }
         })
     },
+    */
     readMessageList: function (req, res){
       console.log("readMessageList")
       this.batchFullReport = []
@@ -754,9 +964,6 @@ var engine = User.prototype = {
           callback(null, "ok")
         }
       })
-    },
-    readCampaign: function(req, res){
-      this._getBatchReport(res, req.query.batchId, "")
     },
     loadCampaignHistoryPage: function(res){
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
@@ -996,7 +1203,7 @@ var engine = User.prototype = {
     createTable: function (callback) {
       console.log("CREATE TABLE")
       var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-      query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, stats TEXT)'
+      query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, votes TEXT, contacts TEXT, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
       pgdb.create_table(query, (err, res) => {
         if (err) {
           console.log(err, res)
@@ -1007,6 +1214,75 @@ var engine = User.prototype = {
         }
       })
     },
+    addBatchDataToDB: function(){
+      var thisUser = this
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          // attach to array then update db
+          var batches = JSON.parse(result.rows[0].batches)
+          batches.push(thisUser.batchSummaryReport)
+          var query = 'UPDATE a2p_sms_users SET '
+          query += `batches='${JSON.stringify(batches)}'`
+
+          query += ` WHERE user_id='${thisUser.extensionId}'`
+          pgdb.update(query, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+            }
+            console.log("add new batch data")
+          })
+        }else{ // add new to db
+          var batches = [thisUser.batchSummaryReport]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "", "", "", "", ""]
+          pgdb.insert(query, values, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+            }
+            console.log("stored batch in to db")
+          })
+        }
+      })
+    },
+    _updateCampaignDB: function(callback){
+      console.log("_updateCampaignDB")
+      var thisUser = this
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          // attach to array then update db
+          var batches = JSON.parse(result.rows[0].batches)
+          var batch = batches.find(o => o.batchId == thisUser.batchSummaryReport.batchId)
+          if (batch){
+            batch.queuedCount = thisUser.batchSummaryReport.queuedCount
+            batch.deliveredCount = thisUser.batchSummaryReport.deliveredCount
+            batch.sentCount = thisUser.batchSummaryReport.sentCount
+            batch.unreachableCount = thisUser.batchSummaryReport.unreachableCount
+            batch.totalCost = thisUser.batchSummaryReport.totalCost
+            batch.live = false
+            var query = 'UPDATE a2p_sms_users SET '
+            query += `batches='${JSON.stringify(batches)}'`
+            query += ` WHERE user_id='${thisUser.extensionId}'`
+            pgdb.update(query, (err, result) =>  {
+              if (err){
+                console.error(err.message);
+              }
+              console.log("updated batch data")
+              callback(null, "ok")
+            })
+          }
+        }
+      })
+    },
+    /*
     addBatchToDB: function(campaignName, type){
       var thisUser = this
       var newBatch = {
@@ -1050,15 +1326,25 @@ var engine = User.prototype = {
         }
       })
     },
+    */
     addTFBatchToDB: function(){
       var thisUser = this
       var newBatch = {
-        campaign: "Campaign Name",
-        creationTime: new Date().toISOString(),
+        live: false,
+        campaignName: "Campaign Name",
+        type: "tollfree",
+        serviceNumber: this.fromNumber,
+        message: this.sendMessage,
+        creationTime: new Date().getTime(),
         batchId: "a2psms",
-        batchSize: this.recipientArr.length,
-        type: "tollfree"
+        totalCount: this.recipientArr.length,
+        queuedCount: 0,
+        deliveredCount: 0,
+        sentCount: this.sendCount,
+        unreachableCount: 0,
+        totalCost: 0
       }
+
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (err){
@@ -1074,12 +1360,13 @@ var engine = User.prototype = {
             if (err){
               console.error(err.message);
             }
-            console.log("updated batch data")
+            console.log("updated TF batch data")
           })
         }else{ // add new to db
           var batches = [newBatch]
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
-          var query = "INSERT INTO a2p_sms_users VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "", "", "", "", ""]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
