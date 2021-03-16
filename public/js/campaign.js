@@ -211,6 +211,7 @@ function deleteCampaignResult(batchId){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
+      _alert("Campaign result is deleted.", "Information")
       campaignList = res.campaigns
       if (campaignList.length == 0)
         ;//createNewCampaign()
