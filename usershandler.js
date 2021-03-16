@@ -46,6 +46,7 @@ function User(id) {
     deliveredCount: 0,
     sentCount: 0,
     unreachableCount: 0,
+    rejectedCount: 0,
     totalCost: 0
   }
   this.batchResult = {
@@ -454,6 +455,7 @@ var engine = User.prototype = {
               thisUser.batchSummaryReport.creationTime = thisUser.StartTimestamp
               thisUser.batchSummaryReport.batchId = jsonObj.id
               thisUser.batchSummaryReport.totalCount = jsonObj.batchSize
+              thisUser.batchSummaryReport.rejectedCount = jsonObj.rejected.length
               thisUser.batchResult = jsonObj
               thisUser.addBatchDataToDB()
               thisUser._getBatchResult(jsonObj.id)
@@ -492,6 +494,7 @@ var engine = User.prototype = {
         deliveredCount: 0,
         sentCount: 0,
         unreachableCount: 0,
+        rejectedCount: 0,
         totalCost: 0
       }
       this.batchFullReport = []
@@ -1203,7 +1206,7 @@ var engine = User.prototype = {
     createTable: function (callback) {
       console.log("CREATE TABLE")
       var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-      query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, votes TEXT, contacts TEXT, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
+      query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)"
       pgdb.create_table(query, (err, res) => {
         if (err) {
           console.log(err, res)
@@ -1342,6 +1345,7 @@ var engine = User.prototype = {
         deliveredCount: 0,
         sentCount: this.sendCount,
         unreachableCount: 0,
+        rejectedCount: 0,
         totalCost: 0
       }
 
