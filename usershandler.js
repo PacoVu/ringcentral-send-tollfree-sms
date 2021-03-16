@@ -543,7 +543,7 @@ var engine = User.prototype = {
               if (jsonObj.paging.hasOwnProperty("nextPageToken")){
                 console.log("Read next page")
                 setTimeout(function(){
-                  thisUser._getBatchReport(res, batchId, jsonObj.paging.nextPageToken)
+                  thisUser._getCampaignReport(res, batchId, jsonObj.paging.nextPageToken)
                 }, 1200)
               }else{
                 if (keepPolling){
@@ -555,7 +555,7 @@ var engine = User.prototype = {
                     thisUser.batchSummaryReport.unreachableCount = 0
                     thisUser.batchSummaryReport.totalCost = 0
                     thisUser.batchFullReport = []
-                    thisUser._getBatchReport(batchId, "")
+                    thisUser._getCampaignReport(batchId, "")
                   }, 5000)
                 }else{
                   thisUser._updateCampaignDB((err, result) => {
