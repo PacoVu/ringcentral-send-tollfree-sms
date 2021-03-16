@@ -287,6 +287,7 @@ var engine = User.prototype = {
           messages: []
       }
       var csvColumnIndex = {}
+      var sampleMessage = ""
       if (req.files != undefined){
         for (var f of req.files){
           var currentFolder = process.cwd();
@@ -309,6 +310,8 @@ var engine = User.prototype = {
                 to: [columns[csvColumnIndex[toNumberColumnName]]],
                 text: msg
             }
+            if (sampleMessage == "")
+              sampleMessage = msg
             requestBody.messages.push(group)
           }
         }
@@ -317,12 +320,13 @@ var engine = User.prototype = {
           var tempFile = currentFolder + "/uploads/" + file.filename
           fs.unlinkSync(tempFile);
         }
+        var textMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "..." : sampleMessage
         this.batchSummaryReport = {
           live: true,
           campaignName: body.campaign_name,
           type: "customized",
           serviceNumber: body.from_number,
-          message: body.message,
+          message: sampleMessage,
           totalCount: 0,
           creationTime: 0,
           batchId: "",
@@ -424,12 +428,13 @@ var engine = User.prototype = {
         requestBody["sendAt"] = body.scheduledAt + ":00Z"
       }
       */
+      var textMessage = (requestBody.text.length > 50) ? (requestBody.text.substring(0, 50) + "..." : requestBody.text
       this.batchSummaryReport = {
         live: true,
         campaignName: body.campaign_name,
         type: "group",
         serviceNumber: requestBody.from,
-        message: requestBody.text,
+        message: textMessage,
         creationTime: 0,
         batchId: "",
         totalCount: 0,
@@ -636,6 +641,7 @@ var engine = User.prototype = {
               }
               if (jsonObj.paging.hasOwnProperty("nextPageToken")){
                 console.log("has nextPageToken")
+                console.log("nextPageToken: " + jsonObj.paging.nextPageToken)
                 setTimeout(function(){
                   thisUser._getBatchReport(batchId, jsonObj.paging.nextPageToken)
                 }, 1200)
