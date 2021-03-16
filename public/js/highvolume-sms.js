@@ -23,8 +23,8 @@ function init(){
   $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
 
   var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
-  $("#history-list").height(swindow - upperBlock)
 
+  $("#history-list").height(swindow - upperBlock)
   $("#menu-pane").height(swindow)
   $("#control-block").height(swindow)
   $("#creation-pane").height(swindow)
@@ -33,6 +33,15 @@ function init(){
   $(`#${mainMenuItem}`).removeClass("active")
   mainMenuItem = "campaign-new"
   $(`#${mainMenuItem}`).addClass("active")
+}
+var setHeight = false
+function setCampaignHistoryListHeight(){
+  setHeight = true
+  var height = $(window).height() - $("#footer").outerHeight(true);
+  var swindow = height - $("#menu_header").height()
+  $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
+  var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
+  $("#history-list").height(swindow - upperBlock)
 }
 
 function onloaded(){
@@ -258,6 +267,8 @@ function displaySelectedCampaign(batchReport){
   }else{
     $("#vote-report").hide()
   }
+  if (!setHeight)
+    setCampaignHistoryListHeight()
 }
 
 function plotBatchReport(params){
