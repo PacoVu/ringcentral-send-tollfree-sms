@@ -136,49 +136,6 @@ var engine = User.prototype = {
         batchResult: thisUser.batchResult
       })
     },
-    /*
-    loadHVSMSPage: function(res){
-      var thisUser = this
-      this.eventEngine.logNewMessage = false
-      if (this.batchResult.id == ""){
-        // read lastest batch
-        var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
-        pgdb.read(query, (err, result) => {
-          if (err){
-            console.error(err.message);
-          }
-          //console.log(result.rows)
-          if (!err && result.rows.length > 0){
-            var batches = JSON.parse(result.rows[0].batches)
-            if (batches.length){
-              var batch = batches[batches.length-1]
-              thisUser.batchResult.status = "Completed"
-              thisUser.batchResult.id = batch.batchId
-              thisUser.batchResult.batchSize = batch.batchSize
-              thisUser.batchType = batch.type
-            }
-
-          }
-          res.render('highvolume-sms', {
-            userName: thisUser.getUserName(),
-            phoneNumbers: thisUser.phoneHVNumbers,
-            //smsBatchIds: this.smsBatchIds,
-            batchResult: thisUser.batchResult,
-            batchType: thisUser.batchType
-          })
-        })
-      }else{
-        res.render('highvolume-sms', {
-          userName: this.getUserName(),
-          phoneNumbers: this.phoneHVNumbers,
-          //smsBatchIds: this.smsBatchIds,
-          batchResult: this.batchResult,
-          batchType: this.batchType
-        })
-      }
-    },
-    */
-    //login: function(req, res, callback){
     login: async function(req, res, callback){
       if (req.query.code) {
         var rc_platform = this.rc_platform

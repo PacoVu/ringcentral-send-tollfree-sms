@@ -134,9 +134,11 @@ function listAllCampaigns(recentBatch){
 
     // mashup with vote result
     var found = false
+    var cost = item.totalCost
     for (var vote of voteReportList){
       if (vote.batchId == item.batchId){
         html += `<div class="col-lg-2">${vote.status}</div>`
+        cost += vote.voteCounts.Cost
         found = true
         break
       }
@@ -145,14 +147,15 @@ function listAllCampaigns(recentBatch){
       if (item.type == "vote"){
         if (item.voteReport){
           html += `<div class="col-lg-2">${item.voteReport.status}</div>`
+          cost += item.voteReport.voteCounts.Cost
         }else
           html += `<div class="col-lg-2">Deleted</div>`
       }else
         html += `<div class="col-lg-2">--</div>`
     }
-    var cost = item.totalCost
+
     if (item.hasOwnProperty('voteReport'))
-      cost += item.voteReport.voteCounts.Cost
+
 
     if (cost < 1.00)
       cost = cost.toFixed(3)

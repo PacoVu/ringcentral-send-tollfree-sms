@@ -880,7 +880,6 @@ function parseResultResponse(resp){
     }, 1000)
   }else if (batchResult.status == "Completed" || batchResult.status == "Sent"){
     pendingBatch = false
-    alert(JSON.stringify(batchResult))
     startPollingResult(false)
     var createdAt = new Date(batchResult.creationTime).getTime()
     var lastUpdatedAt = new Date(batchResult.lastModifiedTime).getTime()
