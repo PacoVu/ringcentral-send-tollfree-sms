@@ -468,7 +468,9 @@ var engine = User.prototype = {
           console.error(err.message);
         }
         if (!err && result.rows.length > 0){
-          var contacts = JSON.parse(result.rows[0].contacts)
+          var contacts = []
+          if (result.rows[0].contacts.length)
+            contacts = JSON.parse(result.rows[0].contacts)
           callback(null, contacts)
         }else{ // no history
           callback(null, [])
