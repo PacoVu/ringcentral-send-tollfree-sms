@@ -1544,6 +1544,7 @@ var engine = User.prototype = {
               console.error(err.message);
             }
             console.log("deleted and updated batches data")
+            batches.sort(sortBatchCreatedDate)
             res.send({
               status: "ok",
               campaigns: batches,
