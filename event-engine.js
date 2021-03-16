@@ -15,10 +15,6 @@ function ActiveUser(extensionId, subscriptionId){
 }
 
 var engine = ActiveUser.prototype = {
-    ActiveUser: function(){
-      //constructor
-      console.log("Constructor call?")
-    },
     setup: function(platform, callback){
       console.log("setup ActiveUser Engine")
       this.rc_platform = platform
@@ -33,12 +29,11 @@ var engine = ActiveUser.prototype = {
               thisUser.detectExpiredVoteCampaign()
             }, this.updateInterval)
           }
-          callback(null, result)
-        }else{
-          callback(err, "cannot read db")
         }
+        thisUser.readWebhookInfoFromDB((err, res) => {
+          callback(null, result)
+        })
       })
-      this.readWebhookInfoFromDB()
     },
     setVoteInfo: function (voteInfo){
       this.voteCampaignArr.push(voteInfo)
@@ -130,11 +125,8 @@ var engine = ActiveUser.prototype = {
       this.rc_platform = p
     },
     processNotification: function(jsonObj){
-      // parse tel notification payload
-      console.log(jsonObj)
+      //console.log(jsonObj)
       var body = jsonObj.body
-      // find vote object
-
       var notFound = true
       // seach for the "from" number within those campaigns
       for (var campaign of this.voteCampaignArr){
@@ -187,8 +179,8 @@ var engine = ActiveUser.prototype = {
               voter.repliedTime = new Date().getTime()
               voter.repliedMessage = command
               campaign.voteResults[command]++
-              console.log("Client reply message: " + body.text)
-              console.log(campaign.autoReply)
+              //console.log("Client reply message: " + body.text)
+              //console.log(campaign.autoReply)
               if (campaign.autoReply == true){
                 var repliedMsg = campaign.autoReplyMessages[command]
                 if (repliedMsg != undefined){
@@ -197,7 +189,7 @@ var engine = ActiveUser.prototype = {
                       text: repliedMsg,
                       messages: [{to:[body.from]}]
                   }
-                  console.log(requestBody)
+                  //console.log(requestBody)
                   this.sendMessage(requestBody)
                 }
               }
@@ -222,10 +214,9 @@ var engine = ActiveUser.prototype = {
               needUpdateDd = true
             }
           }
-          console.log(campaign.voterList)
-          console.log(campaign)
-          //this.updateVoteDataInDB()
-          console.log("======")
+          //console.log(campaign.voterList)
+          //console.log(campaign)
+          //console.log("======")
         }else if(campaign.allowCorrection){
           for (var command of campaign.voteCommands){
             if (body.text.trim().toLowerCase() == command.toLowerCase()){
@@ -244,13 +235,12 @@ var engine = ActiveUser.prototype = {
                 this.sendMessage(requestBody)
               }
               needUpdateDd = true
-              //this.updateVoteDataInDB()
               break
             }
           }
-          console.log(campaign.voterList)
-          console.log(campaign)
-          console.log("======")
+          //console.log(campaign.voterList)
+          //console.log(campaign)
+          //console.log("======")
         }
         if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
           campaign.status = "Completed"
@@ -268,7 +258,7 @@ var engine = ActiveUser.prototype = {
         try {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
           var jsonObj = await resp.json()
-          console.log(jsonObj)
+          //console.log(jsonObj)
           console.log("Auto-reply succeeded")
         }catch(e) {
           console.log("Auto-reply error")
@@ -277,7 +267,6 @@ var engine = ActiveUser.prototype = {
     },
     loadVoteDataFromDB: function(callback){
       var thisUser = this
-      //var query = `SELECT votes FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       var query = `SELECT active_survey FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (err){
@@ -287,8 +276,9 @@ var engine = ActiveUser.prototype = {
         if (!err && result.rows.length > 0){
           //thisUser.voteCampaignArr = JSON.parse(result.rows[0].votes)
           thisUser.voteCampaignArr = JSON.parse(result.rows[0].active_survey)
-          console.log(thisUser.voteCampaignArr)
           callback(null, thisUser.voteCampaignArr.length)
+        }else{
+          callback(null, 0)
         }
       })
     },
@@ -353,7 +343,7 @@ var engine = ActiveUser.prototype = {
           console.log(res)
         })
     },
-    readWebhookInfoFromDB: function(){
+    readWebhookInfoFromDB: function(callback){
       var thisUser = this
       var query = `SELECT webhooks FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -368,28 +358,13 @@ var engine = ActiveUser.prototype = {
         }else{ // no connector
           thisUser.webhooks = undefined
         }
-        console.log("WEBHOOKS " + thisUser.webhooks)
+        callback(null, "ok")
       })
     },
-    /*
-    updateVoteDataInDB: function(callback){
-      //var query = 'UPDATE a2p_sms_users SET '
-      var query = 'UPDATE a2p_sms_users_tempdata SET '
-      //query += "votes='" + JSON.stringify(this.voteCampaignArr) + "' WHERE user_id='" + this.extensionId + "'"
-      query += "active_survey='" + JSON.stringify(this.voteCampaignArr) + "' WHERE user_id='" + this.extensionId + "'"
-      console.log(query)
-      pgdb.update(query, (err, result) =>  {
-        if (err){
-          console.error(err.message);
-        }
-        callback(null, "updated vote campaign data")
-      })
-    },
-    */
     updateVoteDataInDB: function(callback){
       var query = 'UPDATE a2p_sms_users_tempdata SET '
       query += "active_survey='" + JSON.stringify(this.voteCampaignArr) + "' WHERE user_id='" + this.extensionId + "'"
-      console.log(query)
+      //console.log(query)
       pgdb.update(query, (err, result) =>  {
         if (err){
           console.error(err.message);
@@ -444,7 +419,7 @@ var engine = ActiveUser.prototype = {
       if (this.webhooks == undefined || this.webhooks.url == "")
         return
       var https = require('https');
-      console.log(data)
+      //console.log(data)
       var url = this.webhooks.url.replace("https://", "")
       var arr = url.split("/")
       var domain = arr[0]
@@ -460,8 +435,8 @@ var engine = ActiveUser.prototype = {
       if (this.webhooks.headerName.length && this.webhooks.headerValue.length){
         post_options.headers[`${this.webhooks.headerName}`] = this.webhooks.headerValue
       }
-      console.log(post_options)
-      return
+      //console.log(post_options)
+      //return
       var post_req = https.request(post_options, function(res) {
           var response = ""
           res.on('data', function (chunk) {

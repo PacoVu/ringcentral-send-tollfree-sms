@@ -64,10 +64,10 @@ function readCampaigns(){
         ;//createNewCampaign()
       listAllCampaigns()
     }else if (res.status == "failed") {
-      alert(res.message)
+      _alert(res.message)
       window.location.href = "login"
     }else{
-      alert(res.message)
+      _alert(res.message)
     }
   });
 }
@@ -77,35 +77,10 @@ function listAllCampaigns(){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
-    /*
-    var date = new Date(item.creationTime)
-    var timestamp = item.creationTime - timeOffset
-    date = new Date (timestamp)
-    var dateStr = date.toISOString()
-    dateStr = dateStr.replace("T", " ").substring(0, 16)
-    */
     html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign(this, '${item.batchId}')">${item.campaignName}</div>`
   }
   $("#campaign-list").html(html)
-/*
-  var recentVote = undefined
-  if (selectedBatchId != ""){
-    recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
-    //recentVote = voteReportList.find(o => o.batchId === selectedBatchId)
-  //}else if (recentBatch){
-  //  recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
-  }else{
-    recentBatch = campaignList[0]
-    //recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
-  }
-  // extra check
-  //if (!recentVote)
-  //  recentVote = recentBatch.voteReport
-  selectedBatchId = recentBatch.batchId
-  selectedCampaign = $(`#${selectedBatchId}`)
-  $(selectedCampaign).addClass("active");
-  displaySelectedCampaign(recentBatch)
-*/
+
   var batchId = campaignList[0].batchId
   readCampaign($(`#${batchId}`), batchId)
 }
@@ -136,7 +111,9 @@ function readCampaign(elm, batchId){
       createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
       //$("#campaign-title").html("Selected campaign: <p>" + campaign.campaignName + "</p>")
       //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
-      var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;<a href="javascript:downloadBatchReport('${batchReport.batchId}')">Download report</a>`
+      var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
+      title += `<a href="javascript:downloadBatchReport('${campaign.campaignName}')">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
+      title += `<a href="javascript:deleteCampaignResult('${campaign.batchId}')">Delete campaign</a></div>`
       $("#campaign-title").html( title )
       var report = `<div>`
       report += `<div class="info-line"><img class="icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
@@ -147,8 +124,7 @@ function readCampaign(elm, batchId){
       var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
       report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
 
-      //report += `<div class="info-line"><a href="javascript:downloadBatchReport('${batchReport.batchId}')">Download report</a></div>`
-      //report += `<a href="javascript:deleteCampaignResult('${batchReport.batchId}')">Delete Campaign</a></div>`
+
 
       report += "</div>"
       $("#campaign-details").html(report)
@@ -168,10 +144,10 @@ function readCampaign(elm, batchId){
       params.push(item);
       plotBatchReport(params)
     }else if (res.status == "failed") {
-      alert(res.message)
+      _alert(res.message)
       window.location.href = "login"
     }else{
-      alert(res.message)
+      _alert(res.message)
     }
   });
 }
@@ -215,15 +191,32 @@ function createFullReport(fullReports){
   $("#report-content").html(html)
 }
 
-function downloadBatchReport(batchId){
+function downloadBatchReport(name){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = `downloadbatchreport?batchId=${batchId}&timeOffset=${timeOffset}`
+  //var encoded = (encodeURIComponent(name))
+  //decodeURIComponent(encoded)
+  //_alert(encoded + " = " + decodeURIComponent(encoded))
+  var url = `download-batch-report?campaign_name=${encodeURIComponent(name)}&timeOffset=${timeOffset}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
       window.location.href = res.message
     else
       alert(res.message)
+  });
+}
+
+function deleteCampaignResult(batchId){
+  var url = `delete-campaign-result?batchId=${batchId}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      campaignList = res.campaigns
+      if (campaignList.length == 0)
+        ;//createNewCampaign()
+      listAllCampaigns()
+    }else
+      _alert(res.message)
   });
 }
 

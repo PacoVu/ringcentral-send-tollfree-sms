@@ -936,52 +936,8 @@ var engine = User.prototype = {
         console.log('ERR ');
       }
     },
-    /*
-    readCampaignSummary: function(res, batchId){
-      console.log("readCampaignSummary")
-      var voteReport = this.eventEngine.getCampaignByBatchId(batchId)
-      //console.log(batchId)
-      //console.log(voteReport)
-      if (batchId == this.batchSummaryReport.batchId){
-        res.send({
-            status: "ok",
-            batchReport: this.batchSummaryReport,
-            voteReport: voteReport
-          })
-      }else{
-        var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
-        pgdb.read(query, (err, result) => {
-          if (err){
-            console.error(err.message);
-          }
-          if (!err && result.rows.length > 0){
-            var batches = JSON.parse(result.rows[0].batches)
-            //batches.sort(sortBatchCreatedDate)
-            var batch = batches.find(o => o.batchId == batchId)
-            res.send({
-              status: "ok",
-              batchReport: batch,
-              voteReport: voteReport
-            })
-          }else{ // no history
-            res.send({
-              status: "notfound",
-              batchReport: {},
-              voteReport: voteReport
-            })
-          }
-        })
-      }
-    },
-    */
     readCampaignSummary: function(res, batchId){
       console.log("readCampaignSummary - sendCount > 0")
-      /*
-      res.send({
-        status: "ok",
-        voteReports: this.eventEngine.getCopyVoteCampaignsInfo()
-      })
-      */
       var batchReport = {
         batchId: batchId,
         queuedCount: 0,
@@ -990,7 +946,6 @@ var engine = User.prototype = {
         unreachableCount: 0,
         totalCost: 0
       }
-
       this._readCampaignSummary(res, batchId, batchReport, "")
     },
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
@@ -1471,7 +1426,7 @@ var engine = User.prototype = {
         res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
       }
     },
-    deleteCampainResult: function(req, res){
+    deleteSurveyResult: function(req, res){
       if (this.eventEngine){
         this.eventEngine.deleteCampaignByBatchId(req.query.batchId, (err, result) => {
           if (err)
@@ -1481,13 +1436,13 @@ var engine = User.prototype = {
         })
       }
     },
-    downloadSurveyCampainResult: function(req, res){
+    downloadSurveyResult: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
       var extId = this.getExtensionId()
-      var fullNamePath = dir + req.query.batchId
+      var fullNamePath = dir
       var fileContent = ""
 
       if (this.eventEngine){
@@ -1499,7 +1454,7 @@ var engine = User.prototype = {
           let dateOptions = { weekday: 'short' }
           for (var voter of campaign.voterList){
             fileContent += `\n${campaign.campaignName}`
-            fileContent += `,${formatPhoneNumber(req.query.serviceNumber)}`
+            fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
             fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
             var date = new Date(campaign.startDateTime - timeOffset)
             var dateStr = date.toISOString()
@@ -1515,7 +1470,7 @@ var engine = User.prototype = {
             fileContent += `,${voter.isReplied}`
             fileContent += `,${voter.isSent}`
           }
-          fullNamePath += `-${campaign.campaignName.replace(" ", "-")}-campaign-result.csv`
+          fullNamePath += `-${campaign.campaignName.replace(" ", "-")}-survey-result.csv`
           try{
             fs.writeFileSync('./'+ fullNamePath, fileContent)
             var link = "/downloads?filename=" + fullNamePath
@@ -1536,9 +1491,9 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + req.query.batchId
+      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(" ", "-")
       var fileContent = ""
-      fullNamePath += '.csv'
+      fullNamePath += '-batch-report.csv'
       fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
       var timeOffset = parseInt(req.query.timeOffset)
       let dateOptions = { weekday: 'short' }
@@ -1571,6 +1526,38 @@ var engine = User.prototype = {
         res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
       }
     },
+    deleteCampaignResult: function(req, res){
+      var thisUser = this
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (!err && result.rows.length > 0){
+          var batches = JSON.parse(result.rows[0].batches)
+          var campaignIndex = batches.findIndex(o => o.batchId === req.query.batchId)
+          if (campaignIndex >= 0){
+            batches.splice(campaignIndex, 1)
+          }
+          var query = 'UPDATE a2p_sms_users SET '
+          query += `batches='${JSON.stringify(batches)}'`
+          query += ` WHERE user_id='${thisUser.extensionId}'`
+          pgdb.update(query, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+            }
+            console.log("deleted and updated batches data")
+            res.send({
+              status: "ok",
+              campaigns: batches,
+            })
+          })
+        }else{ // no history
+          res.send({
+            status: "ok",
+            campaigns: [],
+          })
+        }
+      })
+    },
+    /*
     downloadVoteReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -1625,6 +1612,7 @@ var engine = User.prototype = {
           }
         })
     },
+    */
     downloadSendSMSResult: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -1670,8 +1658,11 @@ var engine = User.prototype = {
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (!err && result.rows.length > 0){
-          var batches = JSON.parse(result.rows[0].batches)
-          batches.sort(sortBatchCreatedDate)
+          var batches = []
+          if (result.rows[0].batches.length){
+            batches = JSON.parse(result.rows[0].batches)
+            batches.sort(sortBatchCreatedDate)
+          }
           thisUser.batchSummaryReport = batches[0]
           res.send({
             status: "ok",
@@ -1997,12 +1988,12 @@ var engine = User.prototype = {
         }
         if (!err && result.rows.length > 0){
           // attach to array then update db
-          var batches = JSON.parse(result.rows[0].batches)
+          var batches = []
+          if (result.rows[0].batches.length)
+            batches = JSON.parse(result.rows[0].batches)
           batches.push(thisUser.batchSummaryReport)
           var query = 'UPDATE a2p_sms_users SET '
           query += `batches='${JSON.stringify(batches)}'`
-          //if (thisUser.batchType == "vote")
-          //  query += `, votes='${JSON.stringify(thisUser.eventEngine.voteCampaignArr)}'`
 
           query += ` WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
@@ -2013,13 +2004,7 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [thisUser.batchSummaryReport]
-          //var voteStats = "[]"
-          //if (thisUser.batchType == "vote")
-          //  voteStats = JSON.stringify(thisUser.eventEngine.voteCampaignArr)
 
-          //var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
-          //query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
-          //var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), voteStats, "", "", "", ""]
           var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING"
           var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
@@ -2041,7 +2026,9 @@ var engine = User.prototype = {
         }
         if (!err && result.rows.length > 0){
           // attach to array then update db
-          var batches = JSON.parse(result.rows[0].batches)
+          var batches = []
+          if (result.rows[0].batches.length)
+            batches = JSON.parse(result.rows[0].batches)
           if (batchReport == null)
             batchReport = thisUser.batchSummaryReport
           var batch = batches.find(o => o.batchId == batchReport.batchId)
@@ -2152,7 +2139,9 @@ var engine = User.prototype = {
         }
         if (!err && result.rows.length > 0){
           // attach to array then update db
-          var batches = JSON.parse(result.rows[0].batches)
+          var batches = []
+          if (result.rows[0].batches.length)
+            batches = JSON.parse(result.rows[0].batches)
           batches.push(newBatch)
           var query = 'UPDATE a2p_sms_users SET '
           query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"

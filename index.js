@@ -232,23 +232,23 @@ app.get('/getbatchresult', function (req, res) {
   }
 })
 
-app.get('/deletecampainresult', function (req, res) {
+app.get('/delete-survey-result', function (req, res) {
   if (req.session.extensionId != 0)
-    router.deleteCampainResult(req, res)
+    router.deleteSurveyResult(req, res)
   else{
     res.render('index')
   }
 })
 
-app.get('/downloadcampainresult', function (req, res) {
+app.get('/download-survey-result', function (req, res) {
   if (req.session.extensionId != 0)
-    router.downloadSurveyCampainResult(req, res)
+    router.downloadSurveyResult(req, res)
   else{
     res.render('index')
   }
 })
 
-app.get('/downloadbatchreport', function (req, res) {
+app.get('/download-batch-report', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadBatchReport(req, res)
   else{
@@ -256,6 +256,15 @@ app.get('/downloadbatchreport', function (req, res) {
   }
 })
 
+app.get('/delete-campaign-result', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.deleteCampaignResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+/*
 app.get('/downloadvotereport', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadVoteReport(req, res)
@@ -263,7 +272,7 @@ app.get('/downloadvotereport', function (req, res) {
     res.render('index')
   }
 })
-
+*/
 app.get('/downloadmessagestore', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadMessageStore(req, res)

@@ -325,8 +325,8 @@ function createVoteReport(voteReport, archived){
     if (voteReport.status != "Active"){
       report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
     }
-    report += `<div class="info-line"><a href="javascript:downloadCampaignResult('${voteReport.batchId}','${voteReport.serviceNumber}')">Download Result</a> | `
-    report += `<a href="javascript:deleteCampaignResult('${voteReport.batchId}')">Delete Result</a></div>`
+    report += `<div class="info-line"><a href="javascript:downloadSurveyResult('${voteReport.batchId}')">Download Result</a> | `
+    report += `<a href="javascript:deleteSurveyResult('${voteReport.batchId}')">Delete Survey Result</a></div>`
   }
   report += "</div>"
   return report
@@ -389,8 +389,8 @@ function isAllSentCampaign(){
   return false
 }
 
-function deleteCampaignResult(batchId){
-  var url = `deletecampainresult?batchId=${batchId}`
+function deleteSurveyResult(batchId){
+  var url = `delete-survey-result?batchId=${batchId}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
@@ -400,9 +400,9 @@ function deleteCampaignResult(batchId){
   });
 }
 
-function downloadCampaignResult(batchId, serviceNumber){
+function downloadSurveyResult(batchId){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = `downloadcampainresult?batchId=${batchId}&timeOffset=${timeOffset}&serviceNumber=${serviceNumber}`
+  var url = `download-survey-result?batchId=${batchId}&timeOffset=${timeOffset}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")

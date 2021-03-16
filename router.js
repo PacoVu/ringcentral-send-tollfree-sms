@@ -20,12 +20,12 @@ function autoStart(){
       console.error(err.message);
     }else{
       if (result.rows){
+        /*
         async.each(result.rows,
           function(item, callback){
             console.log("Extension info: " + item.user_id + " / " + item.subscription_id)
-            //var aUser = new ActiveUser(item.extension_id, item.subscription_id)
             // create platform
-            if (item.access_tokens){
+            if (item.access_tokens.length > 0){
               var platform = new RCPlatform()
               //console.log(item.access_tokens)
               platform.autoLogin(item.access_tokens, (err, res) => {
@@ -55,6 +55,47 @@ function autoStart(){
           function (err){
             console.log("autoStart completed")
           })
+        */
+        async.forEachLimit(result.rows, 1, function(user, setupNextUser){
+            async.waterfall([
+              function setupNextUser(done) {
+                // create platform
+                if (user.access_tokens.length > 0){
+                  var platform = new RCPlatform()
+                  //console.log(user.access_tokens)
+                  platform.autoLogin(user.access_tokens, (err, res) => {
+                    var aUser = new ActiveUser(user.user_id, user.subscription_id)
+                    if (!err){
+                      console.log("Has platform")
+                      aUser.setup(platform, (err, result) => {
+                        if (err == null){
+                          activeUsers.push(aUser)
+                          console.log("activeUsers.length: " + activeUsers.length)
+                        }
+                        done()
+                      })
+                    }else{
+                      console.log("No platform")
+                      aUser.setup(null, (err, result) => {
+                        if (err == null){
+                          activeUsers.push(aUser)
+                          console.log("activeUsers.length: " + activeUsers.length)
+                        }
+                        done()
+                      })
+                    }
+                  })
+                }
+              }
+            ], function (error, success) {
+              if (error) {
+                console.log('Some error!');
+              }
+              setupNextUser()
+            });
+          }, function(err){
+            console.log("autoStart completed")
+          });
       }
     }
   })
@@ -279,17 +320,17 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].readCampaignsLogFromDB(res)
   },
-  deleteCampainResult: function(req, res){
+  deleteSurveyResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].deleteCampainResult(req, res)
+    users[index].deleteSurveyResult(req, res)
   },
-  downloadSurveyCampainResult: function(req, res){
+  downloadSurveyResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].downloadSurveyCampainResult(req, res)
+    users[index].downloadSurveyResult(req, res)
   },
   downloadBatchReport: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -297,12 +338,20 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].downloadBatchReport(req, res)
   },
+  deleteCampaignResult: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteCampaignResult(req, res)
+  },
+  /*
   downloadVoteReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].downloadVoteReport(req, res)
   },
+  */
   downloadMessageStore: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
