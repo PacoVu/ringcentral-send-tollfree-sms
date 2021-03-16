@@ -73,6 +73,10 @@ button:focus {
   max-height: 100px;
   overflow: scroll;
 }
+#contact-list{
+  height: 200px;
+  overflow: scroll;
+}
 /*
 #groups_list {
   display: none;
@@ -192,11 +196,17 @@ button:focus {
   border-radius: 15px;
   padding: 0 16px;
   height: 32px;
+  max-width: 200px;
   line-height: 32px;
   font-size: 12px;
   letter-spacing: 0.3px;
-  max-width: 200px;
   text-align: center;
+}
+
+.pos-bottom{
+  position: absolute;
+  bottom: 10px;
+  width: 50%;
 }
 
 .navbar-brand {
@@ -352,6 +362,28 @@ button:focus {
   background: #e5eafa;/*#DBDBDB;*/
 }
 
+.help-item {
+  color: inherit;
+  background-color: #f5f6fb;
+  margin: auto;
+  padding: 10px;
+  /*
+  padding-right: -10px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  */
+  font-size: 1.0em;
+  min-width: 170px!important;
+  max-width: 170px!important;
+}
+.help-item.active {
+  color: #ffffff;
+  background-color: #2559e5;
+}
+.help-item:hover {
+  background: #e5eafa;
+}
+
 .campaign-list-header{
   font-weight: bold;
   min-height: 30px;
@@ -417,8 +449,8 @@ button:focus {
 }
 
 .input_page {
-  min-height: 290px;
-  min-width: 500px;
+  min-height: 410px;
+  min-width: 520px;
   padding-left: 10px;
   padding-right: 10px;
   padding-top: 10px;
@@ -457,6 +489,7 @@ button:focus {
 
 
 #message{
+  min-height: 100px!important;
   max-height: 100px!important;
 }
 
@@ -503,4 +536,53 @@ button:focus {
 .info-text {
   max-width: 500px;
 
+}
+
+.result-block {
+  min-height: 210px;
+  min-width: 420px;
+  padding-left: 50px;
+  padding-right: 20px;
+  padding-top: 10px;
+  margin-bottom: 10px;
+  background-color: #ffffff;
+  border: 1px solid #DBDBDB;
+  -webkit-border-radius: 20px;
+  -moz-border-radius: 20px;
+  border-radius: 20px;
+}
+
+.report-content-header{
+    margin-top: 10px;
+}
+
+.main-options{
+  margin-top: 50px;
+}
+
+.option-section  {
+  border: 3px solid #dfe5e7;
+  border-radius: 10px;
+  /*background-color: #dfe5e7;*/
+  min-height: 200px;
+  min-width: 300px;
+  max-width: 300px!important;
+  margin: auto;
+  width: 50%;
+  padding: 10px;
+}
+
+.help-message {
+  width: 300px;
+  border: 1px solid #DBDBDB;
+  -webkit-border-radius: 20px;
+  -moz-border-radius: 20px;
+  border-radius: 20px;
+  padding: 10px;
+  margin-right: 10px;
+  float: left;
+}
+.right {
+  float: right;
+  background-color: #f5f6fb;
 }

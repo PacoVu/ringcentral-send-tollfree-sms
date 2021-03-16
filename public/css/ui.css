@@ -88,7 +88,8 @@
 
 .nav li.menu-item {
   /*position: relative;*/
-  margin-left: -20px;
+  margin-left: -18px;
+  width: 62px;
 }
 
 .nav > li.active {
@@ -97,7 +98,7 @@
 }
 
 .menu-item.active {
-  background: #E0E3E3;
+  background: #E0E3E3!important;
 }
 
 .nav li.active::after {
@@ -109,8 +110,6 @@
 }
 
 .menu-pane{
-  /*style="min-width: 100px!important;
-  max-width: 100px!important;height: 900px!important; background-color: #F1F1F1; border-right: 1px solid gray"*/
   min-width: 60px!important;
   max-width: 60px!important;
   height: 400px;
@@ -195,3 +194,13 @@ ul > li > span {
   min-width: 300px;
   max-width: 300px;
 }
+
+/* Override bootstrap */
+/*
+.col-lg-1, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-lg-10, .col-lg-11, .col-lg-12 {
+    position: relative;
+    min-height: 1px;
+    padding-right: 0px;
+    padding-left: 10px;
+}
+*/

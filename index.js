@@ -90,7 +90,7 @@ app.get('/standard', function (req, res) {
   }
 })
 
-app.get ('/campaign', function (req, res) {
+app.get ('/campaigns', function (req, res) {
   console.log('loadCampaignPage')
   if (req.session.extensionId != 0)
     router.loadCampaignHistoryPage(req, res)
@@ -99,7 +99,7 @@ app.get ('/campaign', function (req, res) {
   }
 })
 
-app.get ('/message-store', function (req, res) {
+app.get ('/conversations', function (req, res) {
   console.log('loadMessageStorePage')
   if (req.session.extensionId != 0)
     router.loadMessageStorePage(req, res)
@@ -143,6 +143,14 @@ app.post('/read-message-store', function (req, res) {
   }
 })
 
+app.get('/get-contacts', function (req, res) {
+  console.log('readContacts')
+  if (req.session.extensionId != 0)
+    router.getContacts(req, res)
+  else{
+    res.render('index')
+  }
+})
 
 app.get('/read-campaigns', function (req, res) {
   console.log('load readCampaignsLogFromDB')
@@ -152,7 +160,7 @@ app.get('/read-campaigns', function (req, res) {
     res.render('index')
   }
 })
-
+/*
 app.get('/highvolume-manual', function (req, res) {
   console.log('load highvolume-manual')
   if (req.session.extensionId != 0)
@@ -161,7 +169,7 @@ app.get('/highvolume-manual', function (req, res) {
     res.render('index')
   }
 })
-
+*/
 app.get('/highvolume-sms', function (req, res) {
   console.log('load highvolume-sms')
   if (req.session.extensionId != 0)
@@ -170,7 +178,7 @@ app.get('/highvolume-sms', function (req, res) {
     res.render('index')
   }
 })
-
+/*
 app.get ('/conversation-sms', function (req, res) {
   console.log('load conversation-sms')
   if (req.session.extensionId != 0)
@@ -179,7 +187,7 @@ app.get ('/conversation-sms', function (req, res) {
     res.render('index')
   }
 })
-
+*/
 app.get('/about', function (req, res) {
   res.render('about')
 })

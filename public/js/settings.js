@@ -1,11 +1,10 @@
-var webhookAddress = ""
-var userKey = ""
+var contactList = []
 function init(){
 
   var footer = $("#footer").height()
   var height = $(window).height() - 80;
     window.onresize = function() {
-        height = $(window).height() - 80;
+        var height = $(window).height() - 80;
         var swindow = height - $("#menu_header").height()
         $("#menu-pane").height(swindow)
         $("#control-col").height(swindow)
@@ -13,44 +12,68 @@ function init(){
     var swindow = height - $("#menu_header").height()
     $("#menu-pane").height(swindow)
     $("#control-col").height(swindow)
+    $("#contact-list").height(swindow - 200)
+
+    $(`#${mainMenuItem}`).removeClass("active")
+    mainMenuItem = "settings"
+    $(`#${mainMenuItem}`).addClass("active")
+
+  readContacts()
 }
 
+var prevView = "contacts-block"
 function showView(view){
+  if (prevView != ""){
+    $(`#${prevView}`).hide()
+    $(`#${prevView}-btn`).removeClass("active");
+  }
+  $(`#${view}`).show()
+  $(`#${view}-btn`).addClass("active");
+  prevView = view
+
   if (view == "contacts-block"){
     $("#webhook").hide()
-  }else if (view == "webhook") {
-    if (webhookAddress == "")
+  }else if (view == "webhook-block") {
+    if ($("#webhook-address").val() == "")
       return readWebhookAddress(view)
     else{
       $("#contacts-block").hide()
     }
   }
-  $(`#${view}`).show()
 }
+
 
 function readWebhookAddress(view){
   var url = "/readwebhook"
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      console.log("ok")
       $("#webhook-address").val(res.message.url)
       $("#header-name").val(res.message.headerName)
       $("#header-value").val(res.message.headerValue)
       $("#contacts-block").hide()
       $(`#${view}`).show()
-      if (webhookAddress != "")
+      if ($("#webhook-address").val() != ""){
         $("#delete-webhook").show()
-      else
+        $("#set-webhook").hide()
+        $("#copy-btn").show()
+        $("#generator-btn").hide()
+        disableWebhookInputs(true)
+        showSampleCode($("#header-name").val(), $("#header-value").val())
+      }else{
         $("#delete-webhook").hide()
+        $("#set-webhook").show()
+        $("#copy-btn").hide()
+        $("#generator-btn").show()
+      }
     }else if (res.status == "failed"){
-      alert(res.message)
+      _alert(res.message)
     }else{
-      alert(res.message)
+      _alert(res.message)
     }
   });
   getting.fail(function(response){
-    alert(response);
+    _alert(response);
   });
 }
 
@@ -59,25 +82,26 @@ function deleteWebhookAddress(){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      console.log("ok")
-      webhookAddress = ""
-      userKey = ""
-      $("#webhook-address").val(webhookAddress)
-      $("#user-key").val(userKey)
-      if (webhookAddress != "")
-        $("#delete-webhook").show()
-      else
-        $("#delete-webhook").hide()
+      $("#webhook-address").val("")
+      $("#header-name").val("")
+      $("#header-value").val("")
+      $("#delete-webhook").hide()
+      $("#set-webhook").show()
+      $("#copy-btn").hide()
+      $("#generator-btn").show()
+      $("#code").html("")
+      disableWebhookInputs(false)
     }else if (res.status == "failed"){
-      alert(res.message)
+      _alert(res.message)
     }else{
-      alert(res.message)
+      _alert(res.message)
     }
   });
   getting.fail(function(response){
-    alert(response);
+    _alert(response);
   });
 }
+
 // template file input
 function loadContactsFile(elm){
   var file = elm.files[0]
@@ -112,6 +136,14 @@ function addToField(col){
     $("#lname-column").val(col)
 }
 
+function updateContactList(){
+  var html = ""
+  for (var contact of contactList){
+    html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
+  }
+  $("#contact-list").html(html)
+}
+
 function uploadContactsFile(e){
   e.preventDefault();
   var form = $("#contact-form");
@@ -123,7 +155,8 @@ function uploadContactsFile(e){
       data: formData,
       success: function (res) {
           if (res.status == "ok"){
-            alert("ok")
+            contactList = contactList.concat(res.contactList)
+            updateContactList()
           }else if (res.status == "failed"){
             alert(res.message)
             window.location.href = "login"
@@ -138,33 +171,31 @@ function uploadContactsFile(e){
 }
 
 function readContacts(){
-  if (message == ""){
-    $("#send-text").focus()
-    return alert("Please enter text message!")
-  }
-  if (params.from == ""){
-    if (!$("#my-numbers").val()){
-      return alert("please select the 'from' number")
-    }else{
-      params.from = $("#my-numbers").val()
-    }
-  }
-  params.message = message
-  //return alert(JSON.stringify(params))
-  var url = "readcontacts"
-  var posting = $.post( url, params );
-  posting.done(function( res ) {
+  var url = "get-contacts"
+  var getting = $.get( url );
+  getting.done(function( res ) {
     if (res.status == "ok"){
-      console.log("ok")
-    }else if (res.status == "failed"){
+      contactList = res.contactList
+      if (contactList.length)
+        $("#delete-contact-btn").show()
+      updateContactList()
+    }else if (res.status == "failed") {
       alert(res.message)
+      window.location.href = "login"
     }else{
       alert(res.message)
     }
   });
-  posting.fail(function(response){
-    alert(response);
-  });
+}
+
+function deleteWarning(){
+  var r = confirm("Do you really want to delete all contacts?");
+    if (r == true) {
+      deleteAllContacts()
+    }
+}
+function deleteAllContacts(){
+  _alert("Delete all contacts will be coming soon")
 }
 
 function setWebhookAddress(){
@@ -180,8 +211,13 @@ function setWebhookAddress(){
   var posting = $.post( url, params );
   posting.done(function( res ) {
     if (res.status == "ok"){
-      //$("#user-key-block").show()
-      //$("#user-key").val(res.message)
+      _alert("WebHooks set successfullly", "Confirmation")
+      $("#delete-webhook").show()
+      disableWebhookInputs(true)
+      $("#set-webhook").hide()
+      $("#copy-btn").show()
+      $("#generator-btn").hide()
+      showSampleCode($("#header-name").val(), $("#header-value").val())
     }else if (res.status == "failed"){
       alert(res.message)
     }else{
@@ -193,13 +229,52 @@ function setWebhookAddress(){
   });
 }
 
-function copyUserKey(){
-  var copyText = document.getElementById("user-key");
+function disableWebhookInputs(flag){
+  $("#webhook-address").prop("disabled", flag)
+  $("#header-name").prop("disabled", flag)
+  $("#header-value").prop("disabled", flag)
+}
+
+function generateCode() {
+  var text = "";
+  var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (var i = 1; i < 65; i++){
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  $("#header-value").val(text)
+}
+
+function copyHeaderValue(){
+  var copyText = document.getElementById("header-value");
   copyText.select();
   copyText.setSelectionRange(0, 99999);
   document.execCommand("copy");
 }
-
-function logout(){
-  window.location.href = "index?n=1"
+function showSampleCode(key, value){
+  var url = $("#webhook-address").val().replace("https://", "")
+  var arr = url.split("/")
+  var codeStr = `<h3>Express Node JS sample code:</h3> \
+<xmp> \
+app.post('/${arr[1]}', function(req, res) { \n\
+    if(req.headers.hasOwnProperty('${key}')) { \n\
+      if (req.headers['${key}'] == '${value}'){ \n\
+        var body = [] \n\
+        req.on('data', function(chunk) { \n\
+            body.push(chunk); \n\
+        }).on('end', function() { \n\
+            body = Buffer.concat(body).toString() \n\
+            var jsonObj = JSON.parse(body) \n\
+            console.log(jsonObj) \n\
+        }) \n\
+      }else{ \n\
+        console.log('Hacker post') \n\
+      } \n\
+    }else{ \n\
+      console.log('Spammer post.') \n\
+    } \n\
+    res.statusCode = 200 \n\
+    res.end() \n\
+}) \n\
+</xmp>`
+  $("#code").html(codeStr)
 }

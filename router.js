@@ -12,6 +12,7 @@ autoStart()
 function autoStart(){
   console.log("autoStart")
   createUserTable()
+  createUsersAdditionalDataTable()
   //createActiveUsersTable()
   var query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users`
   pgdb.read(query, (err, result) => {
@@ -71,10 +72,22 @@ function createActiveUsersTable() {
     })
 }
 */
+function createUsersAdditionalDataTable() {
+  console.log("createUsersAdditionalDataTable")
+  var query = "CREATE TABLE IF NOT EXISTS a2p_sms_users_tempdata (user_id VARCHAR(15) PRIMARY KEY, active_survey TEXT DEFAULT '[]', rejected_numbers TEXT DEFAULT '[]')"
+  pgdb.create_table(query, (err, res) => {
+      if (err) {
+        console.log(err.message)
+      }else{
+        console.log("createUsersAdditionalDataTable created")
+      }
+    })
+}
+
 function createUserTable() {
   console.log("createUserTable")
   var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-  query += '(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT, votes TEXT, contacts TEXT, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
+  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)"
   pgdb.create_table(query, (err, res) => {
     if (err) {
       console.log(err.message)
@@ -224,6 +237,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getVoteResult(res)
   },
+  getContacts: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getContacts(res)
+  },
   readCampaignSummary: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -371,6 +390,7 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].loadStandardSMSPage(res)
   },
+  /*
   loadHVManualPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -383,6 +403,7 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].loadConvSMSPage(res)
   },
+  */
   loadSettingsPage: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

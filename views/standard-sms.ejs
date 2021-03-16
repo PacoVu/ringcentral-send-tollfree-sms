@@ -45,12 +45,13 @@
     </ul>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>&nbsp;&nbsp;
-      <!--li><span>|</span></li-->
-      <li><a href="javascript:openWindow()">Report Issues</a></li>
-      <li><span>|</span></li>
-      <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
-      <li><span>|</span></li>
-      <li><a href="/about">Help</a></li>
+      <li class="dropdown">
+        <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          <li><a href="javascript:openWindow()">Report Issues</a></li>
+          <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+        </ul>
+      </li>
       <li><span>|</span></li>
       <li><a href="#" onclick="logout()">Logout</a></li>
     </ul>
@@ -59,9 +60,9 @@
     <div class="row col-xs-12">
       <div class="col-sm-2"></div>
       <div class="col-sm-7">
-        <div id="get-input" class="form-inline">
+        <div id="get-input" class="form-inline" style="margin-top:10px">
           <form id="sms-form" class="form-group" action="/sendmessage" method="POST" enctype="multipart/form-data">
-            <div>
+            <div class="block-space">
               <label class="label-input" for="from-number">From number</label>
               <select size="20" id="from-number" name="fromNumber" class="selectpicker filter-select" required>
                 <% for (var item of phoneNumbers) { %>
@@ -74,7 +75,7 @@
               <% } %>
             </div>
             <div class="block-space">
-              <label class="label-input" for="secret_access_key">To numbers</label>
+              <label class="label-input" for="to-numbers">To numbers</label>
               <textarea rows="6" cols="15" id="to-numbers" onchange="updateEstimatedCost()" name="recipients" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" ></textarea>
               &nbsp;&nbsp;
               <label class="label-column">Or, upload .csv file (single column with header row)</br>

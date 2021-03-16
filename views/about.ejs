@@ -1,119 +1,118 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>RingCentral High Volume SMS</title>
-        <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="shortcut icon">
-        <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="icon">
-        <script src="./js/jquery-3.1.0.min.js"></script>
-        <script src="./js/main.js"></script>
-        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-        <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-        <link rel="stylesheet" href="./css/bootstrap.min.css">
+<head>
+    <meta charset="UTF-8">
+    <title>RingCentral High Volume SMS</title>
+    <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="shortcut icon">
+    <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="icon">
+    <script src="js/main.js" type="text/javascript"></script>
+    <script src="js/common.js" type="text/javascript"></script>
 
-        <link rel="stylesheet" type="text/css" href="./css/main.css">
-        <link rel="stylesheet" type="text/css" href="./css/ui.css">
-        <script>
-          function switchMode(mode){
-            if (mode == 0){
-              $("#manual-mode").css("display", "block")
-              $("#template-mode").css("display", "none")
-              $("#manual").html("&#9745;")
-              $("#template").html("&#9744;")
-            }else{
-              $("#template-mode").css("display", "block")
-              $("#manual-mode").css("display", "none")
-              $("#manual").html("&#9744;")
-              $("#template").html("&#9745;")
-            }
-          }
-        </script>
-    </head>
-    <body>
-      <nav id="menu_header" class="navbar navbar-default no-border">
-        <span class="left-middle-align">
-          <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
-          <span class="title">High Volume SMS</span>
-        </span>
-        <ul class="nav navbar-nav navbar-left left-align-nav">
 
-        </ul>
-        <ul class="nav navbar-nav navbar-right middle-align">
-          <li><a href="javascript:history.back()">Back</a></li>
-        </ul>
-      </nav>
-      <section id='content'>
-          <div class="col-xs-12">
-            <h3>Send High Volume SMS Instructions</h3>
-            <div class="col-sm-1">
-              <ul class="nav navbar-left">
-                <li>
-                  <span><span id="manual">&#9745;</span><a href="javascript:switchMode(0)"> Manual Input</a></span>
-                </li>
-                <li>
-                  <span><span id="template">&#9744;</span><a href="javascript:switchMode(1)">Template Input</a></span>
-                </li>
-              </ul>
-            </div>
-            <div class="col-sm-7">
-              <div id="manual-mode">
-                <h4>Manual Input Mode:</h4>
-                <ol>
-                    <li>Enter a campaign name</li>
-                    <li>Select phone number from the <b>From number</b> dropdown list</li>
-                    <li>Enter recipients' numbers separated by a new line or upload a .csv file (.csv file format is a single column with header as "number")
-                        <div><b>Sample .csv file:</b></br>
-                          <div style="font-family: courier">
-                          <span class="sample">
-                            <b>number</b></br>
-                            +11234567890</br>
-                            +14087654322</br>
-                            +16501234567</br>
-                          </span>
-                          </div>
-                        </div>
-                    </li>
-                    <li>Compose the main SMS message</li>
-                    <li>If you also want to add more message group, click the <b>+ New message group</b> button and repeat the step 3 and 4 as shown above.
-                      <div>
-                        <span>Note: Message will be sent to multiple recipients individually. Recipients will not see each other number!</span>
-                      </div>
-                    </li>
-                    <li>Click the <b>Submit</b> button to send</li>
-                </ol>
+    <script src="js/jquery-3.1.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.3/css/bootstrap-select.min.css">
+    <link rel="stylesheet" type="text/css" href="css/main.css">
+    <link rel="stylesheet" type="text/css" href="css/ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.13.3/js/bootstrap-select.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap3-dialog/1.34.7/js/bootstrap-dialog.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap3-dialog/1.34.7/css/bootstrap-dialog.min.css">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+</head>
+<body onload="init()">
+  <%- include('_feedback_form') %>
+  <nav id="menu_header" class="navbar navbar-default no-border">
+    <span class="left-middle-align">
+      <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
+      <span class="title">High Volume SMS</span>
+    </span>
+    <ul class="nav navbar-nav navbar-left left-align-nav">
+
+    </ul>
+    <ul class="nav navbar-nav navbar-right middle-align">
+      <li><a href="javascript:history.back()">Back</a></li>
+    </ul>
+  </nav>
+
+  <section id='content'>
+    <div class="row col-lg-12">
+      <%- include('_menu') %>
+      <div id="control-col" class="col-lg-3 control-pane small-pane">
+        <div class="form-inline" style="margin-top: 20px">
+          <div id="create-btn" class="help-item active" onclick="showView('create')">Create a campaign</div>
+          <div id="message-store-btn" class="help-item" onclick="showView('message-store')">Use conversation</div>
+          <div id="settings-help-btn" class="help-item" onclick="showView('settings-help')">Settings</div>
+        </div>
+      </div>
+      <div id="content-col" class="col-lg-7">
+        <div id="create" class="col-lg-12" style="margin-top: 20px;display: block">
+          <h3>Create a new campaign</h3>
+          <ol>
+            <li>Enter a campaign name</li>
+            <li>Select phone number from the <b>From number</b> dropdown list</li>
+            <li>Choose a method for providing recipients' phone numbers
+              <h4>A/ Load numbers from a .CSV file</h4>
+              <div>Load a .CSV file and select the name of a column containing phone numbers. The app will automatically detect columns with phone numbers</div>
+              <div><i>Sample .csv file:</i></div>
+              <div style="font-family: courier">
+                <b><span class="sample">phone number</span>,<span class="sample">name,<span class="sample">datetime,<span class="sample">doctor</span>,<span class="sample">location</span></b></br>
+                <div><span class="sample">+14084567890</span>,<span class="sample">Samuel</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Rich Edisson, MD"</span>,<span class="sample">Santa Clara hospital</span></div>
+                <div><span class="sample">+11234567890</span>,<span class="sample">Ted</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Bruce Lewis, DO"</span>,<span class="sample">Mountain View hospital</span></div>
+                <div><span class="sample">+14087654322</span>,<span class="sample">Anna</span>,<span class="sample">2020/12/16 10:00</span>,<span class="sample">Leo Hudson, PhD</span>,<span class="sample">Mountain View hospital</span></div>
+                <div><span class="sample">+16501234567</span>,<span class="sample">Jen</span>,<span class="sample">2020/12/16 14:00</span>,<span class="sample">"Brad Willis, MD"</span>,<span class="sample">"Stanford Health Care Center. Bld #3, 5th floor"</span></div>
               </div>
-              <div id="template-mode" style="display: none">
-                <div id="manual-mode">
-                  <h4>Template Input Mode:</h4>
-                  <ol>
-                      <li>Enter a campaign name</li>
-                      <li>Select a phone number from the <b>From number</b> dropdown list</li>
-                      <li>Click the <b>Choose file</b> button to load your multiple columns .CSV file
-                          <div><b>Sample .csv file:</b></div>
-                          <div style="font-family: courier">
-                              <b><span class="sample">phone number</span>,<span class="sample">name,<span class="sample">datetime,<span class="sample">doctor</span>,<span class="sample">location</span></b></br>
-                              <div><span class="sample">+14084567890</span>,<span class="sample">Samuel</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Rich Edisson, MD"</span>,<span class="sample">Santa Clara hospital</span></div>
-                              <div><span class="sample">+11234567890</span>,<span class="sample">Ted</span>,<span class="sample">2020/12/16 08:00</span>,<span class="sample">"Bruce Lewis, DO"</span>,<span class="sample">Mountain View hospital</span></div>
-                              <div><span class="sample">+14087654322</span>,<span class="sample">Anna</span>,<span class="sample">2020/12/16 10:00</span>,<span class="sample">Leo Hudson, PhD</span>,<span class="sample">Mountain View hospital</span></div>
-                              <div><span class="sample">+16501234567</span>,<span class="sample">Jen</span>,<span class="sample">2020/12/16 14:00</span>,<span class="sample">"Brad Willis, MD"</span>,<span class="sample">"Stanford Health Care Center. Bld #3, 5th floor"</span></div>
-                          </div>
-                      </li>
-                      <li>Enter the phone number column name to the "Recipient's number column" field</li>
-                      <li>Compose the SMS message. Click a CSV column to automatically fill the message. Read the "Sample message" to see a example message. E.g.
-                        <div><b>Text input:</b> Hello {name}. Your appointment with Dr. {doctor} will be due on {datetime} at {location}</div>
-                        <div><b>Sample:</b> <span style="color: blue">Hello Samuel. Your appointment with Dr. Rich Edisson, MD will be due on 2020/12/16 08:00 at Santa Clara hospital</span></div>
-                      </li>
-                      <li>Click the <b>Submit</b> button to send</li>
-                  </ol>
-                </div>
+              <h4>B/ Manually</h4>
+              <div>Enter recipient phone numbers separated by a new line</div>
+            </li>
+            <li><p>Compose the SMS message. If your .CSV file contain template, click a CSV column to fill the message. Read the "Sample message" to see an example message. E.g.</p>
+              <span>| <a href="#">name</a> | <a href="#">datetime</a> | <a href="#">doctor</a> | <a href="#">location</a> |</span>
+              <div style="width:680px;margin:10px">
+                <p class="help-message">Hello {name}. Your appointment with Dr. {doctor} is scheduled for {datetime} at {location}</p>
+                <p class="help-message right">Hello Samuel. Your appointment with Dr. Rich Edisson, MD is scheduled for 2020/12/16 08:00 at Santa Clara hospital</p>
               </div>
-            </div>
-            <div class="col-sm-4"></div>
-          </div>
-          <div class="col-xs-12">
-            Get the project's source code from <a target="_blank" href="https://github.com/PacoVu/ringcentral-send-tollfree-sms/tree/combined">Github repo</a>
-          </div>
-      </section>
-      <%- include('_footer') %>
-    </body>
+            </li>
+            <div style="clear:both"></div>
+            <li>If you want to send a survey, select the <b>Request response</b> option to specify response and auto-reply message</li>
+            <li>Review the message and other related information shown on the right-hand side</li>
+            <li>Click the <b>Submit</b> button to send</li>
+          </ol>
+        </div>
+        <div id="message-store" class="col-lg-12" style="margin-top: 20px;display: none">
+          <h3>Conversations</h3>
+          <p>By default, the app will read your message store for the period of last 24 hours.</p>
+          <ol>
+            <li>Select a period of time or specify the date range</li>
+            <li>Select phone number from the <b>From number</b> dropdown list</li>
+            <li>Select a direction</li>
+            <li><p>Select "All conversations" to see all messges between you and all customers. You can reply to a customer directly by clicking the "reply" link next to the inbound message!</p></li>
+            <li>Select a number/name to see the conversation between you and the selected customer. You can chat with the selected customer in this mode.</li>
+          </ol>
+        </div>
+        <div id="settings-help" class="col-lg-12" style="margin-top: 20px;display: none">
+          <h3>Settings</h3>
+          <h4>I/ Upload your contacts</h4>
+          <p>Upload your contacts will improve the user experience. Contact's name will be used in the "Conversations" list</p>
+          <ol>
+            <li>Load a .CSV file which contains contacts' phone number, fist name and last name</li>
+            <li>Click the column name to fill the "Number", "First name" and "Last name" fields accordingly</li>
+            <li>Click the "Upload" button to import</li>
+          </ol>
+          <h4>II/ Setup your webhook</h4>
+          <p>Setup your webhook will allow the app to push campaign report and survey result directly to your server.</p>
+          <ol>
+            <li>Provide your full webhook URL</li>
+            <li>Specify the header name</li>
+            <li>Specify the header value (a.k.a your API key). You can generate the random API key by clicking the "Generate random value" button.</li>
+          </ol>
+          <p>If you don't want to receive the campaign data anymore, simply delete the webhook data.</p>
+        </div>
+      </div>
+  </section>
+  <%- include('_footer') %>
+</body>
 </html>

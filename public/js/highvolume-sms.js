@@ -1,64 +1,45 @@
-/*
-var errorCodes = {}
-errorCodes["SMS-UP-410"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
-errorCodes["SMS-UP-430"] = "Spam content detected by SMS gateway."
-errorCodes["SMS-UP-431"] = "Number blacklisted due to spam."
-errorCodes["SMS-UP-500"] = "General SMS gateway error. Upstream is malfunctioning."
-errorCodes["SMS-CAR-104"] = "Carrier has not reported delivery status."
-errorCodes["SMS-CAR-199"] = "Carrier reports unknown message status."
-errorCodes["SMS-CAR-400"] = "Carrier does not support this kind of messaging."
-errorCodes["SMS-CAR-411"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
-errorCodes["SMS-CAR-412"] = "Destination subscriber unavailable."
-errorCodes["SMS-CAR-413"] = "Destination subscriber opted out."
-errorCodes["SMS-CAR-430"] = "Spam content detected by mobile carrier."
-errorCodes["SMS-CAR-431"] = "Message rejected by carrier with no specific reason."
-errorCodes["SMS-CAR-432"] = "Message is too long."
-errorCodes["SMS-CAR-433"] = "Message is malformed for the carrier."
-errorCodes["SMS-CAR-450"] = "P2P messaging volume violation."
-errorCodes["SMS-CAR-460"] = "Destination rejected short code messaging."
-errorCodes["SMS-CAR-500"] = "Carrier reported general service failure."
-errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
-errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
-errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
-errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
-*/
 var campaignList = undefined
 var voteReportList = undefined
 var selectedCampaign = null
+var selectedBatchId = ""
 var pollingBatchReport = null
 var loaded = 0
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
   var height = $(window).height() - $("#footer").outerHeight(true);
-    window.onresize = function() {
-        height = $(window).height() - $("#footer").outerHeight(true)
-        var swindow = height - $("#menu_header").outerHeight(true)
-        $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
-        var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
-        $("#history-list").height(swindow - upperBlock)
-
-        $("#menu-pane").height(swindow)
-        $("#control-block").height(swindow)
-        $("#creation-pane").height(swindow)
-    }
-    var swindow = height - $("#menu_header").height()
-
+  window.onresize = function() {
+    var height = $(window).height() - $("#footer").outerHeight(true);
+    var swindow = height - $("#menu_header").outerHeight(true)
     $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
-
     var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
     $("#history-list").height(swindow - upperBlock)
 
     $("#menu-pane").height(swindow)
     $("#control-block").height(swindow)
     $("#creation-pane").height(swindow)
+  }
+  var swindow = height - $("#menu_header").height()
+
+  $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
+
+  var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
+  $("#history-list").height(swindow - upperBlock)
+
+  $("#menu-pane").height(swindow)
+  $("#control-block").height(swindow)
+  $("#creation-pane").height(swindow)
+  //rejected-list-block
   selectedCampaign = null
+  $(`#${mainMenuItem}`).removeClass("active")
+  mainMenuItem = "campaign-new"
+  $(`#${mainMenuItem}`).addClass("active")
 }
 
 function onloaded(){
-   //alert("onloaded")
   loaded++
-  if (loaded == 3)
+  if (loaded == 3){
     readCampaigns()
+  }
 }
 
 function readCampaigns(){
@@ -71,75 +52,12 @@ function readCampaigns(){
       //alert(JSON.stringify(res))
       campaignList = res.campaigns
       voteReportList = res.voteReports
-      //alert(JSON.stringify(voteReportList))
-      if (campaignList.length == 0){
+      if (campaignList.length == 0)
         createNewCampaign()
-      }
-      var timeOffset = new Date().getTimezoneOffset()*60000;
-      var html = ""
-      var i = 0
-      for (var item of campaignList) {
-        var date = new Date(item.creationTime)
-        var timestamp = item.creationTime - timeOffset
-        date = new Date (timestamp)
-        var dateStr = date.toISOString()
-        dateStr = dateStr.replace("T", " ").substring(0, 16)
+      else
+        $("#history").show()
 
-        html += `<div id="${i}" class="row col-lg-12 history-item" onclick="readCampaignById(this, '${item.batchId}')">`
-        html += `<div class="row col-lg-3">${item.campaignName}</div>`
-        html += `<div class="col-lg-2">${dateStr}</div>`
-        //html +=  `<div class="col-lg-1">${item.totalCount}</div>`
-        html += `<div class="col-lg-1">${item.deliveredCount}/${item.totalCount}</div>`
-        html += `<div class="col-lg-1">${item.unreachableCount}/${item.totalCount}</div>`
-        if (item.type == "vote"){
-          html += `<div class="col-lg-1">Survey</div>`
-        }else if (item.type == "group")
-          html += `<div class="col-lg-1">Broadcast</div>`
-        else if (item.type == "customized")
-          html += `<div class="col-lg-1">Tailored</div>`
-        else
-          html += `<div class="col-lg-1">Toll-Free</div>`
-        /*
-        if (item.live == true)
-          html += `<div class="col-lg-1">Pending</div>`
-        else
-          html += `<div class="col-lg-1">Completed</div>`
-        */
-        // mashup with vote result
-        var found = false
-        for (var service of voteReportList){
-          var vote = service.campaigns.find(o => o.batchId === item.batchId)
-          if (vote){
-            html += `<div class="col-lg-2">${vote.status}</div>`
-            found = true
-            break
-          }
-        }
-
-        if (!found){
-          if (item.type == "vote")
-            html += `<div class="col-lg-2">Deleted</div>`
-          else
-            html += `<div class="col-lg-2">N/A</div>`
-        }
-
-        html += `<div class="col-lg-2">${item.totalCost.toFixed(3)}</div>`
-        html += "</div>"
-        i++
-      }
-      //alert(html)
-      $("#history-list").html(html)
-      //readCampaign($("#0"), campaigns[0].batchId, campaigns[0].creationTime, campaigns[0].campaign)
-      selectedCampaign = $("#0")
-      $(selectedCampaign).addClass("active");
-      var recentVote = undefined
-      for (var service of voteReportList){
-        recentVote = service.campaigns.find(o => o.batchId === res.recentBatch.batchId)
-        if (recentVote)
-          break
-      }
-      displaySelectedCampaign(res.recentBatch, recentVote)
-
+      listAllCampaigns(res.recentBatch)
     }else if (res.status == "failed") {
       alert(res.message)
       window.location.href = "login"
@@ -149,66 +67,39 @@ function readCampaigns(){
   });
 }
 
-function displaySelectedCampaign(batchReport, voteReport){
-  //alert(JSON.stringify(batchReport))
-  var timeOffset = new Date().getTimezoneOffset()*60000;
-  var timestamp = batchReport.creationTime - timeOffset
-  var createdDate = new Date (timestamp)
-  var createdDateStr = createdDate.toISOString()
-  createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-  $("#campaign-title").html(batchReport.campaignName)
-  var report = `<div>`
-  report += `<div class="info-line"><img class="icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
-  report += `<div class="info-line"><img class="icon" src="../img/sender.png"></img> ${formatPhoneNumber(batchReport.serviceNumber)}</div>`
-  report += `<div class="info-line"><img class="icon" src="../img/recipient.png"></img> ${batchReport.totalCount} recipients </div>`
+function readCampaignById(elm, batchId){
+  if (selectedCampaign != null)
+      $(selectedCampaign).removeClass("active");
+  $(elm).addClass("active");
+  selectedCampaign = elm
 
-  report += `<div class="info-line"><img class="icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
-  var msg = (batchReport.message.length > 50) ? (batchReport.message.substring(0, 50) + "...") : batchReport.message
-  report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
+  // read from local memory
+  var campaign = campaignList.find(o => o.batchId == batchId)
+  selectedBatchId = batchId
 
-  $("#campaign-details").html(report)
-
-  var params = [];
-  var arr = ['Results', '#', { role: "style" } ];
-  params.push(arr);
-  var item = ["Pending", batchReport.queuedCount, "#ffffff"];
-  params.push(item);
-  item = ["Delivered", batchReport.deliveredCount, "#2f95a5"]
-  params.push(item);
-  item = ["Failed", batchReport.unreachableCount, "#f04b3b"]
-  params.push(item);
-
-  plotBatchReport(params)
-  // display vote report
-  if (batchReport.type == "vote"){
-    $("#vote-report").show()
-    if (voteReport == undefined){
-      $("#vote-result").html("")
-      $("#vote-details").html("This survey result has been deleted.")
-    }else{
-      $("#vote-report").show()
-      $("#vote-details").html(createVoteReport(voteReport))
-      plotVoteResult(voteReport.voteResults)
-    }
+  //return readCampaignFromServer(campaign)
+  if (campaign && campaign.sentCount > 0){
+    readCampaignFromServer(campaign)
   }else{
-    $("#vote-report").hide()
-  }
-  //alert(campaign.batchSummaryReport.live)
-  if (batchReport.live == true || voteReport.status == "Active"){
-    pollingBatchReport = window.setTimeout(function(){
-      pollVoteResultById(batchReport, batchReport.batchId)
-    }, 2000)
+    displaySelectedCampaign(campaign)
   }
 }
 
-function pollVoteResultById(campaign, batchId){
-  var url = `read-campaign-summary?batchId=${batchId}`
+function readCampaignFromServer(campaign){
+  if (pollingBatchReport)
+    window.clearTimeout(pollingBatchReport)
+  var url = `read-campaign-summary?batchId=${campaign.batchId}`
   var getting = $.get( url );
   getting.done(function( res ) {
       if (res.status == "ok"){
-        //var fromNumber = createDetailedReport(res.fullReport)
-        //updateVoteResult(campaign, res.voteReport)
-        displaySelectedCampaign(campaign, res.voteReport)
+        var batchReport = res.batchReport
+        console.log(batchReport)
+        campaign.queuedCount = batchReport.queuedCount
+        campaign.deliveredCount = batchReport.deliveredCount
+        campaign.sentCount = batchReport.sentCount
+        campaign.unreachableCount = batchReport.unreachableCount
+        campaign.totalCost = batchReport.totalCost
+        listAllCampaigns(undefined)
       }else if (res.status == "failed") {
         alert(res.message)
         window.location.href = "login"
@@ -218,69 +109,153 @@ function pollVoteResultById(campaign, batchId){
   });
 }
 
-function createVoteReport(voteReport){
-  //alert(JSON.stringify(voteReport))
-  var report = "<div>"
-  var status = "Status: response period is closed"
-  if (voteReport.status == "Completed"){
-    status = "Campaign is completed."
-  }else if(voteReport.status == "Active"){
-    var now = new Date().getTime()
-    var expire = voteReport.endDateTime - now
-    if (expire >= 0){
-      status = "Response period expires in " + formatSendingTime(expire/1000)
-      reload = true
-    }else{
-      status = "Response period is closed"
-    }
-  }
-  report += `<div class="info-line"><img class="icon" src="../img/status.png"></img> ${status}</div>`
-  /*autoReplyMessages: {},
-  autoReply: false, //body.auto_reply,
-  allowCorrection: allowCorrection,
-  voteCommands: [],
-  */
-  report += `<div class="info-line"><img class="icon" src="../img/unreachable.png"></img> ${voteReport.voteCounts.Unreachable} unreached</div>`
-  report += `<div class="info-line"><img class="icon" src="../img/replied.png"></img> ${voteReport.voteCounts.Replied} / ${voteReport.voteCounts.Delivered} replied</div>`
-  if (voteReport.status != "Active"){
-    report += `<p><img class="icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
-  }
-  report += `<div class="info-line"><a href="javascript:downloadCampaignResult('${voteReport.batchId}','${voteReport.serviceNumber}')">Download Result</a> | `
-  report += `<a href="javascript:deleteCampaignResult('${voteReport.batchId}')">Delete Result</a></div>`
-  report += "</div>"
-  return report
-}
+function listAllCampaigns(recentBatch){
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+  var html = ""
+  for (var item of campaignList) {
+    var date = new Date(item.creationTime)
+    var timestamp = item.creationTime - timeOffset
+    date = new Date (timestamp)
+    var dateStr = date.toISOString()
+    dateStr = dateStr.replace("T", " ").substring(0, 16)
 
-function readCampaignById(elm, batchId){
-  if (pollingBatchReport)
-    window.clearTimeout(pollingBatchReport)
+    html += `<div id="${item.batchId}" class="row col-lg-12 history-item" onclick="readCampaignById(this, '${item.batchId}')">`
+    html += `<div class="row col-lg-3">${item.campaignName}</div>`
+    html += `<div class="col-lg-2">${dateStr}</div>`
+    html += `<div class="col-lg-1">${item.totalCount}</div>`
+    if (item.type == "vote"){
+      html += `<div class="col-lg-1">Survey</div>`
+    }else if (item.type == "group")
+      html += `<div class="col-lg-1">Broadcast</div>`
+    else if (item.type == "customized")
+      html += `<div class="col-lg-1">Tailored</div>`
+    else
+      html += `<div class="col-lg-1">Toll-Free</div>`
 
-  if (selectedCampaign != null)
-      $(selectedCampaign).removeClass("active");
-  $(elm).addClass("active");
-  selectedCampaign = elm
-
-  // read from local memory
-  var campaign = campaignList.find(o => o.batchId == batchId)
-  if (campaign && campaign.type != "vote"){
-    displaySelectedCampaign(campaign, undefined)
-  }else{
-    var url = `read-campaign-summary?batchId=${batchId}`
-    var getting = $.get( url );
-    getting.done(function( res ) {
-      if (res.status == "ok"){
-        //var fromNumber = createDetailedReport(res.fullReport)
-        displaySelectedCampaign(campaign, res.voteReport)
-      }else if (res.status == "failed") {
-        alert(res.message)
-        window.location.href = "login"
-      }else{
-        alert(res.message)
+    // mashup with vote result
+    var found = false
+    for (var vote of voteReportList){
+      if (vote.batchId == item.batchId){
+        html += `<div class="col-lg-2">${vote.status}</div>`
+        found = true
+        break
       }
-    });
+    }
+    if (!found){
+      if (item.type == "vote"){
+        if (item.voteReport){
+          html += `<div class="col-lg-2">${item.voteReport.status}</div>`
+        }else
+          html += `<div class="col-lg-2">Deleted</div>`
+      }else
+        html += `<div class="col-lg-2">--</div>`
+    }
+    var cost = item.totalCost
+    if (item.hasOwnProperty('voteReport'))
+      cost += item.voteReport.voteCounts.Cost
+
+    if (cost < 1.00)
+      cost = cost.toFixed(3)
+    else if (cost < 10.00)
+      cost = cost.toFixed(2)
+    else
+      cost = cost.toFixed(1)
+    html += `<div class="col-lg-2">${cost} USD</div>`
+    if (item.sentCount > 0){
+      var total = item.sentCount + item.deliveredCount
+      var percent = (item.deliveredCount/total) * 100
+      percent = percent.toFixed(0)
+      html += `<div class="col-lg-1">${percent}%</div>`
+    }else
+      html += `<div class="col-lg-1">100%</div>`
+    html += "</div>"
+  }
+  $("#history-list").html(html)
+
+  var recentVote = undefined
+  if (selectedBatchId != ""){
+    recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
+    //recentVote = voteReportList.find(o => o.batchId === selectedBatchId)
+  //}else if (recentBatch){
+  //  recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+  }else{
+    recentBatch = campaignList[0]
+    //recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+  }
+  // extra check
+  //if (!recentVote)
+  //  recentVote = recentBatch.voteReport
+  selectedBatchId = recentBatch.batchId
+  selectedCampaign = $(`#${selectedBatchId}`)
+  $(selectedCampaign).addClass("active");
+  displaySelectedCampaign(recentBatch)
+
+  //if (isAnyLiveCampaign() || isAnyActiveVote()){
+  if (isAnyActiveVote()){
+    pollingBatchReport = window.setTimeout(function(){
+      readCampaigns()
+    }, 2000)
   }
 }
 
+
+function displaySelectedCampaign(batchReport){
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+  var timestamp = batchReport.creationTime - timeOffset
+  var createdDate = new Date (timestamp)
+  var createdDateStr = createdDate.toISOString()
+  createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
+  //$("#campaign-title").html(batchReport.campaignName)
+  var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
+  var title = `<label class="label-input">${label}</label><span>${batchReport.campaignName}</span>`
+  $("#campaign-title").html( title )
+  var report = `<div>`
+  report += `<div class="info-line"><img class="medium-icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
+  report += `<div class="info-line"><img class="medium-icon" src="../img/sender.png"></img> ${formatPhoneNumber(batchReport.serviceNumber)}</div>`
+  report += `<div class="info-line"><img class="medium-icon" src="../img/recipient.png"></img> ${batchReport.totalCount} recipients </div>`
+
+  report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
+  var msg = (batchReport.message.length > 50) ? (batchReport.message.substring(0, 50) + "...") : batchReport.message
+  report += `<p class="info-line"><img class="medium-icon" src="../img/message.png"></img> ${msg}</p>`
+
+  $("#campaign-details").html(report)
+
+  var params = [];
+  var arr = ['Results', '#'];
+  params.push(arr);
+  var item = ["Pending", batchReport.queuedCount];
+  params.push(item);
+  item = ["Sent", batchReport.sentCount]
+  params.push(item);
+  item = ["Delivered", batchReport.deliveredCount]
+  params.push(item);
+  item = ["Failed", batchReport.unreachableCount]
+  params.push(item);
+
+  plotBatchReport(params)
+  // display vote report
+  var archived = false
+  if (batchReport.type == "vote"){
+    var voteReport = voteReportList.find(o => o.batchId === batchReport.batchId)
+    if (!voteReport){
+      archived = true
+      recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
+      voteReport = batchReport.voteReport
+    }
+
+    $("#vote-report").show()
+    if (voteReport == undefined){
+      $("#vote-result").html("")
+      $("#vote-details").html("This survey result has been deleted.")
+    }else{
+      $("#vote-report").show()
+      $("#vote-details").html(createVoteReport(voteReport, archived))
+      plotVoteResult(voteReport.voteResults)
+    }
+  }else{
+    $("#vote-report").hide()
+  }
+}
 
 function plotBatchReport(params){
     var data = google.visualization.arrayToDataTable(params);
@@ -289,11 +264,14 @@ function plotBatchReport(params){
       title: 'Campaign report',
       width: 265,
       height: 150,
-      colors: ['#f04b3b', '#2f95a5', '#ffffff'],
+      slices: {0: {color: '#ffffff'}, 1:{color: '#2280c9'}, 2:{color: '#2f95a5'}, 3: {color: '#f04b3b'}},
       backgroundColor: 'transparent',
       legend: {
-        position: "right"
-      }
+        position: "right",
+        //position: 'labeled',
+        //labeledValueText: 'both',
+      },
+      pieSliceText: 'value'
     };
 
     var elm = `campaign-result`
@@ -302,34 +280,60 @@ function plotBatchReport(params){
     chart.draw(view, options);
 }
 
+function createVoteReport(voteReport, archived){
+  var report = "<div>"
+  var status = "Status: response period is closed"
+  if (voteReport.status == "Completed"){
+    status = "Survey is completed."
+  }else if(voteReport.status == "Closed"){
+    status = "Survey is closed."
+  }else{
+    var now = new Date().getTime()
+    var expire = voteReport.endDateTime - now
+    if (expire >= 0){
+      status = "Response period expires in " + formatSendingTime(expire/1000)
+      reload = true
+    }else{
+      status = "Survey is closed."
+    }
+  }
+  if (voteReport.status == "Completed")
+    report += `<div class="info-line"><img class="medium-icon" src="../img/completed.png"></img> ${status}</div>`
+  else if (voteReport.status == "Closed")
+    report += `<div class="info-line"><img class="medium-icon" src="../img/closed.png"></img> ${status}</div>`
+  else
+    report += `<div class="info-line"><img class="medium-icon" src="../img/status.png"></img> ${status}</div>`
+
+  report += `<div class="info-line"><img class="medium-icon" src="../img/unreachable.png"></img> ${voteReport.voteCounts.Unreachable} unreached</div>`
+  report += `<div class="info-line"><img class="medium-icon" src="../img/replied.png"></img> ${voteReport.voteCounts.Replied} / ${voteReport.voteCounts.Delivered} replied</div>`
+  report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${voteReport.voteCounts.Cost.toFixed(3)}</div>`
+  if (!archived){
+    if (voteReport.status != "Active"){
+      report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
+    }
+    report += `<div class="info-line"><a href="javascript:downloadCampaignResult('${voteReport.batchId}','${voteReport.serviceNumber}')">Download Result</a> | `
+    report += `<a href="javascript:deleteCampaignResult('${voteReport.batchId}')">Delete Result</a></div>`
+  }
+  report += "</div>"
+  return report
+}
+
 function plotVoteResult(result){
     var params = [];
     //var color = ['#f04b3b', '#2f95a5', '#ffffff']
     var colors = ['#138B8C', '#134B8C', '#FFC300']
-    var arr = ['Survey result', '#', { role: "style" } ];
+    var arr = ['Vote', '#', { role: 'annotation'}, { role: "style" }];
     params.push(arr);
     var i = 0
     for (var key of Object.keys(result)){
-      var item = [key, result[key], colors[i]];
-      //var item = [key, result[key], ""];
+      var item = [key, result[key], `${result[key]}`, colors[i]];
       params.push(item);
       i++
     }
-
     var data = google.visualization.arrayToDataTable(params);
     var view = new google.visualization.DataView(data);
-    /*
-    view.setColumns([0, 1,
-                    { calc: "stringify",
-                       sourceColumn: 1,
-                       type: "string",
-                       role: "annotation"
-                    },
-                    2]);
-    */
-
     var options = {
-      title: params[0][0],
+      title: "Survey result",
       vAxis: {minValue: 0},
       hAxis: {minValue: 0},
       width: 240,
@@ -338,28 +342,53 @@ function plotVoteResult(result){
       legend: { position: "none" },
       backgroundColor: 'transparent'
     };
-    /*
-    var options = {
-      title: 'Survey result',
-      width: 265,
-      height: 150,
-      colors: ['#138B8C', '#134B8C', '#FFC300'],
-      backgroundColor: 'transparent',
-      legend: {
-        position: "right"
-      }
-    };
-    */
 
     var element = document.getElementById(`vote-result`)
     var chart = new google.visualization.ColumnChart(element);
-    //var chart = new google.visualization.PieChart(element);
     chart.draw(view, options);
 }
 
-function downloadReport(format){
+function isAnyActiveVote(){
+  for (var vote of voteReportList){
+    if (vote.status === "Active"){
+      return true
+    }
+  }
+  return false
+}
+
+function isAnyLiveCampaign(){
+  for (var campaign of campaignList){
+    if (campaign.live){
+      return true
+    }
+  }
+  return false
+}
+
+function isAllSentCampaign(){
+  for (var campaign of campaignList){
+    if (campaign.sentCount > 0){
+      return true
+    }
+  }
+  return false
+}
+
+function deleteCampaignResult(batchId){
+  var url = `deletecampainresult?batchId=${batchId}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      readCampaigns()
+    else
+      alert(res.message)
+  });
+}
+
+function downloadCampaignResult(batchId, serviceNumber){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = "downloadbatchreport?format=" + format + "&timeOffset=" + timeOffset
+  var url = `downloadcampainresult?batchId=${batchId}&timeOffset=${timeOffset}&serviceNumber=${serviceNumber}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
@@ -368,3 +397,19 @@ function downloadReport(format){
       alert(res.message)
   });
 }
+/*
+
+function downloadReport(format){
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+  var url = "downloadbatchreport?format=" + format + "&timeOffset=" + timeOffset
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      window.location.href = res.message
+    else{
+      console.log(res.message)
+      alert(res.message)
+    }
+  });
+}
+*/

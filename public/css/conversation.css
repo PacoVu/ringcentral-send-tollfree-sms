@@ -233,14 +233,14 @@
 
 .chat-container li.chat-right > .chat-avatar {
     margin-left: 20px;
-    margin-right: 0;
+    margin-right: -5px;
 }
 
 .chat-container li .chat-name {
     /*font-size: .75rem;*/
     margin-left: -10px;
     font-size: 0.75em;
-    color: #185D99;/*#f5f0f0;*/
+    color: #717171;/*#f5f0f0; 185D99*/
     text-align: left;
 }
 
@@ -249,8 +249,9 @@
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
     border-radius: 4px;
-    color: #2d3444;
-    font-family: Arial, Helvetica, sans-serif;
+    /*color: #2d3444;*/
+    color: #4a66ab;
+    /*font-family: sans-serif, Helvetica, Arial;*/
     background: #f3f2f3; /*D1DFFA;#ffff00;*/
     /*font-weight: 300;*/
     line-height: 180%;
@@ -270,14 +271,14 @@
 
 .chat-container li.chat-right > .chat-text {
     text-align: right;
-    background-color: #f3f2f3; /*#2559e4;*/
-    font-family: Arial, Helvetica, sans-serif;
-    color: #2d3444;
+    background-color: #d3f0fd; /*#2559e4;*/
+    /*font-family: sans-serif, Helvetica, Arial;*/
+    color: #4a66ab;
 }
 
 .chat-container li.chat-right > .chat-text:before {
     right: -20px;
-    border-color: transparent transparent transparent #f3f2f3; /*ffffff-chat box*/
+    border-color: transparent transparent transparent #d3f0fd; /*ffffff-chat box*/
     left: inherit;
 }
 
@@ -376,7 +377,7 @@ ul {
 
 .date-line {
   font-size: 0.9em;
-  color: #185D99;;/*#f5f0f0;*/
+  color: #717171; /*#185D99;#f5f0f0;*/
   align-items: center;
   justify-content: center;
   text-align: center;

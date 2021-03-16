@@ -88,9 +88,9 @@ RCPlatform.prototype = {
     //query += " VALUES ($1,$2,$3,$4,$5)"
     //console.log(tokenStr)
     //var values = [this.extensionId,"","","",tokenStr]
-    var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
-    query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
-    var values = [this.extensionId, "", "", "", "", "", "", tokenStr]
+    var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
+    query += " VALUES ($1,$2,$3,$4,$5,$6,$7)"
+    var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr]
     query += " ON CONFLICT (user_id) DO UPDATE SET access_tokens='" + tokenStr + "'"
     //console.log(query)
     pgdb.insert(query, values, (err, result) =>  {

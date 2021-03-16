@@ -20,13 +20,13 @@ errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
 errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
 errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
 errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
-
+var loaded = 0
 var campaignList = []
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
   var height = $(window).height() - $("#footer").outerHeight(true)
     window.onresize = function() {
-        height = $(window).height() - $("#footer").outerHeight(true)
+        var height = $(window).height() - $("#footer").outerHeight(true)
         var swindow = height - $("#menu_header").height()
         $("#campaign-list-col").height(swindow)
         $("#campaign-list").height(swindow - $("#campaign-list-header").height() - 20)
@@ -40,9 +40,74 @@ function init(){
     $("#menu-pane").height(swindow)
     var upperBlock = $("#details-header").outerHeight(true) +  $("#report-content-header").outerHeight(true) + 50
     $("#report-content").height(swindow - upperBlock)
+    $(`#${mainMenuItem}`).removeClass("active")
+    mainMenuItem = "campaign-log"
+    $(`#${mainMenuItem}`).addClass("active")
+}
 
-    campaignList = JSON.parse(window.campaigns)
-    //var campaign = campaignList[0]
+function onloaded(){
+  loaded++
+  if (loaded == 2){
+    loaded = 4
+    readCampaigns()
+  }
+}
+
+function readCampaigns(){
+  var url = "/read-campaigns"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      //alert(JSON.stringify(res))
+      campaignList = res.campaigns
+      if (campaignList.length == 0)
+        ;//createNewCampaign()
+      listAllCampaigns()
+    }else if (res.status == "failed") {
+      alert(res.message)
+      window.location.href = "login"
+    }else{
+      alert(res.message)
+    }
+  });
+}
+
+//<div class="campaign-item" onclick="readCampaign(this, '<%- item.batchId %>')"><%= item.campaignName %></div>
+function listAllCampaigns(){
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+  var html = ""
+  for (var item of campaignList) {
+    /*
+    var date = new Date(item.creationTime)
+    var timestamp = item.creationTime - timeOffset
+    date = new Date (timestamp)
+    var dateStr = date.toISOString()
+    dateStr = dateStr.replace("T", " ").substring(0, 16)
+    */
+    html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign(this, '${item.batchId}')">${item.campaignName}</div>`
+  }
+  $("#campaign-list").html(html)
+/*
+  var recentVote = undefined
+  if (selectedBatchId != ""){
+    recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
+    //recentVote = voteReportList.find(o => o.batchId === selectedBatchId)
+  //}else if (recentBatch){
+  //  recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+  }else{
+    recentBatch = campaignList[0]
+    //recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+  }
+  // extra check
+  //if (!recentVote)
+  //  recentVote = recentBatch.voteReport
+  selectedBatchId = recentBatch.batchId
+  selectedCampaign = $(`#${selectedBatchId}`)
+  $(selectedCampaign).addClass("active");
+  displaySelectedCampaign(recentBatch)
+*/
+  var batchId = campaignList[0].batchId
+  readCampaign($(`#${batchId}`), batchId)
 }
 
 var currentSelectedItem = undefined
@@ -62,7 +127,6 @@ function readCampaign(elm, batchId){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      //createDetailedReport(res.fullReport)
       createFullReport(res.fullReport)
       var batchReport = res.summaryReport
       var timeOffset = new Date().getTimezoneOffset()*60000;
@@ -70,7 +134,10 @@ function readCampaign(elm, batchId){
       var createdDate = new Date (timestamp)
       var createdDateStr = createdDate.toISOString()
       createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-      $("#campaign-title").html(campaign.campaignName)
+      //$("#campaign-title").html("Selected campaign: <p>" + campaign.campaignName + "</p>")
+      //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
+      var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;<a href="javascript:downloadBatchReport('${batchReport.batchId}')">Download report</a>`
+      $("#campaign-title").html( title )
       var report = `<div>`
       report += `<div class="info-line"><img class="icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
       report += `<div class="info-line"><img class="icon" src="../img/sender.png"></img> ${formatPhoneNumber(campaign.serviceNumber)}</div>`
@@ -80,28 +147,26 @@ function readCampaign(elm, batchId){
       var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
       report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
 
+      //report += `<div class="info-line"><a href="javascript:downloadBatchReport('${batchReport.batchId}')">Download report</a></div>`
+      //report += `<a href="javascript:deleteCampaignResult('${batchReport.batchId}')">Delete Campaign</a></div>`
+
       report += "</div>"
       $("#campaign-details").html(report)
       var params = [];
-      var arr = ['Results', '#', { role: "style" } ];
+      var arr = ['Results', '#'];
       params.push(arr);
-      var item = ["Pending", batchReport.queuedCount, "#f04b3b"];
-      params.push(item);
-      item = ["Delivered", batchReport.deliveredCount, "#2f95a5"]
-      params.push(item);
-      item = ["Sending Failed", batchReport.sendingFailedCount, "white"]
-      params.push(item);
-      item = ["Delivery Failed", batchReport.deliveryFailedCount, "white"]
-      params.push(item);
 
+      var item = ["Pending", batchReport.queuedCount];
+      params.push(item);
+      item = ["Sent", batchReport.sentCount]
+      params.push(item);
+      item = ["Delivered", batchReport.deliveredCount]
+      params.push(item);
+      item = ["Sending Failed", batchReport.sendingFailedCount]
+      params.push(item);
+      item = ["Delivery Failed", batchReport.deliveryFailedCount]
+      params.push(item);
       plotBatchReport(params)
-
-      $("#downloads").show()
-      //$("#download_json").css('display', 'block');
-      //$("#download_csv").css('display', 'block');
-      //$("#campaign-report").css('display', 'block');
-      $("#campaign-report").show()
-      //createFullReport(res.fullReport)
     }else if (res.status == "failed") {
       alert(res.message)
       window.location.href = "login"
@@ -109,9 +174,6 @@ function readCampaign(elm, batchId){
       alert(res.message)
     }
   });
-}
-function onloaded(){
-   //alert("onloaded")
 }
 
 function createFullReport(fullReports){
@@ -126,20 +188,16 @@ function createFullReport(fullReports){
     var updatedDateStr = updatedDate.toISOString()
     updatedDateStr = updatedDateStr.replace("T", " ").substring(0, 19)
 
-    //var updatedDateStr = updatedDate.toLocaleDateString("en-US")
-    //updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
     var cost = (item.hasOwnProperty('cost')) ? item.cost : "0.000"
     var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : "-"
     if (item.messageStatus == "SendingFailed" || item.messageStatus == "DeliveryFailed")
       html += "<div class='row col-lg-12 error small_font'>"
     else
       html += "<div class='row col-lg-12 small_font'>"
-    //html += `<div class="col-sm-1 hasborder">${item.id}</div>`
-    //html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.from)}</div>`
-    html += `<div class="col-sm-2 hasborder">${formatPhoneNumber(item.to[0])}</div>`
+    html += `<div class="col-lg-2 hasborder">${formatPhoneNumber(item.to[0], true)}</div>`
 
-    html += `<div class="col-sm-3 hasborder">${updatedDateStr}</div>`
-    html += `<div class="col-sm-2 hasborder">${item.messageStatus}</div>`
+    html += `<div class="col-lg-3 hasborder">${updatedDateStr}</div>`
+    html += `<div class="col-lg-2 hasborder">${item.messageStatus}</div>`
     var errorCode = "-"
     var errorDes = "-"
     if (item.hasOwnProperty('errorCode')){
@@ -149,19 +207,17 @@ function createFullReport(fullReports){
           errorDes = errorCodes[key]
       }
     }
-    //html += `<div class="col-sm-2 hasborder" title="${errorDes}">${errorCode}</div>`
-    html += `<div class="col-sm-3 hasborder">${errorDes}</div>`
-    html += `<div class="col-sm-1 hasborder">$${cost}</div>`
-    html += `<div class="col-sm-1 hasborder">${segmentCount}</div>`
+    html += `<div class="col-lg-3 hasborder">${errorDes}</div>`
+    html += `<div class="col-lg-1 hasborder">$${cost}</div>`
+    html += `<div class="col-lg-1 hasborder">${segmentCount}</div>`
     html += "</div>"
   }
   $("#report-content").html(html)
-  //return fromNumber
 }
 
-function downloadReport(format){
+function downloadBatchReport(batchId){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = "downloadbatchreport?format=" + format + "&timeOffset=" + timeOffset
+  var url = `downloadbatchreport?batchId=${batchId}&timeOffset=${timeOffset}`
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
@@ -174,87 +230,22 @@ function downloadReport(format){
 function plotBatchReport(params){
     var data = google.visualization.arrayToDataTable(params);
     var view = new google.visualization.DataView(data);
-    view.setColumns([0, 1,
-                    { calc: "stringify",
-                       sourceColumn: 1,
-                       type: "string",
-                       role: "annotation"
-                    },
-                    2]);
-
     var options = {
-      title: 'Campaign',
-      width: 240,
+      title: 'Campaign report',
+      width: 265,
       height: 150,
-      colors: ['#f04b3b', '#2f95a5', '#ffffff'],
-      backgroundColor: 'transparent'
+      slices: {0: {color: '#ffffff'}, 1:{color: '#2280c9'}, 2:{color: '#2f95a5'}, 3: {color: '#f04b3b'}, 4: {color: '#6e0206'}},
+      backgroundColor: 'transparent',
+      legend: {
+        position: "right",
+        //position: 'labeled',
+        //labeledValueText: 'both',
+      },
+      pieSliceText: 'value'
     };
-
 
     var elm = `campaign-result`
     var element = document.getElementById(elm)
     var chart = new google.visualization.PieChart(element);
     chart.draw(view, options);
-}
-
-
-function createDetailedReport(fullReports){
-  var i = 0
-  var timeOffset = new Date().getTimezoneOffset()*60000;
-  var tabledata = []
-  for (var item of fullReports){
-      i++
-      var date = new Date(item.lastModifiedTime)
-      var timestamp = date.getTime() - timeOffset
-      var updatedDate = new Date (timestamp)
-      var updatedDateStr = updatedDate.toISOString()
-      updatedDateStr = updatedDateStr.replace("T", " ").substring(0, 19)
-
-      var cost = (item.hasOwnProperty('cost')) ? item.cost : "0.000"
-      var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : "-"
-      var errorCode = "-"
-      var errorDes = "-"
-      if (item.hasOwnProperty('errorCode')){
-        errorCode = item.errorCode
-        for (var key of Object.keys(errorCodes)){
-          if (key == errorCode)
-            errorDes = errorCodes[key]
-        }
-      }
-      var item = {
-        "Index": i,
-        "To": formatPhoneNumber(item.to[0]),
-        "LastUpdate": updatedDateStr,
-        "Status": item.messageStatus,
-        "FailedReason": errorDes,
-        "Cost": cost,
-        "Segment": segmentCount
-      }
-      tabledata.push(item)
-    }
-    var table = new Tabulator("#report-content", {
-      data:tabledata, //assign data to table
-      //autoColumns:true, //create columns from data field names
-      layout:"fitColumns",      //fit columns to width of table
-      responsiveLayout:"hide",  //hide columns that dont fit on the table
-      tooltips:true,            //show tool tips on cells
-      addRowPos:"top",          //when adding a new row, add it to the top of the table
-      history:true,             //allow undo and redo actions on the table
-      //pagination:"local",       //paginate the data
-      //paginationSize:7,         //allow 7 rows per page of data
-      movableColumns:true,      //allow column order to be changed
-      resizableRows:true,       //allow row order to be changed
-      initialSort:[             //set the initial sort order of the data
-          {column:"Last Seen", dir:"asc"},
-      ],
-      columns:[                 //define the table columns
-          {title:"#", field:"Index", width:15},
-          {title:"To", field:"To", width:135, sorter:"number"},
-          {title:"Last update", field:"LastUpdate", width:200, editor:false, sorter:"date"},
-          {title:"Status", field:"Status", hozAlign:"center", width:100, editor:false, sorter:"number"},
-          {title:"Failed reason", field:"FailedReason", hozAlign:"center", width:250, editor:false},
-          {title:"Cost", field:"Cost", width:80,  hozAlign:"center"},
-          {title:"Segment", field:"Segment", width:80, sorter:"number", hozAlign:"center", editor:false},
-      ],
-    });
 }

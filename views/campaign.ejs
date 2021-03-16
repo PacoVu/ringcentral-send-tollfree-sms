@@ -26,7 +26,6 @@
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 
     <script>
-      window.campaigns = '<%- JSON.stringify(campaigns) %>'
       $(document).ready(function(){
           $('[data-toggle="popover"]').popover();
       });
@@ -42,22 +41,14 @@
       <div id="campaign-list-col" class="col-lg-3 medium-pane">
         <div id="campaign-list-header" class="row col-lg-12 campaign-list-header">Campaigns</div>
         <div id="campaign-list" class="row col-lg-12 campaign-list">
-        <% var timeOffset = new Date().getTimezoneOffset()*60000; %>
-        <% for (var item of campaigns) { %>
-        <% var date = new Date(item.creationTime) %>
-        <% var timestamp = date.getTime() - timeOffset %>
-        <% date = new Date (timestamp) %>
-        <% var dateStr = date.toISOString() %>
-        <% dateStr = dateStr.replace("T", " ").substring(0, 16) %>
-        <div class="campaign-item" onclick="readCampaign(this, '<%- item.batchId %>')"><%= item.campaignName %></div>
-        <% } %>
         </div>
       </div>
       <div class="col-lg-8">
         <div id="details-header" class="row col-lg-12">
-          <h4 id="campaign-title" class="col-lg-12 history" style="margin-top:3px"></h4>
+          <!--h4 id="campaign-title" class="col-lg-12 history" style="margin-top:3px"></h4-->
+          <div id="campaign-title" class="col-lg-12 history" style="margin-top:3px">Recent campaign</div>
           <div class="col-lg-12 history">
-            <div class="col-lg-5 campaign-info-section">
+            <div class="col-lg-6 campaign-info-section">
               <table>
                 <tr>
                   <td><div id="campaign-result" class="summary-section campaign-result"></div></td>
@@ -68,14 +59,14 @@
           </div>
         </div>
         <!--div id="report-content" class="row col-xs-12"></div-->
-        <div id="report-content-header" class="row col-lg-12">
+        <div id="report-content-header" class="row col-lg-12 report-content-header">
         <div class="row col-lg-12 small_font header">
-          <div class="col-sm-2">To</div>
-          <div class="col-sm-3">Last Updated</div>
-          <div class="col-sm-2">Status</div>
-          <div class="col-sm-3">Failed Reason</div>
-          <div class="col-sm-1">Cost</div>
-          <div class="col-sm-1">Segment</div>
+          <div class="col-lg-2">To</div>
+          <div class="col-lg-3">Last Updated</div>
+          <div class="col-lg-2">Status</div>
+          <div class="col-lg-3">Failed Reason</div>
+          <div class="col-lg-1">Cost</div>
+          <div class="col-lg-1">Segment</div>
         </div></div>
         <div id="report-content" class="row col-lg-12 campaign-detailed-list"></div>
       </div>

@@ -8,6 +8,12 @@ var currentSelectedItem = "0"
 var currentSelectedContact = ""
 var pollingTimer = null
 var contactList = []
+var params = {
+  from: "",
+  to: "",
+  message: ""
+}
+
 function init(){
   $( "#fromdatepicker" ).datepicker({ dateFormat: "yy-mm-dd"});
   $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
@@ -25,7 +31,7 @@ function init(){
   var footer = $("#footer").height()
   var height = $(window).height() - $("#footer").outerHeight(true)
     window.onresize = function() {
-        height = $(window).height() - $("#footer").outerHeight(true)
+        var height = $(window).height() - $("#footer").outerHeight(true)
         var swindow = height - $("#menu_header").height()
         $("#message-col").height(swindow)
         $("#menu-pane").height(swindow)
@@ -42,8 +48,11 @@ function init(){
     $("#recipient-list").height(swindow - ($("#col2-header").height() + 50))
     $("#conversation").height(swindow - ($("#conversation-header").height() + 90))
 
+    $(`#${mainMenuItem}`).removeClass("active")
+    mainMenuItem = "conversations"
+    $(`#${mainMenuItem}`).addClass("active")
 
-    readMessageStore("")
+    readContacts()
 
   $('#send-text').keyup(function(e) {
       if(e.keyCode == 13) {
@@ -54,13 +63,22 @@ function init(){
     sendTextMessage($('#send-text').val())
     $('#send-text').val("")
   });
-  contactList = JSON.parse(window.contactList)
 }
 
-var params = {
-  from: "",
-  to: "",
-  message: ""
+function readContacts(){
+  var url = "get-contacts"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      contactList = res.contactList
+      readMessageStore("")
+    }else if (res.status == "failed") {
+      alert(res.message)
+      window.location.href = "login"
+    }else{
+      alert(res.message)
+    }
+  });
 }
 
 function sendTextMessage(message){
@@ -217,7 +235,8 @@ function processResult(nextPage){
     if (message.direction == "Outbound"){
       var number = recipientPhoneNumbers.find(n => n === message.to[0])
       if (number == undefined){
-        recipientPhoneNumbers.push(message.to[0])
+        if (message.messageStatus != "SendingFailed")
+          recipientPhoneNumbers.push(message.to[0])
       }
     }else{
       var number = recipientPhoneNumbers.find(n => n === message.from)
@@ -253,11 +272,11 @@ function createRecipientsList(recipientPhoneNumbers){
       var contact = contactList.find(o => o.phoneNumber === recipient)
       if (contact){
         var name = ` - ${contact.fname} ${contact.lname}`
-        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "${name}")'>${formatPhoneNumber(recipient)}${name}</div>`
+        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "${name}")'>${formatPhoneNumber(recipient, true)}${name}</div>`
       }else
-        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient)}</div>`
+        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient, true)}</div>`
     }else{
-      html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient)}</div>`
+      html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient, true)}</div>`
     }
   }
   $("#recipient-list").html(html)
@@ -372,15 +391,16 @@ function createConversationItem(item, conversation){
       if (item.messageStatus == "Delivered"){
         line += `<div class="chat-text">${item.text}</div>`
         line += `<div class="chat-avatar chat-name">${timeStr}</div>`
-
       }else{
+        line += `<div class="chat-avatar chat-hour">Failed&nbsp;&nbsp;</div>`
         line += `<div class="chat-text error">${item.text}</div>`
-        line += `<div class="chat-avatar chat-name">${timeStr}</div>` //${item.messageStatus}
+        line += `<div class="chat-avatar chat-name">${timeStr}</div>`
       }
     }else{
       if (item.messageStatus == "Delivered"){
         line += `<div class="chat-text">${item.text}</div>`
       }else{
+        line += `<div class="chat-avatar chat-hour">Failed&nbsp;&nbsp;</div>`
         line += `<div class="chat-text error">${item.text}</div>`
       }
       line += `<div class="chat-avatar chat-name">${timeStr}<br>To: ${getContactName(item.to[0])}</div>`

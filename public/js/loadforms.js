@@ -1,3 +1,4 @@
+/*
 function openWindow(){
   window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
 }
@@ -42,7 +43,7 @@ function submitFeedback(params){
   });
   return true
 }
-
+*/
 function openReplyForm(toNumber, fromNumber){
   var message = $('#send_reply_form');
   $('#send_reply_form').on('shown.bs.modal', function () {
@@ -103,7 +104,7 @@ function openReplyForm(toNumber, fromNumber){
   });
   return false;
 }
-
+/*
 function formatPhoneNumber(phoneNumberString, countryCode) {
   var cleaned = ('' + phoneNumberString).replace(/\D/g, '')
   var match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/)
@@ -116,3 +117,4 @@ function formatPhoneNumber(phoneNumberString, countryCode) {
   }
   return phoneNumberString
 }
+*/

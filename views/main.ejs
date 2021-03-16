@@ -6,7 +6,7 @@
     <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="shortcut icon">
     <link href="./img/favicon.ico" type="image/vnd.microsoft.icon" rel="icon">
 
-    <script src="js/main.js" type="text/javascript"></script>
+    <script src="js/common.js" type="text/javascript"></script>
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
@@ -17,8 +17,8 @@
     <link rel="stylesheet" type="text/css" href="css/ui.css">
 
 </head>
-<body onload="init()">
-
+<body>
+  <%- include('_feedback_form') %>
   <nav id="menu_header" class="navbar navbar-default no-border">
     <span class="left-middle-align">
       <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
@@ -26,37 +26,55 @@
     </span>
     <ul class="nav navbar-nav navbar-right middle-align">
       <li><span><b><%- userName %></b></span></li>
-      <li><a href="/about">&nbsp;&nbsp;Help</a></li>
       <li><span>|</span></li>
       <li><a href="#" onclick="logout()">Logout</a></li>
     </ul>
   </nav>
   <section id='content'>
-    <div class="col-sm-3"></div>
-    <div class="col-sm-9">
-      <!--
-      <button class="btn-rc" onclick="loadClassicSMSPage();">Send SMS with the P2P SMS API (Up to 56K per day)</button>
-      <button class="btn-rc" onclick="loadHighVolumeSMSPage();">Send SMS with the High Volume SMS API</button>
-      -->
+    <div class="col-sm-12">
+      <div class="col-sm-1"></div>
+      <div class="col-sm-5">
       <% if (lowVolume == false && highVolume == false) { %>
-        <div class="alert">It seems your account does not have a phone number which is provisioned for High Volume SMS. Please follow the instructions below to acquire a number:</div>
-        <ol>
-          <li>Login to your <a href='https://service.ringcentral.com'>account online Web portal</a> and choose or purchase a number. Select either the "Local" or "TollFree" type.</li>
-          <li>Fill out the request form <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Request Form</a>.</li>
-        </ol>
-        <div>Note: You can copy this text "Use RingCentral demo app" and paste into the <b>Application Client ID(s) to enable</b> field in the form!</div>
+        <div class="col-sm-12 main-options">
+          <div>
+          <p style="color: red;">It seems your account does not have a phone number which is provisioned for High Volume SMS. Please follow the instructions below to acquire a number!</p>
+        </div><br>
+          <ol>
+            <li>Login to your <a href='https://service.ringcentral.com'>account online Web portal</a> and choose or purchase a number. Select either the "Local" or "TollFree" type.</li>
+            <li>Fill out the request form <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Request Form</a>.</li>
+          </ol>
+          <div style="margin-left: 20px;">Note: You can copy this text "Use RingCentral Labs app" and paste into the <b>Application Client ID(s) to enable</b> field in the form!</div>
+          <br>
+          <p>If you have a High Volume SMS number and still see this message. It is likely that the number is not assigned to your extension. Ask your account IT admin for help!</p>
+        </div>
       <% } else { %>
-        <h2>Options</h2>
-        <% if (lowVolume == true && highVolume == true) { %>
-        <div>1. <a href="/highvolume-sms">Send High Volume SMS (up to 250K messages per day)</a></div>
-        <div>2. <a href="/standard">Send Standard Toll-Free SMS (up to 56K messages per day)</a></div>
-        <% } else if (lowVolume == true && highVolume ==  false) { %>
-        <div>1. <a href="/standard">Send Standard Toll-Free SMS (up to 56K messages per day)</a></div>
-        <div>2. <a target="_blank" href="https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html">Send Request for Provisioning High Volume SMS (up to 250K per day)</a></div>
-        <% } %>
+        <div class="col-sm-12 main-options">
+          <% if (lowVolume == true && highVolume == true) { %>
+          <div class="col-sm-5 option-section center">
+            <p>Create marketing or business messaging campaign and send up to 250K messages per day.</p>
+            <button class="rc-oval-btn pos-bottom"><a href="/highvolume-sms">Continue</a></button>
+          </div>
+          <div class="col-sm-1 split"></div>
+          <div class="col-sm-5 option-section center">
+            <p>Send standard Toll-Free SMS up to 56K messages per day.</p>
+            <button class="rc-oval-btn pos-bottom"><a href="/standard">Continue</a></button>
+          </div>
+          <% } else if (lowVolume == true && highVolume ==  false) { %>
+          <div class="col-sm-5 option-section center">
+            <p>Send standard Toll-Free SMS up to 56K messages per day.</p>
+            <button class="rc-oval-btn pos-bottom"><a href="/standard">Continue</a></button>
+          </div>
+          <div class="col-sm-2 split"></div>
+          <div class="col-sm-5 option-section center">
+            <p>RingCentral High Volume SMS allows you to send thousands of custom SMS messages to customers and opt-in lists using any High Volume SMS enabled number.
+            You can request for provisioning your number now.</p>
+            <button class="rc-oval-btn pos-bottom"><a target="_blank" href="https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html">Continue</a></button>
+          </div>
+          <% } %>
+        </div>
       <% } %>
+      </div>
     </div>
-
   </section>
   <%- include('_footer') %>
 </body>

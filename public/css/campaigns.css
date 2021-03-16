@@ -104,13 +104,25 @@
   background-color: #2559e5;
 }
 
+.invalid-number-list{
+  margin-top: 10px;
+  max-height: 500px;
+  overflow: scroll;
+}
+
 .sample-message-block {
   width: 300px!important;
   min-width: 300px!important;
-  height: auto;
+  padding-top: 40px;
   min-height: 200px;
-
+  max-height: 400px;
   background-image: url("../img/phone2.png");
+}
+.all-samples{
+  position:relative;
+  /*padding-top: 60px;*/
+  max-height: 340px;
+  overflow: scroll;
 }
 
 .sample-message {
@@ -123,7 +135,7 @@
 /* top | right | bottom | left */
 .sample-response {
   float: right;
-  background-color: orange;
+  background-color: #d3f0fd;
   border-radius: 5px;
   padding: 10px;
   margin: 0px 20px 0px 20px;
