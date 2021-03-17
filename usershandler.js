@@ -428,7 +428,7 @@ var engine = User.prototype = {
         requestBody["sendAt"] = body.scheduledAt + ":00Z"
       }
       */
-      var textMessage = (requestBody.text.length > 50) ? (requestBody.text.substring(0, 50) + "..." : requestBody.text
+      var textMessage = (requestBody.text.length > 50) ? (requestBody.text.substring(0, 50) + "...") : requestBody.text
       this.batchSummaryReport = {
         live: true,
         campaignName: body.campaign_name,
