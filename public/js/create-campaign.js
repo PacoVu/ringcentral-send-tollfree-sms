@@ -104,6 +104,10 @@ function updateSurveyEstimatedCost(multiply){
 
 var currentBlock = 1
 function createNewCampaign(){
+  if (pollingBatchReportTimer)
+    window.clearTimeout(pollingBatchReportTimer)
+  if (pollingVoteResultTimer)
+    window.clearTimeout(pollingVoteResultTimer)
   $("#history").hide()
   $("#create").show()
   currentBlock = 1
@@ -130,16 +134,11 @@ function showBlock(block){
         $("#preview-block").hide();
         $("#sms-form").hide();
         $("#result-block").show();
-        //$("#sendingAni").css('display', 'inline');
-        //$("#polling-tips").css('display', 'inline');
         break
       case "preview":
         $("#result-block").hide();
         $("#sms-form").show();
-        //$("#report-block").hide();
-        //$("#vote-report-block").hide();
         $("#preview-block").show();
-
         break
       case "history":
         $('#create').hide()
@@ -153,8 +152,6 @@ function showBlock(block){
 
 function resetCampaignInput(){
   $("#campaign-name").val("")
-  //$("#from-number").val("")
-  //$('#from-number').prop("selected", false);
   if ($("#from-number option").length > 1)
     $('#from-number option').prop("selected", false).trigger('change');
   else
@@ -922,7 +919,7 @@ function showResult(flag){
   }
 }
 
-function testFlow(){
+function switchToHistoryView(){
   showBlock("history")
   selectedBatchId = "" // force to display latest campaign
   readCampaigns()
