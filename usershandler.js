@@ -320,7 +320,7 @@ var engine = User.prototype = {
           var tempFile = currentFolder + "/uploads/" + file.filename
           fs.unlinkSync(tempFile);
         }
-        var textMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "..." : sampleMessage
+        var textMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
         this.batchSummaryReport = {
           live: true,
           campaignName: body.campaign_name,
