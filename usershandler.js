@@ -150,7 +150,7 @@ var engine = User.prototype = {
           this.extensionId = extensionId
           req.session.extensionId = extensionId;
 
-          //thisUser.deleteAllRegisteredWebHookSubscriptions()
+          thisUser.deleteAllRegisteredWebHookSubscriptions()
           var p = this.rc_platform.getPlatform()
           if (p){
             try {
@@ -1747,8 +1747,8 @@ var engine = User.prototype = {
             for (var record of jsonObj.records) {
               console.log(JSON.stringify(record))
 
-              if (record.deliveryMode.transportType == "WebHook"){
-              //if (record.id != "1c36de92-48c1-4e64-b19b-989a95757912"){
+              //if (record.deliveryMode.transportType == "WebHook"){
+              if (record.id != "3e738712-3de9-41ec-bd56-36426d52a98d"){
                 var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                   console.log("Deleted")
               }

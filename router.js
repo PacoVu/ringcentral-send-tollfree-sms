@@ -20,6 +20,7 @@ function autoStart(){
       console.error(err.message);
     }else{
       if (result.rows){
+        console.log(result.rows)
         async.forEachLimit(result.rows, 1, function(user, setupNextUser){
             async.waterfall([
               function setupNextUser(done) {
