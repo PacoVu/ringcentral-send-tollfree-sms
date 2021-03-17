@@ -101,7 +101,7 @@ function readCampaignFromServer(campaign){
   getting.done(function( res ) {
       if (res.status == "ok"){
         var batchReport = res.batchReport
-        console.log(batchReport)
+        //console.log(batchReport)
         campaign.queuedCount = batchReport.queuedCount
         campaign.deliveredCount = batchReport.deliveredCount
         campaign.sentCount = batchReport.sentCount
@@ -207,11 +207,15 @@ function listAllCampaigns(recentBatch){
   $(selectedCampaign).addClass("active");
   displaySelectedCampaign(recentBatch)
 
-  //if (isAnyLiveCampaign() || isAnyActiveVote()){
-  if (isAnyActiveVote()){
+  if (isAnyLiveCampaign() || isAnyActiveVote()){
+  //if (isAnyActiveVote()){
     pollingBatchReport = window.setTimeout(function(){
       readCampaigns()
     }, 2000)
+  }else if (isAllSentCampaign(){
+    pollingBatchReport = window.setTimeout(function(){
+      readCampaigns()
+    }, 5000)
   }
 }
 
@@ -289,8 +293,6 @@ function plotBatchReport(params){
       backgroundColor: 'transparent',
       legend: {
         position: "right",
-        //position: 'labeled',
-        //labeledValueText: 'both',
       },
       pieSliceText: 'value'
     };
