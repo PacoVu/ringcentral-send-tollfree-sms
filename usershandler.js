@@ -129,11 +129,16 @@ var engine = User.prototype = {
     loadHVSMSPage: function(res){
       var thisUser = this
       this.eventEngine.logNewMessage = false
+      var lowVolume = false
+      if (this.phoneTFNumbers.length)
+        lowVolume = true
+
       res.render('highvolume-sms', {
         userName: thisUser.getUserName(),
         phoneNumbers: thisUser.phoneHVNumbers,
         //smsBatchIds: this.smsBatchIds,
-        batchResult: thisUser.batchResult
+        batchResult: thisUser.batchResult,
+        lowVolume: lowVolume
       })
     },
     login: async function(req, res, callback){
@@ -286,7 +291,7 @@ var engine = User.prototype = {
             this.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
           }
         }
-        console.log(this.phoneTFNumbers)
+        //console.log(this.phoneTFNumbers)
       } catch (e) {
         console.log("Cannot read phone numbers!!!")
         console.error(e.message);

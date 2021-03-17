@@ -16,7 +16,7 @@ function init(){
     $("#menu-pane").height(swindow)
     $("#control-block").height(swindow)
     $("#creation-pane").height(swindow)
-    $("#rejected-list-block")height(swindow - 50)
+    $("#rejected-list-block").height(swindow - 50)
   }
   var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
@@ -26,7 +26,7 @@ function init(){
   $("#menu-pane").height(swindow)
   $("#control-block").height(swindow)
   $("#creation-pane").height(swindow)
-  $("#rejected-list-block")height(swindow - 50)
+  $("#rejected-list-block").height(swindow - 50)
 
   selectedCampaign = null
   $(`#${mainMenuItem}`).removeClass("active")

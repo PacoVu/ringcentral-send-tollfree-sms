@@ -42,7 +42,6 @@
   <%- include('_feedback_form') %>
   <%- include('_alert_dialog') %>
   <%- include('_menu_header') %>
-
   <section id='content'>
     <div class="row col-lg-12">
       <%- include('_menu') %>
@@ -52,9 +51,9 @@
             <div id="result-block" class="result-block" style="margin-top:0px;display: block">
               <span style="height:50px;margin-bottom:10px"><b>Sending Progress</b></span>&nbsp;&nbsp;
               <img src='./img/sendprogress.gif' id="sendingAni" style='width:30px;height:20px;'></img>
-              <div id="time">00h 23min 22secs</div>
-              <div id="status">Sending</div>
-              <div id="result">12/34535</div>
+              <div id="time"></div>
+              <div id="status"></div>
+              <div id="result"></div>
               <input id="download-reject-number" type="button" class="rc-oval-btn" style="margin-top:20px;display: none" onclick="testFlow()" value="Continue"></input>
             </div>
             <form id="sms-form" style="display: none" class="form-group" enctype="multipart/form-data">
