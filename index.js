@@ -160,16 +160,15 @@ app.get('/read-campaigns', function (req, res) {
     res.render('index')
   }
 })
-/*
-app.get('/highvolume-manual', function (req, res) {
-  console.log('load highvolume-manual')
+
+app.get('/read-vote-reports', function (req, res) {
   if (req.session.extensionId != 0)
-    router.loadHVManualPage(req, res)
+    router.readVoteReports(req, res)
   else{
     res.render('index')
   }
 })
-*/
+
 app.get('/highvolume-sms', function (req, res) {
   console.log('load highvolume-sms')
   if (req.session.extensionId != 0)

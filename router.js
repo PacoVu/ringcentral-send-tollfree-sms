@@ -277,6 +277,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].readCampaignsLogFromDB(res)
   },
+  readVoteReports: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readVoteReports(res)
+  },
   deleteSurveyResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

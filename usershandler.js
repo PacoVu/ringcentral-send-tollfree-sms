@@ -958,17 +958,15 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          console.log("READ BATCH")
-          console.log(JSON.stringify(jsonObj))
-          console.log("READ RETURN")
-
+          //console.log("READ BATCH")
+          //console.log(JSON.stringify(jsonObj))
+          //console.log("READ RETURN")
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
               case "Queued":
                 batchReport.queuedCount++
                 break;
               case "Delivered":
-                console.log("Delivered status")
                 batchReport.deliveredCount++
                 break
               case "Sent":
@@ -1664,6 +1662,13 @@ var engine = User.prototype = {
             voteReports: thisUser.eventEngine.getCopyVoteCampaignsInfo()
           })
         }
+      })
+    },
+    readVoteReports: function(res){
+      console.log("poll vote result")
+      res.send({
+          status: "ok",
+          voteReports: this.eventEngine.getCopyVoteCampaignsInfo()
       })
     },
     // Notifications

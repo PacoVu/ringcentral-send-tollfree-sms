@@ -1,9 +1,11 @@
 var campaignList = undefined
 var voteReportList = undefined
-var selectedCampaign = null
+var selectedElement = null
 var selectedBatchId = ""
-var pollingBatchReport = null
+var pollingBatchReportTimer = null
+var pollingVoteResultTimer = null
 var loaded = 0
+var timeOffset = 0
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
 
@@ -28,10 +30,11 @@ function init(){
   $("#creation-pane").height(swindow)
   $("#rejected-list-block").height(swindow - 50)
 
-  selectedCampaign = null
+  selectedElement = null
   $(`#${mainMenuItem}`).removeClass("active")
   mainMenuItem = "campaign-new"
   $(`#${mainMenuItem}`).addClass("active")
+  timeOffset = new Date().getTimezoneOffset()*60000;
 }
 var setHeight = false
 function setCampaignHistoryListHeight(){
@@ -51,8 +54,8 @@ function onloaded(){
 }
 
 function readCampaigns(){
-  if (pollingBatchReport)
-    window.clearTimeout(pollingBatchReport)
+  if (pollingBatchReportTimer)
+    window.clearTimeout(pollingBatchReportTimer)
   var url = "/read-campaigns"
   var getting = $.get( url );
   getting.done(function( res ) {
@@ -76,10 +79,10 @@ function readCampaigns(){
 }
 
 function readCampaignById(elm, batchId){
-  if (selectedCampaign != null)
-      $(selectedCampaign).removeClass("active");
+  if (selectedElement != null)
+      $(selectedElement).removeClass("active");
   $(elm).addClass("active");
-  selectedCampaign = elm
+  selectedElement = elm
 
   // read from local memory
   var campaign = campaignList.find(o => o.batchId == batchId)
@@ -94,8 +97,8 @@ function readCampaignById(elm, batchId){
 }
 
 function readCampaignFromServer(campaign){
-  if (pollingBatchReport)
-    window.clearTimeout(pollingBatchReport)
+  if (pollingBatchReportTimer)
+    window.clearTimeout(pollingBatchReportTimer)
   var url = `read-campaign-summary?batchId=${campaign.batchId}`
   var getting = $.get( url );
   getting.done(function( res ) {
@@ -176,57 +179,74 @@ function listAllCampaigns(recentBatch){
     var progress = (item.deliveredCount/total) * 100
     progress = progress.toFixed(0)
     html += `<div class="col-lg-1">${progress}%</div>`
-    /*
-    if (item.sentCount > 0){
-      var total = item.sentCount + item.deliveredCount
-      var percent = (item.deliveredCount/total) * 100
-      percent = percent.toFixed(0)
-      html += `<div class="col-lg-1">${percent}%</div>`
-    }else
-      html += `<div class="col-lg-1">100%</div>`
-    */
     html += "</div>"
   }
   $("#history-list").html(html)
 
   var recentVote = undefined
-  if (selectedBatchId != ""){
-    recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
-    //recentVote = voteReportList.find(o => o.batchId === selectedBatchId)
-  //}else if (recentBatch){
-  //  recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+  if (recentBatch){
+    selectedBatchId = recentBatch.batchId
   }else{
-    recentBatch = campaignList[0]
-    //recentVote = voteReportList.find(o => o.batchId === recentBatch.batchId)
+    if (selectedBatchId != ""){
+      recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
+    }else{
+      recentBatch = campaignList[0]
+      selectedBatchId = recentBatch.batchId
+    }
   }
-  // extra check
-  //if (!recentVote)
-  //  recentVote = recentBatch.voteReport
-  selectedBatchId = recentBatch.batchId
-  selectedCampaign = $(`#${selectedBatchId}`)
-  $(selectedCampaign).addClass("active");
+
+  selectedElement = $(`#${selectedBatchId}`)
+  $(selectedElement).addClass("active");
   displaySelectedCampaign(recentBatch)
 
-  if (isAnyLiveCampaign() || isAnyActiveVote()){
-  //if (isAnyActiveVote()){
-    pollingBatchReport = window.setTimeout(function(){
-      readCampaigns()
+  if (isAnyActiveVote()){
+    pollingVoteResultTimer = window.setTimeout(function(){
+      readVoteResult()
     }, 2000)
-  }else if (isAllSentCampaign(){
-    pollingBatchReport = window.setTimeout(function(){
-      readCampaigns()
-    }, 5000)
+  }
+  //if (isAnyLiveCampaign() || isAnyActiveVote()){
+  //if (isAnyActiveVote()){
+  var liveCampaign = isAnyLiveCampaign()
+  if (liveCampaign){ // keep polling campaign with queues
+    pollingBatchReportTimer = window.setTimeout(function(){
+      readCampaignFromServer(liveCampaign)
+    }, 2000)
+  }else{
+    var pendingCampaign = isAllSentCampaign()
+    if (pendingCampaign){
+      pollingBatchReportTimer = window.setTimeout(function(){
+        readCampaignFromServer(pendingCampaign)
+      }, 5000)
+    }
   }
 }
 
+function readVoteResult(){
+  var url = "/read-vote-reports"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      voteReportList = res.voteReports
+      //var selectedBatch = campaignList.find(o => o.batchId === selectedBatchId)
+      //displaySelectedCampaign(selectedBatch)
+      listAllCampaigns(undefined)
+      //listAllCampaigns(res.recentBatch)
+    }else if (res.status == "failed") {
+      alert(res.message)
+      window.location.href = "login"
+    }else{
+      alert(res.message)
+    }
+  });
+}
 
 function displaySelectedCampaign(batchReport){
-  var timeOffset = new Date().getTimezoneOffset()*60000;
+
   var timestamp = batchReport.creationTime - timeOffset
   var createdDate = new Date (timestamp)
   var createdDateStr = createdDate.toISOString()
   createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-  //$("#campaign-title").html(batchReport.campaignName)
+
   var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
   var title = `<label class="label-input">${label}</label><span>${batchReport.campaignName}</span>`
   $("#campaign-title").html( title )
@@ -383,19 +403,19 @@ function isAnyActiveVote(){
 function isAnyLiveCampaign(){
   for (var campaign of campaignList){
     if (campaign.live){
-      return true
+      return campaign
     }
   }
-  return false
+  return null
 }
 
 function isAllSentCampaign(){
   for (var campaign of campaignList){
     if (campaign.sentCount > 0){
-      return true
+      return campaign
     }
   }
-  return false
+  return null
 }
 
 function deleteSurveyResult(batchId){
