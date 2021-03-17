@@ -802,16 +802,8 @@ var engine = User.prototype = {
         totalCost: 0
       }
 
-      console.log(JSON.stringify(requestBody))
-      console.log(this.batchSummaryReport)
-/*
-      console.log(requestBody)
-      res.send({
-        status: "Failed",
-        message: "Testing"
-      })
-      return
-*/
+      //console.log(JSON.stringify(requestBody))
+      //console.log(this.batchSummaryReport)
       this.sendBatchMessage(res, requestBody, sendMode, null)
     },
     sendBatchMessage: async function(res, requestBody, type, voteInfo){
@@ -842,8 +834,6 @@ var engine = User.prototype = {
             console.log("call addRejectedNumberToDB")
             this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
           }
-          //this.batchResult = jsonObj
-          console.log(jsonObj)
           this.batchType = type
 
           this.batchFullReport = []
@@ -852,9 +842,9 @@ var engine = User.prototype = {
           if (type == "vote"){
             voteInfo.batchId = jsonObj.id
             // compare time
-            console.log(new Date(voteInfo.startDateTime).toISOString())
-            console.log("compare time ")
-            console.log(jsonObj.creationTime)
+            //console.log(new Date(voteInfo.startDateTime).toISOString())
+            //console.log("compare time ")
+            //console.log(jsonObj.creationTime)
 
             this.eventEngine.setVoteInfo(voteInfo)
 
@@ -1021,7 +1011,6 @@ var engine = User.prototype = {
     _getBatchReport: async function(batchId, pageToken){
       console.log("_getBatchReport")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      console.log(endpoint)
       var params = {
         batchId: batchId
       }
@@ -1033,9 +1022,7 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          console.log("READ BATCH")
-          console.log(JSON.stringify(jsonObj))
-          console.log("READ RETURN")
+
           this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
 
           var keepPolling = false
@@ -1046,7 +1033,6 @@ var engine = User.prototype = {
                 this.batchSummaryReport.queuedCount++
                 break;
               case "Delivered":
-                console.log("Delivered status")
                 this.batchSummaryReport.deliveredCount++
                 break
               case "Sent":
@@ -1125,9 +1111,8 @@ var engine = User.prototype = {
         batchId: batchId
       }
       if (pageToken != "")
-        //endpoint += "&pageToken=" + pageToken
         params['pageToken'] = pageToken
-      //console.log(endpoint)
+
       var p = this.rc_platform.getPlatform()
       if (p){
         try {
@@ -1763,6 +1748,7 @@ var engine = User.prototype = {
               console.log(JSON.stringify(record))
 
               if (record.deliveryMode.transportType == "WebHook"){
+              //if (record.id != "1c36de92-48c1-4e64-b19b-989a95757912"){
                 var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                   console.log("Deleted")
               }
