@@ -52,6 +52,8 @@ function autoStart(){
                       })
                     }
                   })
+                }else{
+                  done()
                 }
               }
             ], function (error, success) {
