@@ -6,29 +6,28 @@ var pollingBatchReport = null
 var loaded = 0
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
-  var height = $(window).height() - $("#footer").outerHeight(true);
+
   window.onresize = function() {
     var height = $(window).height() - $("#footer").outerHeight(true);
     var swindow = height - $("#menu_header").outerHeight(true)
     $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
     var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
     $("#history-list").height(swindow - upperBlock)
-
     $("#menu-pane").height(swindow)
     $("#control-block").height(swindow)
     $("#creation-pane").height(swindow)
+    $("#rejected-list-block")height(swindow - 50)
   }
+  var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
-
   $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
-
   var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
-
   $("#history-list").height(swindow - upperBlock)
   $("#menu-pane").height(swindow)
   $("#control-block").height(swindow)
   $("#creation-pane").height(swindow)
-  //rejected-list-block
+  $("#rejected-list-block")height(swindow - 50)
+
   selectedCampaign = null
   $(`#${mainMenuItem}`).removeClass("active")
   mainMenuItem = "campaign-new"
@@ -36,7 +35,7 @@ function init(){
 }
 var setHeight = false
 function setCampaignHistoryListHeight(){
-  setHeight = true
+
   var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
   $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
@@ -173,6 +172,12 @@ function listAllCampaigns(recentBatch){
     else
       cost = cost.toFixed(1)
     html += `<div class="col-lg-2">${cost} USD</div>`
+    var total = item.queuedCount + item.sentCount + item.deliveredCount
+    var pending = item.queuedCount + item.sentCount
+    var progress = (pending/total) * 100
+    progress = progress.toFixed(0)
+    html += `<div class="col-lg-1">${progress}%</div>`
+    /*
     if (item.sentCount > 0){
       var total = item.sentCount + item.deliveredCount
       var percent = (item.deliveredCount/total) * 100
@@ -180,6 +185,7 @@ function listAllCampaigns(recentBatch){
       html += `<div class="col-lg-1">${percent}%</div>`
     }else
       html += `<div class="col-lg-1">100%</div>`
+    */
     html += "</div>"
   }
   $("#history-list").html(html)
@@ -267,8 +273,10 @@ function displaySelectedCampaign(batchReport){
   }else{
     $("#vote-report").hide()
   }
-  if (!setHeight)
+  if (!setHeight){
     setCampaignHistoryListHeight()
+    setHeight = true
+  }
 }
 
 function plotBatchReport(params){
