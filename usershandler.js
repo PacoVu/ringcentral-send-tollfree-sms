@@ -1191,7 +1191,6 @@ var engine = User.prototype = {
     _getVoteReport: async function (batchId, pageToken){
       console.log("_getVoteReport")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      console.log(endpoint)
       var params = {
         batchId: batchId
       }
@@ -1200,7 +1199,6 @@ var engine = User.prototype = {
 
       var vote = this.eventEngine.getCampaignByBatchId(batchId)
       console.log("Set vote campaign info")
-      console.log(vote)
       var p = this.rc_platform.getPlatform()
       if (p){
         try {
@@ -1268,15 +1266,12 @@ var engine = User.prototype = {
                   thisUser._getVoteReport(batchId, "")
                 }, 5000)
               }else{
-                this.eventEngine.postResults(this.batchSummaryReport)
                 // update local db
-                console.log("+++++++")
-                console.log(vote)
-                console.log("+++++++")
                 this.eventEngine.setCampainByBatchId(batchId, vote)
                 this._updateCampaignDB(null, (err, result) => {
                   thisUser.batchSummaryReport.live = false
-                  console.log("DONE SEND BATCH")
+                  thisUser.eventEngine.postResults(this.batchSummaryReport)
+                  console.log("DONE SEND SURVEY BATCH")
                 })
               }
           }
