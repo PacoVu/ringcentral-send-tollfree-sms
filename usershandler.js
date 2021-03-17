@@ -193,7 +193,7 @@ var engine = User.prototype = {
                   //thisUser.eventEngine.setPlatform(thisUser.rc_platform)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
                     if (err == null){
-                      console.log("eventEngine is set")  
+                      console.log("eventEngine is set")
                     }
                   })
                 })
@@ -1067,10 +1067,10 @@ var engine = User.prototype = {
                 thisUser._getBatchReport(batchId, "")
               }, 5000)
             }else{
-              this.eventEngine.postResults(this.batchSummaryReport)
               // update local db
               this._updateCampaignDB(null, (err, result) => {
                 thisUser.batchSummaryReport.live = false
+                thisUser.eventEngine.postResults(this.batchSummaryReport)
                 console.log("DONE SEND BATCH")
               })
             }
