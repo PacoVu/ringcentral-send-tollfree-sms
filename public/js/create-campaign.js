@@ -825,12 +825,12 @@ function canSendMessages() {
             pendingBatch = true
             showBlock("result")
             parseResultResponse(res)
-          }else if (res.status == "failed"){
+          }else if (res.status == "error" || res.status == "failed"){
             _alert(res.message)
-            //$("#submit").show()
-            window.location.href = "login"
           }else{
-            _alert(res.message)
+            window.setTimeout(function(){
+              window.location.href = "/index"
+            },10000)
           }
       },
       cache: false,
@@ -847,8 +847,12 @@ function pollResult(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       parseResultResponse(res)
-    }else {
-      alert(res.message)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }

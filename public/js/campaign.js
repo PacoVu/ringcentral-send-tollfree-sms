@@ -24,25 +24,24 @@ var loaded = 0
 var campaignList = []
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
+
+  window.onresize = function() {
+    setElementsHeight()
+  }
+  setElementsHeight()
+  $(`#${mainMenuItem}`).removeClass("active")
+  mainMenuItem = "campaign-log"
+  $(`#${mainMenuItem}`).addClass("active")
+}
+
+function setElementsHeight(){
   var height = $(window).height() - $("#footer").outerHeight(true)
-    window.onresize = function() {
-        var height = $(window).height() - $("#footer").outerHeight(true)
-        var swindow = height - $("#menu_header").height()
-        $("#campaign-list-col").height(swindow)
-        $("#campaign-list").height(swindow - $("#campaign-list-header").height() - 20)
-        $("#menu-pane").height(swindow)
-        var upperBlock = $("#details-header").outerHeight(true) +  $("#report-content-header").outerHeight(true) + 50
-        $("#report-content").height(swindow - upperBlock)
-    }
-    var swindow = height - $("#menu_header").height()
-    $("#campaign-list-col").height(swindow)
-    $("#campaign-list").height(swindow - $("#campaign-list-header").height() - 20)
-    $("#menu-pane").height(swindow)
-    var upperBlock = $("#details-header").outerHeight(true) +  $("#report-content-header").outerHeight(true) + 50
-    $("#report-content").height(swindow - upperBlock)
-    $(`#${mainMenuItem}`).removeClass("active")
-    mainMenuItem = "campaign-log"
-    $(`#${mainMenuItem}`).addClass("active")
+  var swindow = height - $("#menu_header").height()
+  $("#campaign-list-col").height(swindow)
+  $("#campaign-list").height(swindow - $("#campaign-list-header").height() - 20)
+  $("#menu-pane").height(swindow)
+  var upperBlock = $("#details-header").outerHeight(true) +  $("#report-content-header").outerHeight(true) + 50
+  $("#report-content").height(swindow - upperBlock)
 }
 
 function onloaded(){
@@ -60,14 +59,16 @@ function readCampaigns(){
     if (res.status == "ok"){
       //alert(JSON.stringify(res))
       campaignList = res.campaigns
-      if (campaignList.length == 0)
-        ;//createNewCampaign()
-      listAllCampaigns()
-    }else if (res.status == "failed") {
+      if (campaignList.length != 0){
+        $("#content-col").show()
+        listAllCampaigns()
+      }
+    }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
-      window.location.href = "login"
     }else{
-      _alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }
@@ -123,9 +124,6 @@ function readCampaign(elm, batchId){
       report += `<div class="info-line"><img class="icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
       var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
       report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
-
-
-
       report += "</div>"
       $("#campaign-details").html(report)
       var params = [];
@@ -143,11 +141,12 @@ function readCampaign(elm, batchId){
       item = ["Delivery Failed", batchReport.deliveryFailedCount]
       params.push(item);
       plotBatchReport(params)
-    }else if (res.status == "failed") {
+    }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
-      window.location.href = "login"
     }else{
-      _alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }
@@ -193,16 +192,18 @@ function createFullReport(fullReports){
 
 function downloadBatchReport(name){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  //var encoded = (encodeURIComponent(name))
-  //decodeURIComponent(encoded)
-  //_alert(encoded + " = " + decodeURIComponent(encoded))
   var url = `download-batch-report?campaign_name=${encodeURIComponent(name)}&timeOffset=${timeOffset}`
   var getting = $.get( url );
   getting.done(function( res ) {
-    if (res.status == "ok")
+    if (res.status == "ok"){
       window.location.href = res.message
-    else
-      alert(res.message)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
   });
 }
 
@@ -216,8 +217,13 @@ function deleteCampaignResult(batchId){
       if (campaignList.length == 0)
         ;//createNewCampaign()
       listAllCampaigns()
-    }else
+    }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
   });
 }
 
@@ -231,9 +237,7 @@ function plotBatchReport(params){
       slices: {0: {color: '#ffffff'}, 1:{color: '#2280c9'}, 2:{color: '#2f95a5'}, 3: {color: '#f04b3b'}, 4: {color: '#6e0206'}},
       backgroundColor: 'transparent',
       legend: {
-        position: "right",
-        //position: 'labeled',
-        //labeledValueText: 'both',
+        position: "right"
       },
       pieSliceText: 'value'
     };

@@ -102,8 +102,12 @@ var engine = User.prototype = {
       })
     },
     loadSettingsPage: function(res, pageToken){
+      var lowVolume = false
+      if (this.phoneTFNumbers.length)
+        lowVolume = true
       res.render('settings', {
-        userName: this.getUserName()
+        userName: this.getUserName(),
+        lowVolume: lowVolume
       })
     },
     getContacts: function(res, pageToken){
@@ -116,14 +120,22 @@ var engine = User.prototype = {
     },
     loadMessageStorePage: function(res){
       this.eventEngine.logNewMessage = true
+      var lowVolume = false
+      if (this.phoneTFNumbers.length)
+        lowVolume = true
       res.render('conversations', {
         userName: this.getUserName(),
         phoneNumbers: this.phoneHVNumbers,
+        lowVolume: lowVolume
       })
     },
     loadCampaignHistoryPage: function(res){
+      var lowVolume = false
+      if (this.phoneTFNumbers.length)
+        lowVolume = true
       res.render('campaign', {
         userName: this.getUserName(),
+        lowVolume: lowVolume
       })
     },
     loadHVSMSPage: function(res){
@@ -347,29 +359,6 @@ var engine = User.prototype = {
         status: "ok",
         message: data
       })
-      /*
-      var query = `SELECT webhooks FROM a2p_sms_active_users WHERE user_id='${this.extensionId}'`
-      console.log(query)
-      pgdb.read(query, (err, result) =>  {
-        var data = {
-          url: "",
-          header_name: "",
-          header_value: ""
-        }
-        if (err){
-          console.error(err.message);
-        }
-        if (!err && result.rows.length > 0){
-          if (result.rows[0].webhooks){
-          data = JSON.parse(result.rows[0].webhooks)
-          }
-        }
-        res.send({
-          status: "ok",
-          message: data
-        })
-      })
-      */
     },
     uploadContacts: function (req, res){
       var body = req.body
@@ -932,7 +921,7 @@ var engine = User.prototype = {
       }
     },
     readCampaignSummary: function(res, batchId){
-      console.log("readCampaignSummary - sendCount > 0")
+      //console.log("readCampaignSummary - sendCount > 0")
       var batchReport = {
         batchId: batchId,
         queuedCount: 0,
@@ -946,7 +935,6 @@ var engine = User.prototype = {
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
       console.log("_getBatchReport")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      console.log(endpoint)
       var params = {
         batchId: batchId
       }
@@ -982,14 +970,17 @@ var engine = User.prototype = {
             var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
             batchReport.totalCost += cost
           }
+          var thisUser = this
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("has nextPageToken")
             setTimeout(function(){
-              this._getBatchReport(res, batchId, batchReport, jsonObj.paging.nextPageToken)
+              thisUser._getBatchReport(res, batchId, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
             this._updateCampaignDB(batchReport, (err, result) => {
-              console.log("DONE SEND BATCH")
+              if (batchReport.sentCount == 0)
+                thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
+              console.log("DONE READ BATCH REPORT")
             })
             res.send({
               status: "ok",
@@ -1073,7 +1064,7 @@ var engine = User.prototype = {
               // update local db
               this._updateCampaignDB(null, (err, result) => {
                 thisUser.batchSummaryReport.live = false
-                thisUser.eventEngine.postResults(this.batchSummaryReport)
+                thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
                 console.log("DONE SEND BATCH")
               })
             }
@@ -1108,7 +1099,6 @@ var engine = User.prototype = {
     },
     _readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
       console.log("_readCampaignDetailsFromServer")
-      var thisUser = this
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
         batchId: batchId
@@ -1150,6 +1140,7 @@ var engine = User.prototype = {
           //console.log(jsonObj.paging)
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("Read next page")
+            var thisUser = this
             setTimeout(function(){
               thisUser._readCampaignDetailsFromServer(res, batchId, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
@@ -1325,7 +1316,6 @@ var engine = User.prototype = {
       //console.log("_readMessageList")
       var thisUser = this
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-
       var p = this.rc_platform.getPlatform()
       if (p){
         try {
@@ -1403,19 +1393,25 @@ var engine = User.prototype = {
       try{
         fs.writeFileSync('./'+ fullNamePath, fileContent)
         var link = "/downloads?filename=" + fullNamePath
-        res.send({"status":"ok","message":link})
+        res.send({
+          status:"ok",
+          message:link
+        })
       }catch (e){
         console.log("cannot create report file")
-        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+        res.send({
+          status:"failed",
+          message:"Cannot create a report file! Please try gain"
+        })
       }
     },
     deleteSurveyResult: function(req, res){
       if (this.eventEngine){
         this.eventEngine.deleteCampaignByBatchId(req.query.batchId, (err, result) => {
           if (err)
-            res.send({"status":"failed","message":"Cannot deleted"})
+            res.send({status:"failed",message:"Cannot deleted"})
           else
-            res.send({"status":"ok","message":"deleted"})
+            res.send({status:"ok",message:"deleted"})
         })
       }
     },
@@ -1457,16 +1453,19 @@ var engine = User.prototype = {
           try{
             fs.writeFileSync('./'+ fullNamePath, fileContent)
             var link = "/downloads?filename=" + fullNamePath
-            res.send({"status":"ok","message":link})
+            res.send({
+              status:"ok",
+              message:link
+            })
           }catch (e){
             console.log("cannot create report file")
-            res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+            res.send({status:"failed",message:"Cannot create a report file! Please try gain"})
           }
         }else{
-          res.send({"status":"failed","message":"This servey has been deleted."})
+          res.send({status:"failed",message:"This servey has been deleted."})
         }
       }else{
-        res.send({"status":"failed","message":"Cannot create a campaign result file! Please try gain"})
+        res.send({status:"failed",message:"Cannot create a campaign result file! Please try gain"})
       }
     },
     downloadBatchReport: function(req, res){

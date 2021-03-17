@@ -1,24 +1,23 @@
 var contactList = []
 function init(){
+  window.onresize = function() {
+    setElementsHeight()
+  }
+  setElementsHeight()
 
-  var footer = $("#footer").height()
-  var height = $(window).height() - 80;
-    window.onresize = function() {
-        var height = $(window).height() - 80;
-        var swindow = height - $("#menu_header").height()
-        $("#menu-pane").height(swindow)
-        $("#control-col").height(swindow)
-    }
-    var swindow = height - $("#menu_header").height()
-    $("#menu-pane").height(swindow)
-    $("#control-col").height(swindow)
-    $("#contact-list").height(swindow - 200)
-
-    $(`#${mainMenuItem}`).removeClass("active")
-    mainMenuItem = "settings"
-    $(`#${mainMenuItem}`).addClass("active")
+  $(`#${mainMenuItem}`).removeClass("active")
+  mainMenuItem = "settings"
+  $(`#${mainMenuItem}`).addClass("active")
 
   readContacts()
+}
+
+function setElementsHeight(){
+  var height = $(window).height() - $("#footer").outerHeight(true)
+  var swindow = height - $("#menu_header").height()
+  $("#menu-pane").height(swindow)
+  $("#control-col").height(swindow)
+  $("#contact-list").height(swindow - 200)
 }
 
 var prevView = "contacts-block"
@@ -66,10 +65,12 @@ function readWebhookAddress(view){
         $("#copy-btn").hide()
         $("#generator-btn").show()
       }
-    }else if (res.status == "failed"){
+    }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
-      _alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
   getting.fail(function(response){
@@ -91,10 +92,12 @@ function deleteWebhookAddress(){
       $("#generator-btn").show()
       $("#code").html("")
       disableWebhookInputs(false)
-    }else if (res.status == "failed"){
+    }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
-      _alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
   getting.fail(function(response){
@@ -157,11 +160,12 @@ function uploadContactsFile(e){
           if (res.status == "ok"){
             contactList = contactList.concat(res.contactList)
             updateContactList()
-          }else if (res.status == "failed"){
-            alert(res.message)
-            window.location.href = "login"
+          }else if (res.status == "error" || res.status == "failed"){
+            _alert(res.message)
           }else{
-            alert(res.message)
+            window.setTimeout(function(){
+              window.location.href = "/index"
+            },10000)
           }
       },
       cache: false,
@@ -179,11 +183,12 @@ function readContacts(){
       if (contactList.length)
         $("#delete-contact-btn").show()
       updateContactList()
-    }else if (res.status == "failed") {
-      alert(res.message)
-      window.location.href = "login"
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
     }else{
-      alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }
@@ -218,10 +223,12 @@ function setWebhookAddress(){
       $("#copy-btn").show()
       $("#generator-btn").hide()
       showSampleCode($("#header-name").val(), $("#header-value").val())
-    }else if (res.status == "failed"){
-      alert(res.message)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
     }else{
-      alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
   posting.fail(function(response){

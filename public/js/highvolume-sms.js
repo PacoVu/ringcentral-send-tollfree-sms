@@ -10,16 +10,18 @@ function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
 
   window.onresize = function() {
-    var height = $(window).height() - $("#footer").outerHeight(true);
-    var swindow = height - $("#menu_header").outerHeight(true)
-    $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
-    var upperBlock = $("#history-info-block").outerHeight(true) + $("#history-header").outerHeight(true) + 50
-    $("#history-list").height(swindow - upperBlock)
-    $("#menu-pane").height(swindow)
-    $("#control-block").height(swindow)
-    $("#creation-pane").height(swindow)
-    $("#rejected-list-block").height(swindow - 50)
+    setElementsHeight()
   }
+  setElementsHeight()
+
+  selectedElement = null
+  $(`#${mainMenuItem}`).removeClass("active")
+  mainMenuItem = "campaign-new"
+  $(`#${mainMenuItem}`).addClass("active")
+  timeOffset = new Date().getTimezoneOffset()*60000;
+}
+
+function setElementsHeight(){
   var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
   $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
@@ -29,16 +31,9 @@ function init(){
   $("#control-block").height(swindow)
   $("#creation-pane").height(swindow)
   $("#rejected-list-block").height(swindow - 50)
-
-  selectedElement = null
-  $(`#${mainMenuItem}`).removeClass("active")
-  mainMenuItem = "campaign-new"
-  $(`#${mainMenuItem}`).addClass("active")
-  timeOffset = new Date().getTimezoneOffset()*60000;
 }
 var setHeight = false
 function setCampaignHistoryListHeight(){
-
   var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
   $("#history-list-column").height(swindow - $("#history-info-block").outerHeight(true))
@@ -60,7 +55,6 @@ function readCampaigns(){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      //alert(JSON.stringify(res))
       campaignList = res.campaigns
       voteReportList = res.voteReports
       if (campaignList.length == 0)
@@ -69,11 +63,12 @@ function readCampaigns(){
         $("#history").show()
 
       listAllCampaigns(res.recentBatch)
-    }else if (res.status == "failed") {
-      alert(res.message)
-      window.location.href = "login"
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
     }else{
-      alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }
@@ -104,18 +99,18 @@ function readCampaignFromServer(campaign){
   getting.done(function( res ) {
       if (res.status == "ok"){
         var batchReport = res.batchReport
-        //console.log(batchReport)
         campaign.queuedCount = batchReport.queuedCount
         campaign.deliveredCount = batchReport.deliveredCount
         campaign.sentCount = batchReport.sentCount
         campaign.unreachableCount = batchReport.unreachableCount
         campaign.totalCost = batchReport.totalCost
         listAllCampaigns(undefined)
-      }else if (res.status == "failed") {
-        alert(res.message)
-        window.location.href = "login"
+      }else if (res.status == "error" || res.status == "failed"){
+        _alert(res.message)
       }else{
-        alert(res.message)
+        window.setTimeout(function(){
+          window.location.href = "/index"
+        },10000)
       }
   });
 }
@@ -231,11 +226,12 @@ function readVoteResult(){
       //displaySelectedCampaign(selectedBatch)
       listAllCampaigns(undefined)
       //listAllCampaigns(res.recentBatch)
-    }else if (res.status == "failed") {
-      alert(res.message)
-      window.location.href = "login"
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
     }else{
-      alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
 }
@@ -422,10 +418,15 @@ function deleteSurveyResult(batchId){
   var url = `delete-survey-result?batchId=${batchId}`
   var getting = $.get( url );
   getting.done(function( res ) {
-    if (res.status == "ok")
+    if (res.status == "ok"){
       readCampaigns()
-    else
-      alert(res.message)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
   });
 }
 
@@ -434,10 +435,15 @@ function downloadSurveyResult(batchId){
   var url = `download-survey-result?batchId=${batchId}&timeOffset=${timeOffset}`
   var getting = $.get( url );
   getting.done(function( res ) {
-    if (res.status == "ok")
+    if (res.status == "ok"){
       window.location.href = res.message
-    else
-      alert(res.message)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
   });
 }
 /*

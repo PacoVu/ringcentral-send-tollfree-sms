@@ -28,41 +28,38 @@ function init(){
   $( "#fromdatepicker" ).datepicker('setDate', new Date(year, month, day));
   $( "#todatepicker" ).datepicker('setDate', new Date());
   timeOffset = new Date().getTimezoneOffset()*60000;
-  var footer = $("#footer").height()
-  var height = $(window).height() - $("#footer").outerHeight(true)
-    window.onresize = function() {
-        var height = $(window).height() - $("#footer").outerHeight(true)
-        var swindow = height - $("#menu_header").height()
-        $("#message-col").height(swindow)
-        $("#menu-pane").height(swindow)
-        $("#control-list-col").height(swindow)
 
-        $("#recipient-list").height(swindow - ($("#col2-header").height() + 50))
-        $("#conversation").height(swindow - ($("#conversation-header").height() + 90))
-    }
-    var swindow = height - $("#menu_header").height()
-    $("#message-col").height(swindow)
-    $("#menu-pane").height(swindow)
-    $("#control-list-col").height(swindow)
+  window.onresize = function() {
+    setElementsHeight()
+  }
+  setElementsHeight()
 
-    $("#recipient-list").height(swindow - ($("#col2-header").height() + 50))
-    $("#conversation").height(swindow - ($("#conversation-header").height() + 90))
+  $(`#${mainMenuItem}`).removeClass("active")
+  mainMenuItem = "conversations"
+  $(`#${mainMenuItem}`).addClass("active")
 
-    $(`#${mainMenuItem}`).removeClass("active")
-    mainMenuItem = "conversations"
-    $(`#${mainMenuItem}`).addClass("active")
-
-    readContacts()
+  readContacts()
 
   $('#send-text').keyup(function(e) {
-      if(e.keyCode == 13) {
-            $(this).trigger("enterKey");
-      }
+    if(e.keyCode == 13) {
+      $(this).trigger("enterKey");
+    }
   });
   $('#send-text').on("enterKey", function(e){
     sendTextMessage($('#send-text').val())
     $('#send-text').val("")
   });
+}
+
+function setElementsHeight(){
+  var height = $(window).height() - $("#footer").outerHeight(true)
+  var swindow = height - $("#menu_header").height()
+  $("#message-col").height(swindow)
+  $("#menu-pane").height(swindow)
+  $("#control-list-col").height(swindow)
+
+  $("#recipient-list").height(swindow - ($("#col2-header").height() + 50))
+  $("#conversation").height(swindow - ($("#conversation-header").height() + 90))
 }
 
 function readContacts(){
@@ -74,7 +71,7 @@ function readContacts(){
       readMessageStore("")
     }else if (res.status == "failed") {
       alert(res.message)
-      window.location.href = "login"
+      window.location.href = "/index"
     }else{
       alert(res.message)
     }
@@ -94,21 +91,17 @@ function sendTextMessage(message){
     }
   }
   params.message = message
-  //return alert(JSON.stringify(params))
   var url = "sendindividualmessage"
   var posting = $.post( url, params );
   posting.done(function( res ) {
     if (res.status == "ok"){
-      /*
-      window.setTimeout(function(){
-        readMessageStore(pageToken)
-      },2000)
-      */
-      console.log("ok")
-    }else if (res.status == "failed"){
-      alert(res.message)
+      ;
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
     }else{
-      alert(res.message)
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
   posting.fail(function(response){
@@ -129,8 +122,11 @@ function pollNewMessages(){
       pollingTimer = window.setTimeout(function(){
         pollNewMessages()
       },3000)
-    }else
-      alert(res.newMessages)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
   });
 }
 
@@ -176,8 +172,8 @@ function readMessageStore(token){
   var configs = {}
   configs['dateFrom'] = dateFromStr
   configs['dateTo'] = dateToStr
-  console.log(`from: ${dateFromStr}`)
-  console.log(`to: ${dateToStr}`)
+  //console.log(`from: ${dateFromStr}`)
+  //console.log(`to: ${dateToStr}`)
   if (token){
     configs['pageToken'] = token
     pageToken = token
@@ -206,14 +202,17 @@ function readMessageStore(token){
   posting.done(function( res ) {
     if (res.status == "ok") {
       messageList = res.result
-      //alert("res.pageTokens.nextPage")//res.pageTokens.nextPage
       processResult(res.pageTokens.nextPage)
       pollingTimer = window.setTimeout(function(){
         pollNewMessages()
       },3000)
-    }else{
+    }else if (res.status == "error" || res.status == "failed"){
       $("#conversation").html("")
-      alert(res.message)
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
     }
   });
   posting.fail(function(response){

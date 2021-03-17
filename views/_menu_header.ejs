@@ -3,7 +3,11 @@
     <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral.png" height="40"></a></span>&nbsp;&nbsp;
     <span class="title">High Volume SMS</span>
   </span>
-
+  <% if (locals.lowVolume) { %>
+  <ul class="nav navbar-nav navbar-left left-align-nav">
+    <li><a href="/options">Options</a></li>
+  </ul>
+  <% } %>
   <ul class="nav navbar-nav navbar-right middle-align">
     <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
     <li class="dropdown">
