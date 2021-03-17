@@ -22,11 +22,11 @@ function autoStart(){
       if (result.rows){
         //console.log(result.rows)
         async.forEachLimit(result.rows, 1, function(user, setupNextUser){
-          console.log(user)
+          //console.log(user)
             async.waterfall([
               function setupNextUser(done) {
                 // create platform
-                console.log(user.access_tokens)
+                //console.log(user.access_tokens)
                 if (user.access_tokens.length > 0){
                   var platform = new RCPlatform()
                   //console.log(user.access_tokens)
