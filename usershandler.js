@@ -162,11 +162,6 @@ var engine = User.prototype = {
               console.error(e.message);
             }
             await this._readA2PSMSPhoneNumber(p)
-            //console.log(this.phoneHVNumbers)
-            //console.log(this.phoneTFNumbers)
-            // TEST reset phoneHVNumbers
-            //this.phoneHVNumbers = []
-            //console.log("reset")
             callback(null, extensionId)
             res.send('login success');
             // only customers with A2P SMS would be able to subscribe for notification
@@ -192,10 +187,15 @@ var engine = User.prototype = {
                 }
               }else{ // should subscribe for notification and create eventEngine by default
                 this.subscribeForNotification((err, subscriptionId) => {
-                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId, "https://rclabs-hvsms-app-users.herokuapp.com/voteresult")
+                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
                   // must push to router's activeUser list in order to receive routed subscription
                   router.activeUsers.push(thisUser.eventEngine)
-                  thisUser.eventEngine.setPlatform(thisUser.rc_platform)
+                  //thisUser.eventEngine.setPlatform(thisUser.rc_platform)
+                  thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
+                    if (err == null){
+                      console.log("eventEngine is set")  
+                    }
+                  })
                 })
               }
             }

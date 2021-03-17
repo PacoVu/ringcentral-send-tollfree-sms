@@ -20,42 +20,6 @@ function autoStart(){
       console.error(err.message);
     }else{
       if (result.rows){
-        /*
-        async.each(result.rows,
-          function(item, callback){
-            console.log("Extension info: " + item.user_id + " / " + item.subscription_id)
-            // create platform
-            if (item.access_tokens.length > 0){
-              var platform = new RCPlatform()
-              //console.log(item.access_tokens)
-              platform.autoLogin(item.access_tokens, (err, res) => {
-                var aUser = new ActiveUser(item.user_id, item.subscription_id)
-                if (!err){
-                  console.log("has platform")
-                  aUser.setup(platform, (err, result) => {
-                    if (err == null){
-                      activeUsers.push(aUser)
-                      console.log("activeUsers.length: " + activeUsers.length)
-                    }
-                    callback(null, result)
-                  })
-                }else{
-                  console.log("No platform")
-                  aUser.setup(null, (err, result) => {
-                    if (err == null){
-                      activeUsers.push(aUser)
-                      console.log("activeUsers.length: " + activeUsers.length)
-                    }
-                    callback(null, result)
-                  })
-                }
-              })
-            }
-          },
-          function (err){
-            console.log("autoStart completed")
-          })
-        */
         async.forEachLimit(result.rows, 1, function(user, setupNextUser){
             async.waterfall([
               function setupNextUser(done) {
@@ -100,19 +64,7 @@ function autoStart(){
     }
   })
 }
-/*
-function createActiveUsersTable() {
-  console.log("createActiveUsersTable")
-  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_active_users (user_id VARCHAR(15) PRIMARY KEY, subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)'
-  pgdb.create_table(query, (err, res) => {
-      if (err) {
-        console.log(err.message)
-      }else{
-        console.log("A.U.T DONE")
-      }
-    })
-}
-*/
+
 function createUsersAdditionalDataTable() {
   console.log("createUsersAdditionalDataTable")
   var query = "CREATE TABLE IF NOT EXISTS a2p_sms_users_tempdata (user_id VARCHAR(15) PRIMARY KEY, active_survey TEXT DEFAULT '[]', rejected_numbers TEXT DEFAULT '[]')"
