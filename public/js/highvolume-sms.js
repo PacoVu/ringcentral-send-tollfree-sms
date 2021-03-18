@@ -178,9 +178,9 @@ function listAllCampaigns(recentBatch){
       console.log("adjusted")
       console.log(item)
       total = item.totalCount
-      item.deliveredCount = total
+      item.unreachableCount = total
     }
-    
+
     var progress = (item.deliveredCount/total) * 100
     progress = progress.toFixed(0)
     html += `<div class="col-lg-1">${progress}%</div>`
