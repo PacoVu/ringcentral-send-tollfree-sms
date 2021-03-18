@@ -173,14 +173,14 @@ function listAllCampaigns(recentBatch){
       cost = cost.toFixed(1)
     html += `<div class="col-lg-2">${cost} USD</div>`
     var total = item.queuedCount + item.sentCount + item.deliveredCount + item.unreachableCount
-    /*
+
     if (total == 0){
       console.log("adjusted")
       console.log(item)
       total = item.totalCount
       item.deliveredCount = total
     }
-    */
+    
     var progress = (item.deliveredCount/total) * 100
     progress = progress.toFixed(0)
     html += `<div class="col-lg-1">${progress}%</div>`
