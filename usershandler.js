@@ -47,7 +47,7 @@ function User(id) {
     sentCount: 0,
     unreachableCount: 0,
     rejectedCount: 0,
-    totalCost: 0
+    totalCost: 0.0
   }
   this.batchResult = {
     id:"",
@@ -334,7 +334,7 @@ var engine = User.prototype = {
           deliveredCount: 0,
           sentCount: 0,
           unreachableCount: 0,
-          totalCost: 0
+          totalCost: 0.0
         }
         this.sendBatchMessage(res, requestBody, body.campaign_name, "customized")
       }
@@ -442,7 +442,7 @@ var engine = User.prototype = {
         deliveredCount: 0,
         sentCount: 0,
         unreachableCount: 0,
-        totalCost: 0
+        totalCost: 0.0
       }
       this.sendBatchMessage(res, requestBody, body.campaign_name, "group")
     },
@@ -500,7 +500,7 @@ var engine = User.prototype = {
         sentCount: 0,
         unreachableCount: 0,
         rejectedCount: 0,
-        totalCost: 0
+        totalCost: 0.0
       }
       this.batchFullReport = []
       this._getCampaignReport(res, batchId, "")
@@ -541,7 +541,7 @@ var engine = User.prototype = {
                   default:
                     break
                 }
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
                 thisUser.batchSummaryReport.totalCost += cost
               }
               //console.log(jsonObj.paging)
@@ -558,7 +558,7 @@ var engine = User.prototype = {
                     thisUser.batchSummaryReport.deliveredCount = 0
                     thisUser.batchSummaryReport.sentCount = 0
                     thisUser.batchSummaryReport.unreachableCount = 0
-                    thisUser.batchSummaryReport.totalCost = 0
+                    thisUser.batchSummaryReport.totalCost = 0.0
                     thisUser.batchFullReport = []
                     thisUser._getCampaignReport(batchId, "")
                   }, 5000)
@@ -636,7 +636,7 @@ var engine = User.prototype = {
                   default:
                     break
                 }
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
                 thisUser.batchSummaryReport.totalCost += cost
               }
               if (jsonObj.paging.hasOwnProperty("nextPageToken")){
@@ -653,7 +653,7 @@ var engine = User.prototype = {
                     thisUser.batchSummaryReport.deliveredCount = 0
                     thisUser.batchSummaryReport.sentCount = 0
                     thisUser.batchSummaryReport.unreachableCount = 0
-                    thisUser.batchSummaryReport.totalCost = 0
+                    thisUser.batchSummaryReport.totalCost = 0.0
                     thisUser.batchFullReport = []
                     thisUser._getBatchReport(batchId, "")
                   }, 5000)
@@ -1352,7 +1352,7 @@ var engine = User.prototype = {
         sentCount: this.sendCount,
         unreachableCount: 0,
         rejectedCount: 0,
-        totalCost: 0
+        totalCost: 0.0
       }
 
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
