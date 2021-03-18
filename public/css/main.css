@@ -469,24 +469,12 @@ button:focus {
 #creation-pane"  {
   min-width: 600px!important;
   max-width: 600px!important;
-  /*
-  overflow-x: hidden;
-  overflow-y: scroll;
-  height: 400px;
-  */
 }
 
 #recipient-list-col {
   min-width: 350px!important;
   max-width: 350px!important;
 }
-/*
-#recipient-list {
-  overflow-x: hidden;
-  overflow-y: scroll;
-  height: 400px;
-}
-*/
 
 .recipient-list {
   min-width: 350px!important;
