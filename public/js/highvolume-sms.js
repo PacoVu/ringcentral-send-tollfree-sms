@@ -121,6 +121,7 @@ function listAllCampaigns(recentBatch){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
+    console.log(item)
     var date = new Date(item.creationTime)
     var timestamp = item.creationTime - timeOffset
     date = new Date (timestamp)
