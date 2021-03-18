@@ -62,6 +62,7 @@ function readCampaigns(){
       if (campaignList.length != 0){
         $("#content-col").show()
         listAllCampaigns()
+        setElementsHeight()
       }
     }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
