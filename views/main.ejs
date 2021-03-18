@@ -37,21 +37,29 @@
       <% if (lowVolume == false && highVolume == false) { %>
         <div class="col-sm-12 main-options">
           <div>
-          <p style="color: red;">It seems your account does not have a phone number which is provisioned for High Volume SMS. Please follow the instructions below to acquire a number!</p>
+          <p style="color: red;">Your account doesn't have a phone number enabled for High Volume SMS. Follow the instructions below to enable a number:</p>
         </div><br>
           <ol>
-            <li>Login to your <a href='https://service.ringcentral.com'>account online Web portal</a> and choose or purchase a number. Select either the "Local" or "TollFree" type.</li>
-            <li>Fill out the request form <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Request Form</a>.</li>
+            <li>Login <a href='https://service.ringcentral.com'>your account</a> and choose a number or or purchase a new one. Select "Local" or "Toll-Free" number.</li>
+            <li>Submit your number to be enabled via the <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Enrollment Form</a>.</li>
           </ol>
-          <div style="margin-left: 20px;">Note: You can copy this text "Use RingCentral Labs app" and paste into the <b>Application Client ID(s) to enable</b> field in the form!</div>
+          <div style="margin-left: 20px;">Note: Be sure to copy "Use RingCentral Labs app" and paste into the Client ID(s) field on the form!</div>
           <br>
-          <p>If you have a High Volume SMS number and still see this message. It is likely that the number is not assigned to your extension. Ask your account IT admin for help!</p>
+          <p>If you have a High Volume SMS number and still see this message, it is likely the number is not assigned to your extension. Contact your Account Admin for help!</p>
         </div>
       <% } else { %>
         <div class="col-sm-12 main-options">
           <% if (lowVolume == true && highVolume == true) { %>
           <div class="col-sm-5 option-section center">
-            <p>Create marketing or business messaging campaign and send up to 250K messages per day.</p>
+            <p>Create marketing or business messaging campaign:<br>
+              <ul>
+                <li>Send survey with auto-reply</li>
+                <li>Broadcast one-to-many</li>
+                <li>Send personalized messages</li>
+                <li>Instant conversation</li>
+                <li>Up to 250K messages/day</li>
+              </ul>
+            </p>
             <a href="/highvolume-sms"><button class="rc-oval-btn pos-bottom">Continue</button></a>
           </div>
           <div class="col-sm-1 split"></div>
@@ -66,8 +74,7 @@
           </div>
           <div class="col-sm-2 split"></div>
           <div class="col-sm-5 option-section center">
-            <p>RingCentral High Volume SMS allows you to send thousands of custom SMS messages to customers and opt-in lists using any High Volume SMS enabled number.
-            You can request for provisioning your number now.</p>
+            <p>RingCentral High Volume SMS allows you to send thousands of custom SMS messages to customers. You can request for provisioning your number now.</p>
             <a target="_blank" href="https://ringcentral.github.io/releases/high-volume-sms-beta-signup.html"><button class="rc-oval-btn pos-bottom">Continue</button></a>
           </div>
           <% } %>

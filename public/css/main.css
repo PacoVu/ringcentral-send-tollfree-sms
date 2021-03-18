@@ -560,8 +560,7 @@ button:focus {
 .option-section  {
   border: 3px solid #dfe5e7;
   border-radius: 10px;
-  /*background-color: #dfe5e7;*/
-  min-height: 200px;
+  min-height: 250px;
   min-width: 300px;
   max-width: 300px!important;
   margin: auto;

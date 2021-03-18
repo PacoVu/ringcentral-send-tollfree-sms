@@ -155,7 +155,7 @@ var engine = ActiveUser.prototype = {
         this.newMessageArr.push(body)
     },
     processThisCampaign: function(campaign, voter, body){
-        var cost = (body.hasOwnProperty('cost')) ? body.cost : 0
+        var cost = (body.hasOwnProperty('cost')) ? body.cost : 0.0
         campaign.voteCounts.Cost += cost
         var now = new Date().getTime()
         if (now > campaign.endDateTime){
