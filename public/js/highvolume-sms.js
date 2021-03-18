@@ -435,6 +435,8 @@ function createVoteReport(voteReport, archived){
     }
     report += `<div class="info-line"><a href="javascript:downloadSurveyResult('${voteReport.batchId}')">Download Result</a> | `
     report += `<a href="javascript:deleteSurveyResult('${voteReport.batchId}')">Delete Survey Result</a></div>`
+  }else{
+    report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result was deleted!</p>`
   }
   report += "</div>"
   return report
