@@ -3,16 +3,17 @@
 }
 
 #history-list-column {
-  height: 400px;
+  height: 800px;
 }
 
 /* scrollable */
+/*
 #history-list {
   overflow-x: hidden;
   overflow-y: scroll;
   height: 400px;
 }
-
+*/
 .campaign-info-section  {
   border: 1px solid #dfe5e7;
   border-radius: 10px;

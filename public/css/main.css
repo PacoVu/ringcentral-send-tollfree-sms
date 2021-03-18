@@ -302,25 +302,34 @@ button:focus {
 .scrollable {
   overflow-x: hidden;
   overflow-y: scroll;
-  height: 400px;
+  height: 800px;
 }
-
+/*
 #campaign-list {
   overflow-x: hidden;
   overflow-y: scroll;
   height: 400px;
 }
-
+*/
 .campain-input-col {
   min-width: 600px!important;
   max-width: 600px!important;
   background-color: #f5f6fb;/*#F1F1F1;*/
 }
 
+.campaign-list{
+  margin-left: -30px;
+}
+/*
+.campaign-list:hover{
+  background: #DBDBDB;
+}
+*/
+/*
 #campaign-list > div:hover{
   background: #DBDBDB;
 }
-
+*/
 #report-content {
   overflow-x: hidden;
   overflow-y: scroll;
@@ -410,10 +419,6 @@ button:focus {
   max-width: 600px!important;
 }
 
-.campaign-list{
-  margin-left: -30px;
-}
-
 .conversation-title{
   color: black;
   font-size: 1.2em;
@@ -475,18 +480,22 @@ button:focus {
   min-width: 350px!important;
   max-width: 350px!important;
 }
-
+/*
 #recipient-list {
   overflow-x: hidden;
   overflow-y: scroll;
   height: 400px;
 }
+*/
 
 .recipient-list {
   min-width: 350px!important;
   max-width: 350px!important;
 }
 
+.read-message-input-block{
+  margin-top: 10px;
+}
 
 #message{
   min-height: 100px!important;

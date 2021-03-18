@@ -82,13 +82,14 @@ function readCampaignById(elm, batchId){
   // read from local memory
   var campaign = campaignList.find(o => o.batchId == batchId)
   selectedBatchId = batchId
-
-  //return readCampaignFromServer(campaign)
+  displaySelectedCampaign(campaign)
+  /*
   if (campaign && campaign.sentCount > 0){
     readCampaignFromServer(campaign)
   }else{
     displaySelectedCampaign(campaign)
   }
+  */
 }
 
 function readCampaignFromServer(campaign){
@@ -104,7 +105,8 @@ function readCampaignFromServer(campaign){
         campaign.sentCount = batchReport.sentCount
         campaign.unreachableCount = batchReport.unreachableCount
         campaign.totalCost = batchReport.totalCost
-        listAllCampaigns(undefined)
+        //listAllCampaigns(undefined)
+        updateThisCampaign(campaign)
       }else if (res.status == "error" || res.status == "failed"){
         _alert(res.message)
       }else{
@@ -162,8 +164,6 @@ function listAllCampaigns(recentBatch){
         html += `<div class="col-lg-2">--</div>`
     }
 
-    if (item.hasOwnProperty('voteReport'))
-
     console.log("total Cost " + cost)
     if (cost < 1.00)
       cost = cost.toFixed(3)
@@ -201,16 +201,82 @@ function listAllCampaigns(recentBatch){
       readVoteResult()
     }, 2000)
   }
-  //if (isAnyLiveCampaign() || isAnyActiveVote()){
-  //if (isAnyActiveVote()){
+  checkPendingCampaign()
+}
+
+function updateThisCampaign(campaign){
+  var date = new Date(campaign.creationTime)
+  var timestamp = campaign.creationTime - timeOffset
+  date = new Date (timestamp)
+  var dateStr = date.toISOString()
+  dateStr = dateStr.replace("T", " ").substring(0, 16)
+
+  //html += `<div id="${item.batchId}" class="row col-lg-12 history-item" onclick="readCampaignById(this, '${item.batchId}')">`
+  var html = `<div class="row col-lg-3">${campaign.campaignName}</div>`
+  html += `<div class="col-lg-2">${dateStr}</div>`
+  html += `<div class="col-lg-1">${campaign.totalCount}</div>`
+  if (campaign.type == "vote"){
+    html += `<div class="col-lg-1">Survey</div>`
+  }else if (campaign.type == "group")
+    html += `<div class="col-lg-1">Broadcast</div>`
+  else if (campaign.type == "customized")
+    html += `<div class="col-lg-1">Tailored</div>`
+  else
+    html += `<div class="col-lg-1">Toll-Free</div>`
+
+  // mashup with vote result
+  var found = false
+  var cost = campaign.totalCost
+  console.log("batch cost " + campaign.totalCost)
+  for (var vote of voteReportList){
+    if (vote.batchId == campaign.batchId){
+      html += `<div class="col-lg-2">${vote.status}</div>`
+      cost += vote.voteCounts.Cost
+      console.log("vote Cost " + vote.voteCounts.Cost)
+      found = true
+      break
+    }
+  }
+  if (!found){
+    if (campaign.type == "vote"){
+      if (campaign.voteReport){
+        html += `<div class="col-lg-2">${campaign.voteReport.status}</div>`
+        cost += campaign.voteReport.voteCounts.Cost
+      }else
+        html += `<div class="col-lg-2">Deleted</div>`
+    }else
+      html += `<div class="col-lg-2">--</div>`
+  }
+
+  console.log("total Cost " + cost)
+  if (cost < 1.00)
+    cost = cost.toFixed(3)
+  else if (cost < 10.00)
+    cost = cost.toFixed(2)
+  else
+    cost = cost.toFixed(1)
+  html += `<div class="col-lg-2">${cost} USD</div>`
+  var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount
+  var progress = (campaign.deliveredCount/total) * 100
+  progress = progress.toFixed(0)
+  html += `<div class="col-lg-1">${progress}%</div>`
+
+  $(`#${campaign.batchId}`).html(html)
+
+  if (selectedBatchId == campaign.batchId)
+    displaySelectedCampaign(campaign)
+  checkPendingCampaign()
+}
+
+function checkPendingCampaign(){
   var liveCampaign = isAnyLiveCampaign()
-  if (liveCampaign){ // keep polling campaign with queues
+  if (liveCampaign){ // keep polling a campaign with message(s) in queued status
     pollingBatchReportTimer = window.setTimeout(function(){
       readCampaignFromServer(liveCampaign)
     }, 2000)
   }else{
     var pendingCampaign = isAllSentCampaign()
-    if (pendingCampaign){
+    if (pendingCampaign){ // keep polling a campaign with message(s) in sent status
       pollingBatchReportTimer = window.setTimeout(function(){
         readCampaignFromServer(pendingCampaign)
       }, 5000)
@@ -224,10 +290,17 @@ function readVoteResult(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       voteReportList = res.voteReports
-      //var selectedBatch = campaignList.find(o => o.batchId === selectedBatchId)
-      //displaySelectedCampaign(selectedBatch)
-      listAllCampaigns(undefined)
-      //listAllCampaigns(res.recentBatch)
+      for (var vote of voteReportList){
+        var campaign = campaignList.find(o => o.batchId === vote.batchId)
+        if (campaign){
+          updateThisCampaign(campaign)
+        }
+      }
+      if (isAnyActiveVote()){
+        pollingVoteResultTimer = window.setTimeout(function(){
+          readVoteResult()
+        }, 2000)
+      }
     }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
@@ -254,8 +327,8 @@ function displaySelectedCampaign(batchReport){
   report += `<div class="info-line"><img class="medium-icon" src="../img/recipient.png"></img> ${batchReport.totalCount} recipients </div>`
 
   report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
-  var msg = (batchReport.message.length > 50) ? (batchReport.message.substring(0, 50) + "...") : batchReport.message
-  report += `<p class="info-line"><img class="medium-icon" src="../img/message.png"></img> ${msg}</p>`
+  //var msg = (batchReport.message.length > 50) ? (batchReport.message.substring(0, 50) + "...") : batchReport.message
+  report += `<p class="info-line"><img class="medium-icon" src="../img/message.png"></img> ${batchReport.message}</p>`
 
   $("#campaign-details").html(report)
 

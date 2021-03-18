@@ -58,8 +58,8 @@ function setElementsHeight(){
   $("#menu-pane").height(swindow)
   $("#control-list-col").height(swindow)
 
-  $("#recipient-list").height(swindow - ($("#col2-header").height() + 50))
-  $("#conversation").height(swindow - ($("#conversation-header").height() + 90))
+  $("#recipient-list").height(swindow - ($("#col2-header").outerHeight(true) + 90))
+  $("#conversation").height(swindow - ($("#conversation-header").outerHeight(true) + 90))
 }
 
 function readContacts(){

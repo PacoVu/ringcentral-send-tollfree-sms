@@ -53,7 +53,7 @@
     <div class="row col-lg-12">
       <%- include('_menu') %>
       <div id="control-list-col" class="col-lg-3 control-pane">
-        <div id="col2-header" class="form-inline">
+        <div id="col2-header" class="form-inline read-message-input-block">
           <div class="block_space">
             <label class="label-input" for="direction">Read</label>
             <select class="selectpicker filter-select" data-width="180" id="period" onchange="readMessageStore()" style="display: inline" title="Time Period">
@@ -94,7 +94,7 @@
           </div>
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
-        <div id="recipient-list" class="recipient-list"></div>
+        <div id="recipient-list" class="scrollable recipient-list"></div>
       </div>
       <div id="message-col" class="col-lg-7" style="background-color: #f5f6fb;">
         <div class="row col-xs-12" style="display:block;">
