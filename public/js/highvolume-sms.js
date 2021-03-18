@@ -121,7 +121,6 @@ function listAllCampaigns(recentBatch){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
-    console.log(item)
     var date = new Date(item.creationTime)
     var timestamp = item.creationTime - timeOffset
     date = new Date (timestamp)
@@ -174,6 +173,12 @@ function listAllCampaigns(recentBatch){
       cost = cost.toFixed(1)
     html += `<div class="col-lg-2">${cost} USD</div>`
     var total = item.queuedCount + item.sentCount + item.deliveredCount
+    if (total == 0){
+      console.log("adjusted")
+      console.log(item)
+      total = item.totalCount
+      item.deliveredCount = total
+    }
     var progress = (item.deliveredCount/total) * 100
     progress = progress.toFixed(0)
     html += `<div class="col-lg-1">${progress}%</div>`
