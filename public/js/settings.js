@@ -1,4 +1,5 @@
 var contactList = []
+var webhook = undefined
 function init(){
   window.onresize = function() {
     setElementsHeight()
@@ -50,6 +51,7 @@ function readWebhookAddress(view){
       $("#webhook-address").val(res.message.url)
       $("#header-name").val(res.message.headerName)
       $("#header-value").val(res.message.headerValue)
+      webhook = res.message
       $("#contacts-block").hide()
       $(`#${view}`).show()
       if ($("#webhook-address").val() != ""){
@@ -57,7 +59,7 @@ function readWebhookAddress(view){
         $("#set-webhook").hide()
         $("#copy-btn").show()
         $("#generator-btn").hide()
-        disableWebhookInputs(true)
+        //disableWebhookInputs(true)
         showSampleCode($("#header-name").val(), $("#header-value").val())
       }else{
         $("#delete-webhook").hide()
@@ -91,7 +93,7 @@ function deleteWebhookAddress(){
       $("#copy-btn").hide()
       $("#generator-btn").show()
       $("#code").html("")
-      disableWebhookInputs(false)
+      //disableWebhookInputs(false)
     }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
@@ -218,11 +220,16 @@ function setWebhookAddress(){
     if (res.status == "ok"){
       _alert("WebHooks set successfullly", "Confirmation")
       $("#delete-webhook").show()
-      disableWebhookInputs(true)
+      //disableWebhookInputs(true)
       $("#set-webhook").hide()
       $("#copy-btn").show()
       $("#generator-btn").hide()
       showSampleCode($("#header-name").val(), $("#header-value").val())
+      webhook = {
+        url: $("#webhook-address").val(),
+        headerName: $("#header-name").val(),
+        headerValue: $("#header-value").val()
+      }
     }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
@@ -236,12 +243,33 @@ function setWebhookAddress(){
   });
 }
 
+function checkValueChange(){
+  var valueChanged = false
+  if (webhook.url){
+    if (webhook.url != $(`#webhook-address`).val())
+      valueChanged = true
+    else if (webhook.headerName != $(`#header-name`).val())
+      valueChanged = true
+    else if (webhook.headerValue != $(`#header-value`).val())
+      valueChanged = true
+
+    if (valueChanged){
+      $("#set-webhook").html('Update')
+      $("#set-webhook").show()
+    }else{
+      $("#set-webhook").hide()
+    }
+  }else{
+    ;
+  }
+}
+/*
 function disableWebhookInputs(flag){
   $("#webhook-address").prop("disabled", flag)
   $("#header-name").prop("disabled", flag)
   $("#header-value").prop("disabled", flag)
 }
-
+*/
 function generateCode() {
   var text = "";
   var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -261,27 +289,31 @@ function showSampleCode(key, value){
   var url = $("#webhook-address").val().replace("https://", "")
   var arr = url.split("/")
   var codeStr = `<h3>Express Node JS sample code:</h3> \
-<xmp> \
-app.post('/${arr[1]}', function(req, res) { \n\
-    if(req.headers.hasOwnProperty('${key}')) { \n\
-      if (req.headers['${key}'] == '${value}'){ \n\
-        var body = [] \n\
-        req.on('data', function(chunk) { \n\
-            body.push(chunk); \n\
-        }).on('end', function() { \n\
-            body = Buffer.concat(body).toString() \n\
-            var jsonObj = JSON.parse(body) \n\
-            console.log(jsonObj) \n\
-        }) \n\
-      }else{ \n\
-        console.log('Hacker post') \n\
-      } \n\
-    }else{ \n\
-      console.log('Spammer post.') \n\
-    } \n\
-    res.statusCode = 200 \n\
-    res.end() \n\
-}) \n\
+<xmp>\
+var app = require('express')();
+var server = require('http').createServer(app);
+server.listen(8000);
+
+app.post('/${arr[1]}', function(req, res) {\n\
+    if(req.headers.hasOwnProperty('${key}')) {\n\
+      if (req.headers['${key}'] == '${value}'){\n\
+        var body = []\n\
+        req.on('data', function(chunk) {\n\
+            body.push(chunk);\n\
+        }).on('end', function() {\n\
+            body = Buffer.concat(body).toString()\n\
+            var jsonObj = JSON.parse(body)\n\
+            console.log(jsonObj)\n\
+        })\n\
+      }else{\n\
+        console.log('Hacker post')\n\
+      }\n\
+    }else{\n\
+      console.log('Spammer post.')\n\
+    }\n\
+    res.statusCode = 200\n\
+    res.end()\n\
+})\n\
 </xmp>`
   $("#code").html(codeStr)
 }

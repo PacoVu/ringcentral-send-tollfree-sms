@@ -93,17 +93,17 @@
           <p class="info-text">Setup webhook to receive your campaign detailed report data (in JSON format) after a campaign is sent. For a survey campaign, you will receive the detailed survey result data as soon as the survey is completed or after the survey expired, which ever happens first.</p>
           <div class="block_space">
             <label class="label-input" for="webhook-address">Webhook address</label><br>
-            <input id="webhook-address" class="form-control" type="text" size="73" value="" placeholder="Enter your webhook address"></input>
+            <input id="webhook-address" class="form-control" type="text" size="73" value="" oninput="checkValueChange()" placeholder="Enter your webhook address"></input>
           </div>
           <div class="block_space">
             <label class="label-input" for="header-name">Header name</label><br>
-            <input id="header-name" type="text" class="form-control" size="73" placeholder="Enter header name">
+            <input id="header-name" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header name">
           </div>
           <div class="block_space">
             <label class="label-input" for="header-value">Header value</label>
             <a id="generator-btn" class="form-control navbutton" href="javascript:generateCode()">Generate random value</a>
             <a id="copy-btn" class="form-control navbutton" href="javascript:copyHeaderValue()">Copy header value</a><br>
-            <input id="header-value" type="text" class="form-control" size="73" placeholder="Enter header value">
+            <input id="header-value" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header value">
           </div>
 
           <!--hr style="margin: 2px !important"></hr-->

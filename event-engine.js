@@ -420,6 +420,7 @@ var engine = ActiveUser.prototype = {
         return
       var https = require('https');
       //console.log(data)
+      var content = JSON.stringify(data)
       var url = this.webhooks.url.replace("https://", "")
       var arr = url.split("/")
       var domain = arr[0]
@@ -429,26 +430,31 @@ var engine = ActiveUser.prototype = {
           path: path,
           method: "POST",
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Content-Length': content.length
           }
       }
       if (this.webhooks.headerName.length && this.webhooks.headerValue.length){
         post_options.headers[`${this.webhooks.headerName}`] = this.webhooks.headerValue
       }
-      //console.log(post_options)
-      //return
-      var post_req = https.request(post_options, function(res) {
-          var response = ""
-          res.on('data', function (chunk) {
-              response += chunk
-          });
-          res.on("end", function(){
-            console.log(response)
-          });
-      });
+      //return console.log(post_options)
+      try{
+        var post_req = https.request(post_options, function(res) {
+            var response = ""
+            res.on('data', function (chunk) {
+                response += chunk
+            });
+            res.on("end", function(){
+              console.log(response)
+            });
+        });
 
-      post_req.write(JSON.stringify(data));
-      post_req.end();
+        post_req.write(content);
+        post_req.end();
+      }catch(e){
+        console.log("CRASHED PORT RESULT")
+        console.log(e.message)
+      }
     }
 };
 

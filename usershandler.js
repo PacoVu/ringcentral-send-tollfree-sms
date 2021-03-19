@@ -677,11 +677,12 @@ var engine = User.prototype = {
         rejectedCount: 0,
         totalCost: 0.0
       }
-
+/*
       console.log(this.batchSummaryReport)
       console.log("=====voteInfo=====")
       console.log(voteInfo)
       console.log(requestBody)
+*/      
 /*
       res.send({
         status: "Failed",
@@ -1316,6 +1317,8 @@ var engine = User.prototype = {
       //console.log("_readMessageList")
       var thisUser = this
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      console.log(endpoint)
+      console.log(readParams)
       var p = this.rc_platform.getPlatform()
       if (p){
         try {
