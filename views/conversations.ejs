@@ -95,7 +95,7 @@
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
         <div class="block_space">
-          <input type="text" class="form-control search-input" placeholder="Search number" value="" id="search-number" oninput="searchRecipientNumber(this)"></input>
+          <input type="text" class="form-control search-input" placeholder="Search number" value="" id="search-number" onfocus="clearSearch(this)" oninput="searchRecipientNumber(this)"></input>
           <!--input type="text" class="form-control search-input" placeholder="Search name" value="" id="search-name" oninput="searchRecipientName(this)"></input-->
         </div>
         <div id="recipient-list" class="scrollable recipient-list"></div>

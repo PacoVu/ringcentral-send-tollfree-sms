@@ -62,7 +62,7 @@ function setElementsHeight(){
   $("#conversation").height(swindow - ($("#conversation-header").outerHeight(true) + 90))
 }
 
-function searchRecipientNumber(elm){
+function searchRecipientNumberOold(elm){
   var number = `+${$(elm).val()}`
   var index = recipientPhoneNumbers.indexOf(number)
   if (index >= 0){
@@ -81,6 +81,32 @@ function searchRecipientNumber(elm){
     var topPos = element.offsetTop;
     document.getElementById('recipient-list').scrollTop = topPos;
     element.scrollIntoView()
+  }
+}
+function clearSearch(elm){
+  $(elm).val('')
+}
+function searchRecipientNumber(elm){
+  var number = $(elm).val()
+  if (number.length < 4)
+    return
+  //var index = recipientPhoneNumbers.indexOf(number)
+  var index = 0
+  for (var recipient of recipientPhoneNumbers){
+    if (recipient.indexOf(number) >= 0){
+      var contact = contactList.find(o => o.phoneNumber === recipient)
+      var name = ""
+      if (contact)
+        var name = ` - ${contact.fname} ${contact.lname}`
+      showConversation(recipient, name)
+
+      var id = parseInt(recipient)
+      var element = document.getElementById(`${id}`)
+      var topPos = element.offsetTop;
+      document.getElementById('recipient-list').scrollTop = topPos;
+      element.scrollIntoView()
+      break
+    }
   }
 }
 /*
