@@ -58,10 +58,51 @@ function setElementsHeight(){
   $("#menu-pane").height(swindow)
   $("#control-list-col").height(swindow)
 
-  $("#recipient-list").height(swindow - ($("#col2-header").outerHeight(true) + 90))
+  $("#recipient-list").height(swindow - ($("#col2-header").outerHeight(true) + 120))
   $("#conversation").height(swindow - ($("#conversation-header").outerHeight(true) + 90))
 }
 
+function searchRecipientNumber(elm){
+  var number = `+${$(elm).val()}`
+  var index = recipientPhoneNumbers.indexOf(number)
+  if (index >= 0){
+    var recipient = recipientPhoneNumbers[index]
+    var contact = contactList.find(o => o.phoneNumber === recipient)
+    var name = ""
+    if (contact)
+      var name = ` - ${contact.fname} ${contact.lname}`
+    showConversation(recipient, name)
+
+    var id = parseInt(recipient)
+    var element = document.getElementById(`${id}`)
+    //element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+    //$(`#${id}`).scrollIntoView()
+
+    var topPos = element.offsetTop;
+    document.getElementById('recipient-list').scrollTop = topPos;
+    element.scrollIntoView()
+  }
+}
+/*
+function searchRecipientName(elm){
+  var number = `${$(elm).val()}`
+  var index = contactList.find(number)
+  if (index >= 0){
+    var recipient = recipientPhoneNumbers[index]
+    var contact = contactList.find(o => o.phoneNumber === recipient)
+    var name = ""
+    if (contact)
+      var name = ` - ${contact.fname} ${contact.lname}`
+    showConversation(recipient, name)
+
+    var id = parseInt(recipient)
+    var element = document.getElementById(`${id}`)
+    var topPos = element.offsetTop;
+    document.getElementById('recipient-list').scrollTop = topPos;
+    element.scrollIntoView()
+  }
+}
+*/
 function readContacts(){
   var url = "get-contacts"
   var getting = $.get( url );
@@ -194,7 +235,7 @@ function readMessageStore(token){
   }
   //return alert(configs.phoneNumbers)
   messageList = []
-  var readingAni = "<img src='./img/loading.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
   $("#conversation").html(readingAni)
 
   var url = "read-message-store"
@@ -327,7 +368,9 @@ function showConversation(recipient, name){
       params.to = recipient //selectedRecipient
       params.message = ""
       $("#message-input").show()
-      $("#conversation-title").html(`${formatPhoneNumber(recipient)}${currentSelectedContact}`)
+      var title = `<span>${formatPhoneNumber(recipient)}${currentSelectedContact}</span> <a href="rcapp://r/call?number=${recipient}"><img src="../img/call.png" class="medium-icon"></img></a>`
+      //$("#conversation-title").html(`${formatPhoneNumber(recipient)}${currentSelectedContact}`)
+      $("#conversation-title").html(title)
 
       var myNumbers = []
       var maxLen = messageList.length - 1
