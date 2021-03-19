@@ -255,6 +255,14 @@ app.get('/download-batch-report', function (req, res) {
   }
 })
 
+app.get('/download-invalid-number', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadInvalidNumbers(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/delete-campaign-result', function (req, res) {
   if (req.session.extensionId != 0)
     router.deleteCampaignResult(req, res)

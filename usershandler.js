@@ -1468,6 +1468,46 @@ var engine = User.prototype = {
         res.send({status:"failed",message:"Cannot create a campaign result file! Please try gain"})
       }
     },
+    downloadInvalidNumbers: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(" ", "-")
+      var fileContent = ""
+      fullNamePath += '-invalid-numbers.csv'
+      fileContent = "Index,Number,Error Code,Description"
+      var query = `SELECT rejected_numbers FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (!err && result.rows.length > 0){
+          var batches = JSON.parse(result.rows[0].rejected_numbers)
+          var campaign = batches.find(o => o.batchId === req.query.batchId)
+          if (campaign){
+            for (var item of campaign.rejected){
+              fileContent += `\n${item.index},${item.to[0]},${item.errorCode},"${item.description}"`
+            }
+          }
+          try{
+            fs.writeFileSync('./'+ fullNamePath, fileContent)
+            var link = "/downloads?filename=" + fullNamePath
+            res.send({
+              status:"ok",
+              message:link
+            })
+          }catch (e){
+            console.log("cannot create download file")
+            res.send({
+              status:"failed",
+              message:"Cannot create download file! Please try gain"})
+          }
+        }else{ // no history
+          res.send({
+            status: "error",
+            message: "Not found!",
+          })
+        }
+      })
+    },
     downloadBatchReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){

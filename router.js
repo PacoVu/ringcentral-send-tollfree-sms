@@ -301,6 +301,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].downloadBatchReport(req, res)
   },
+  downloadInvalidNumbers: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadInvalidNumbers(req, res)
+  },
   deleteCampaignResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

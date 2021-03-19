@@ -116,15 +116,18 @@ function readCampaign(elm, batchId){
       var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
       title += `<a href="javascript:downloadBatchReport('${campaign.campaignName}')">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
       title += `<a href="javascript:deleteCampaignResult('${campaign.batchId}')">Delete campaign</a></div>`
+      if (campaign.rejectedCount > 0)
+        title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="javascript:downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}')">Download invalid numbers</a></div>`
       $("#campaign-title").html( title )
       var report = `<div>`
-      report += `<div class="info-line"><img class="icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
-      report += `<div class="info-line"><img class="icon" src="../img/sender.png"></img> ${formatPhoneNumber(campaign.serviceNumber)}</div>`
-      report += `<div class="info-line"><img class="icon" src="../img/recipient.png"></img> ${campaign.totalCount} recipients </div>`
-
-      report += `<div class="info-line"><img class="icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
+      report += `<div class="info-line"><img class="medium-icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`
+      report += `<div class="info-line"><img class="medium-icon" src="../img/sender.png"></img> ${formatPhoneNumber(campaign.serviceNumber)}</div>`
+      report += `<div class="info-line"><img class="medium-icon" src="../img/recipient.png"></img> ${campaign.totalCount} recipients</div>`
+      if (campaign.rejectedCount > 0)
+        report += `<div class="info-line"><img class="medium-icon" src="../img/invalid-number.png"></img> ${campaign.rejectedCount} invalid phone number(s)</div>`
+      report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
       var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
-      report += `<p class="info-line"><img class="icon" src="../img/message.png"></img> ${msg}</p>`
+      report += `<p class="info-line"><img class="medium-icon" src="../img/message.png"></img> ${msg}</p>`
       report += "</div>"
       $("#campaign-details").html(report)
       var params = [];
@@ -218,6 +221,22 @@ function deleteCampaignResult(batchId){
       if (campaignList.length == 0)
         ;//createNewCampaign()
       listAllCampaigns()
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
+  });
+}
+
+function downloadInvalidNumbers(batchId, name){
+  var url = `download-invalid-number?batchId=${batchId}&campaign_name=${encodeURIComponent(name)}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      window.location.href = res.message
     }else if (res.status == "error" || res.status == "failed"){
       _alert(res.message)
     }else{
