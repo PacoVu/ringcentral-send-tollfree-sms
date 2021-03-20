@@ -8,11 +8,13 @@ function init() {
   mainMenuItem = "help"
   $(`#${mainMenuItem}`).addClass("active")
 }
+
 function setElementsHeight(){
   var height = $(window).height() - $("#footer").outerHeight(true);
   var swindow = height - $("#menu_header").height()
   $("#menu-pane").height(swindow)
   $("#control-col").height(swindow)
+  $("#create").height(swindow - 50)
 }
 
 function showView(view){
