@@ -49,13 +49,16 @@
       <div id="create" class="row col-lg-11" style="display: none">
         <div id="creation-pane" class="col-lg-4 control-pane large-pane">
           <div class="form-inline" style="margin-top: 20px">
-            <div id="result-block" class="result-block" style="margin-top:0px;display: block">
+            <div id="result-block" class="result-block" style="margin-top:0px;display: none">
               <span style="height:50px;margin-bottom:10px"><b>Sending Progress</b></span>&nbsp;&nbsp;
               <img src='./img/sendprogress.gif' id="sendingAni" style='width:30px;height:20px;'></img>
               <div id="time"></div>
               <div id="status"></div>
               <div id="result"></div>
-              <input id="download-reject-number" type="button" class="rc-oval-btn" style="margin-top:20px;display: none" onclick="switchToHistoryView()" value="Continue"></input>
+              <span id="download-reject-number" style="margin-top:40px;display: none" >
+                <input type="button" class="rc-oval-btn" onclick="switchToHistoryView()" value="Continue"></input>&nbsp;&nbsp;
+                <input type="button" class="rc-oval-btn" onclick="downloadRejectedList()" value="Download Rejected List"></input>
+            </span>
             </div>
             <form id="sms-form" style="display: none" class="form-group" enctype="multipart/form-data">
               <div id="block_1" class="input_page">

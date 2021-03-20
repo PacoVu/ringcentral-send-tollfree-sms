@@ -923,6 +923,23 @@ function showResult(flag){
   }
 }
 
+function downloadRejectedList(){
+  var name = $("#campaign-name").val()
+  var url = `download-invalid-number?batchId=${currentBatchId}&campaign_name=${encodeURIComponent(name)}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      window.location.href = res.message
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
+  });
+}
+
 function switchToHistoryView(){
   showBlock("history")
   selectedBatchId = "" // force to display latest campaign
