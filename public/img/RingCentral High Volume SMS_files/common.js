@@ -1,65 +1,4 @@
-var pollTimer = null
-
-function switchPollResult(){
-  $("#result_block").show()
-  if (isPolling){
-    if (pollTimer)
-      window.clearTimeout(pollTimer)
-    pollTimer = null
-    isPolling = false
-    $("#sendingAni").css('display', 'none');
-    $("#polling_tips").css('display', 'none');
-    $("#read_result").text("Start Polling")
-  }else{
-    $("#sendingAni").css('display', 'inline');
-    $("#polling_tips").css('display', 'inline');
-    $("#read_result").text("Stop Polling")
-    isPolling = true
-    pollResult()
-  }
-}
-
-function startPollingResult(show){
-  $("#result_block").show()
-  if (show){
-    $("#sendingAni").css('display', 'inline');
-    $("#polling_tips").css('display', 'inline');
-    $("#read_result").text("Stop Polling")
-    pollResult()
-  }else{
-    if (pollTimer)
-      window.clearTimeout(pollTimer)
-    pollTimer = null
-    $("#sendingAni").css('display', 'none');
-    $("#polling_tips").css('display', 'none');
-    $("#read_result").text("Start Polling")
-  }
-}
-
-function pollResult(){
-  if (currentBatchId == "")
-    return
-  var url = "getbatchresult?batchId=" + currentBatchId
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok"){
-      parseResultResponse(res)
-    }else {
-      alert(res.message)
-    }
-  });
-}
-
-function showResult(flag){
-  if (flag){
-    $("#result_block").show()
-    $("#sendingAni").css('display', 'inline');
-  }else{
-    $("#result_block").hide()
-    $("#sendingAni").css('display', 'none');
-  }
-}
-
+var mainMenuItem = "campaign-new"
 function downloadReport(format){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var url = "downloadbatchreport?format=" + format + "&timeOffset=" + timeOffset
@@ -98,7 +37,7 @@ function formatPhoneNumber(phoneNumberString, countryCode) {
   }
   return phoneNumberString
 }
-
+/*
 function parseResultResponse(resp){
   //currentBatchId = resp.result.id
   $("#control_block").show()
@@ -127,7 +66,8 @@ function parseResultResponse(resp){
     readReport()
   }
 }
-
+*/
+/*
 function readReport(){
   if (currentBatchId == "")
     return
@@ -138,11 +78,6 @@ function readReport(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       var report = "<div>"
-      /*
-        for (var key of Object.keys(res.result)){
-          report += "<div>" + key + " = " + res.result[key] + "</div>"
-        }
-      */
       for (var key of Object.keys(res.summaryReport)){
         if (key == "Total_Cost")
           report += "<div>" + key.replace(/_/g, " ") + ": " + res.summaryReport[key].toFixed(3) + " USD</div>"
@@ -160,6 +95,7 @@ function readReport(){
   });
 }
 ////
+*/
 
 function openWindow(){
   window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
@@ -204,4 +140,26 @@ function submitFeedback(params){
     alert(res.message)
   });
   return true
+}
+
+function _alert(msg, title, focusField){
+  if (title == undefined)
+    title = "Error"
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;color:white">${title}</div>`,
+      message: msg,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-error').append(msg);
+      },
+      buttons: [{
+        label: 'Close',
+        action: function(dialog) {
+          dialog.close();
+          if (focusField)
+            $(focusField).focus()
+        }
+      }]
+  });
+  return false;
 }

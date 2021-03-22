@@ -83,13 +83,6 @@ function readCampaignById(elm, batchId){
   var campaign = campaignList.find(o => o.batchId == batchId)
   selectedBatchId = batchId
   displaySelectedCampaign(campaign)
-  /*
-  if (campaign && campaign.sentCount > 0){
-    readCampaignFromServer(campaign)
-  }else{
-    displaySelectedCampaign(campaign)
-  }
-  */
 }
 
 function readCampaignFromServer(campaign){
@@ -357,12 +350,11 @@ function displaySelectedCampaign(batchReport){
   var archived = false
   if (batchReport.type == "vote"){
     var voteReport = voteReportList.find(o => o.batchId === batchReport.batchId)
-    if (!voteReport){
+    if (voteReport == undefined){
       archived = true
       recentBatch = campaignList.find(o => o.batchId === selectedBatchId)
       voteReport = batchReport.voteReport
     }
-
     $("#vote-report").show()
     if (voteReport == undefined){
       $("#vote-result").html("")
@@ -433,11 +425,19 @@ function createVoteReport(voteReport, archived){
     if (voteReport.status != "Active"){
       report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
     }
-    report += `<div class="info-line"><a href="javascript:downloadSurveyResult('${voteReport.batchId}')">Download Result</a> | `
-    report += `<a href="javascript:deleteSurveyResult('${voteReport.batchId}')">Delete Survey Result</a></div>`
+    report += `<div class="info-line"><a href="javascript:downloadSurveyResult('${voteReport.batchId}')">Download Detailed Result</a> | `
+    report += `<a href="javascript:deleteSurveyResult('${voteReport.batchId}')">Delete Detailed Result</a></div>`
   }else{
-    report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result was deleted!</p>`
+    report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey detailed result was deleted!</p>`
   }
+  var body = ""
+  for (var key of Object.keys(voteReport.voteResults)){
+    if (voteReport.voteResults[key] > 1)
+      body += `${voteReport.voteResults[key]} persons replied ${key}<br>`
+    else
+      body += `${voteReport.voteResults[key]} person replied ${key}<br>`
+  }
+  report += `<a href="javascript:emailSurveyResult('${body}')">Share Result</a></div>`
   report += "</div>"
   return report
 }
@@ -472,6 +472,15 @@ function plotVoteResult(result){
     chart.draw(view, options);
 }
 
+function emailSurveyResult(results){
+  var subject = "subject=Survey result"
+  results = results.replace(/(<br>)/g, "%0A")
+  var body = `&body=%0A%0A${results}`
+  var mailto = "mailto:?"
+  var mail = mailto + subject + body
+  window.location.href = mailto + subject + body
+}
+
 function isAnyActiveVote(){
   for (var vote of voteReportList){
     if (vote.status === "Active"){
@@ -483,7 +492,7 @@ function isAnyActiveVote(){
 
 function isAnyLiveCampaign(){
   for (var campaign of campaignList){
-    if (campaign.live){
+    if (campaign.queuedCount){
       return campaign
     }
   }

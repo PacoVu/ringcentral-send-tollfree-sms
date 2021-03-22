@@ -23,7 +23,7 @@ function User(id) {
 
   // High Volume SMS Report
   this.batchSummaryReport = {
-    live: false,
+    //live: false,
     campaignName: "",
     creationTime: 0,
     type: "",
@@ -662,7 +662,7 @@ var engine = User.prototype = {
       sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
       voteInfo.message = sampleMessage
       this.batchSummaryReport = {
-        live: true,
+        //live: true,
         campaignName: body.campaign_name,
         creationTime: new Date().getTime(),
         type: "vote",
@@ -682,7 +682,7 @@ var engine = User.prototype = {
       console.log("=====voteInfo=====")
       console.log(voteInfo)
       console.log(requestBody)
-*/      
+*/
 /*
       res.send({
         status: "Failed",
@@ -781,7 +781,7 @@ var engine = User.prototype = {
         sampleMessage = body.message
       sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
       this.batchSummaryReport = {
-        live: true,
+        //live: true,
         campaignName: body.campaign_name,
         creationTime: new Date().getTime(),
         type: sendMode,
@@ -1064,7 +1064,7 @@ var engine = User.prototype = {
             }else{
               // update local db
               this._updateCampaignDB(null, (err, result) => {
-                thisUser.batchSummaryReport.live = false
+                //thisUser.batchSummaryReport.live = false
                 thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
                 console.log("DONE SEND BATCH")
               })
@@ -1087,7 +1087,7 @@ var engine = User.prototype = {
       */
       this.batchFullReport = []
       var batchReport = {
-        live: false,
+        //live: false,
         totalCount: 0,
         queuedCount: 0,
         deliveredCount: 0,
@@ -1096,6 +1096,7 @@ var engine = User.prototype = {
         deliveryFailedCount: 0,
         totalCost: 0.0
       }
+      console.log(batchId)
       this._readCampaignDetailsFromServer(res, batchId, batchReport, "")
     },
     _readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
@@ -1117,7 +1118,7 @@ var engine = User.prototype = {
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
               case "Queued":
-                batchReport.live = true
+                //batchReport.live = true
                 batchReport.queuedCount++
                 break;
               case "Delivered":
@@ -1264,7 +1265,7 @@ var engine = User.prototype = {
                 // update local db
                 this.eventEngine.setCampainByBatchId(batchId, vote)
                 this._updateCampaignDB(null, (err, result) => {
-                  thisUser.batchSummaryReport.live = false
+                  //thisUser.batchSummaryReport.live = false
                   thisUser.eventEngine.postResults(this.batchSummaryReport)
                   console.log("DONE SEND SURVEY BATCH")
                 })
@@ -2072,7 +2073,7 @@ var engine = User.prototype = {
             batch.sentCount = batchReport.sentCount
             batch.unreachableCount = batchReport.unreachableCount
             batch.totalCost = batchReport.totalCost
-            batch.live = false
+            //batch.live = false
             var query = 'UPDATE a2p_sms_users SET '
             query += `batches='${JSON.stringify(batches)}'`
             query += ` WHERE user_id='${thisUser.extensionId}'`
@@ -2150,7 +2151,7 @@ var engine = User.prototype = {
       var thisUser = this
       var msg = (this.sendMessage.length > 50) ? (this.sendMessage.substring(0, 50) + "...") : this.sendMessage
       var newBatch = {
-        live: false,
+        //live: false,
         campaignName: "Campaign Name",
         type: "tollfree",
         serviceNumber: this.fromNumber,

@@ -9,61 +9,8 @@ var totalMessageSegments = 0
 var sampleRow = null
 var csvColumnIndex = {}
 const MASK = "#!#"
-var loaded = 0
+//var secondLine = ""
 
-/*
-window.onload = function init(){
-  //google.charts.load('current', {'packages':['corechart'], callback: onloaded});
-  //google.charts.setOnLoadCallback(onloaded);
-
-  var height = $(window).height() - 80;
-    window.onresize = function() {
-        height = $(window).height() - 80;
-        var swindow = height - $("#menu_header").height()
-        $("#control-block").height(swindow)
-        $("#creation-pane").height(swindow)
-        $("#menu-pane").height(swindow) // menu-pane
-    }
-    var swindow = height - $("#menu_header").height()
-    $("#control-block").height(swindow)
-    $("#creation-pane").height(swindow)
-    $("#menu-pane").height(swindow) // menu-pane
-
-    $("#campain-new").addClass("active");
-}
-
-function onloaded(){
-  loaded++
-  if (loaded == 3){
-     // prevent loading multiple times
-    var jsonObj = JSON.parse(window.batchResult)
-    if (jsonObj.status == "Processing" && jsonObj.id != ""){
-      pendingBatch = true
-      currentBatchId = jsonObj.id
-      isPolling = false // force to start polling
-      startPollingResult(true)
-    }else{
-      //showBlock("vote-report")
-      //readVoteResult()
-      //alert(window.batchResult)
-      if (window.batchType == "vote"){
-        //pendingBatch = true
-        currentBatchId = jsonObj.id
-        isPolling = false // force to start polling
-        showBlock("vote-report")
-        readVoteResult()
-      }else{
-        currentBatchId = jsonObj.id
-        isPolling = false // force to start polling
-        showBlock("report")
-        readReport()
-        //$("#control-block").hide()
-      }
-
-    }
-  }
-}
-*/
 function hidePopover(elm){
   setTimeout(function () {
     elm.popover('hide');
@@ -71,23 +18,18 @@ function hidePopover(elm){
 }
 
 function enableManualInput(elm){
-  if (elm.checked){
+  var option = $('input[name=enable_manual_input]:checked').val()
+  if (option == "manual"){
     $("#manual-input").show()
-    $("#csv-option").css("visibility","hidden")
-    $("#to-number-column").hide()
-    $("#columns").hide()
-    // check name and from number
-    if (checkCampainNameField() == false){
-      return
-    }
-    if (checkFromField() == false){
-      return
-    }
-    nextView("next")
+    //$("#csv-option").css("visibility","hidden")
+    $("#csv-option").hide()
+    $("#recipient-phone-number").hide()
+    $("#to-number-column").val("")
+    $("#csv-template-columns").hide()
+    $("#attachment").val("")
+    $("#recipients").focus()
   }else{
-    $("#csv-option").css("visibility","visible")
-    $("#columns").show()
-    $("#to-number-column").show()
+    $("#csv-option").show()
     $("#manual-input").hide()
   }
 }
@@ -99,16 +41,28 @@ function updatePreview(field){
     $("#preview-from-number").html(formatPhoneNumber($('#from-number').val()))
   }else if (field == "response"){
     var text = ""
+    var id = ""
     for (var i=1; i<4; i++){
-      text = $(`#command_${i}`).val()
+      id = `#command_${i}`
+      text = $(id).val()
       if (text != "")
         break
     }
-    //var text = $('#command_1').val()
+    // validate response text
+    if (text != ""){
+      if (text.indexOf(" ") >= 0){
+        var pop = $(id)
+        pop.popover('show');
+        hidePopover(pop)
+      }
+    }
+
     if (text == "")
       $("#response-sample").hide()
-    else
+    else{
       $("#response-sample").show()
+      updateSurveyEstimatedCost(1)
+    }
     $("#response-sample").html(text)
   }else if (field == "reply"){
     $("#reply-sample").html("")
@@ -120,58 +74,108 @@ function updatePreview(field){
         break
     }
     //var text = $('#reply-1').val()
-    if (text == "")
+    if (text == ""){
       $("#reply-sample").hide()
-    else
+      updateSurveyEstimatedCost(1)
+    }else{
       $("#reply-sample").show()
+      updateSurveyEstimatedCost(2)
+    }
 
     if ($("#reply-sample").html() == ""){
         var response = $(`#command_${i}`).val()
         $("#response-sample").html(response)
     }
     $("#reply-sample").html(text)
-    //alert($("#response-sample").html())
-
+    //_alert($("#response-sample").html())
   }
 }
 
+function updateSurveyEstimatedCost(multiply){
+  var estimatedCost = totalRecipients * multiply * SMS_COST
+  if (estimatedCost < 1.00)
+    estimatedCost = estimatedCost.toFixed(3)
+  else if (estimatedCost < 10.00)
+    estimatedCost = estimatedCost.toFixed(2)
+  else
+    estimatedCost = estimatedCost.toFixed(1)
+  $("#estimated-survey-cost").html(`$${estimatedCost} USD *`)
+}
 
 var currentBlock = 1
 function createNewCampaign(){
+  if (pollingBatchReportTimer)
+    window.clearTimeout(pollingBatchReportTimer)
+  if (pollingVoteResultTimer)
+    window.clearTimeout(pollingVoteResultTimer)
   $("#history").hide()
   $("#create").show()
   currentBlock = 1
-  //$("#block_0").hide()
+  $('#block_2').hide()
   $("#sms-form").show()
+  $('#block_1').show()
+
   showBlock("preview")
-  //$("#progess-block").hide()
-  //$("#preview-block").show()
+
   $("#submit").hide()
-  $("#prevBtn").css("display", "none")
-}
-function resetSentCampaign(){
-  currentBlock = 1
-  //$("#block_0").show()
+  $("#prevBtn").hide()
+  $("#nextBtn").show()
   resetCampaignInput()
   resetCampaignPreview()
-
-  $('#block_1').show()
-  $('#block_2').hide()
-  $('#block_3').hide()
-  $("#sms-form").hide()
-  //showBlock("preview")
-  $("#submit").hide()
-  $("#prevBtn").css("display", "none")
-  $("#nextBtn").css("display", "inline")
-  // reset all fields
+  if ($("#from-number option").length == 1)
+    updatePreview("from")
 }
+
+function showBlock(block){
+  //alert(block)
+    //$("#control-block").show()
+    switch (block){
+      case "result":
+        $("#preview-block").hide();
+        $("#sms-form").hide();
+        $("#result-block").show();
+        break
+      case "preview":
+        $("#result-block").hide();
+        $("#sms-form").show();
+        $("#preview-block").show();
+        break
+      case "history":
+        $('#create').hide()
+        $('#history').show()
+        break
+      default:
+        $("#control-block").hide()
+        break
+    }
+}
+
 function resetCampaignInput(){
   $("#campaign-name").val("")
-  $("#enable-manual-input").prop('checked', false)
+  if ($("#from-number option").length > 1)
+    $('#from-number option').prop("selected", false).trigger('change');
+  else
+    $('#from-number option').prop("selected", true).trigger('change');
+  $("#enable-csv-template").prop('checked', true)
+  $("#csv-option").show()
   $("#recipients").val("")
+  $("#manual-input").hide()
+  $("#recipient-phone-number").hide()
+  $("#csv-template-columns").hide()
+  $("#columns").html("")
+  $("#template-columns").html("")
   $("#to-number-column").val("")
   $("#attachment").val("")
   $("#message").val("")
+  $("#opt-out-instruction").prop('checked', false)
+  $("#expect-response").prop('checked', false)
+  $("#recipient-response-block").hide()
+  $("#allow-correction").prop('checked', false)
+  for (var i=1; i<4; i++){
+    $(`#command_${i}`).val("")
+    $(`#reply-${i}`).val("")
+  }
+  $("#campaign-name").focus()
 }
 
 function resetCampaignPreview(){
@@ -180,8 +184,10 @@ function resetCampaignPreview(){
   $("#preview-recipients").html("0")
   $("#charcount").html("SMS length: 0 char.")
   $("#sample").html("")
-  //$("#preview-response-options").html("No response")
-  $("#preview-reply-options").html("No auto-reply")
+  $("#response-sample").html("")
+  $("#response-sample").hide()
+  $("#reply-sample").html("")
+  $("#reply-sample").hide()
   $("#estimated_cost").html("$0.000 USD *")
 }
 
@@ -191,21 +197,18 @@ function nextView(direction){
     newBlock++
   else if(direction == "prev")
     newBlock--
-  else{
-    // cancel
-    resetSentCampaign()
-    $('#create').hide()
-    $('#history').show()
+  else
     return
-  }
+
   var view = `block_${newBlock}`
-  //alert(view)
+  //_alert(view)
   switch (view) {
     case 'block_1':
 
       $('#block_2').hide()
-      $("#prevBtn").css("display", "none")
-      $("#nextBtn").css("display", "inline")
+      $("#prevBtn").hide() //css("display", "none")
+      $("#nextBtn").show() //css("display", "inline")
+      $("#submit").hide()
       // don't hide when come back
       //if($("#submit").is(":visible"))
       //  $("#submit").hide()
@@ -224,134 +227,90 @@ function nextView(direction){
         return
       }
       var check = $("#enable-manual-input").is(":checked")
-      //if (check != 'on' && !checkAttachmentField()){
-      if (!check && !checkAttachmentField()){
-        var pop =$('#attachment')
-        pop.popover('show');
-        hidePopover(pop)
-        return
-      }
-      // set preview
-      //$("#preview-campain-name").html($('#campaign-name').val())
-      //$("#preview-from-number").html(formatPhoneNumber($('#from-number').val()))
-      //$("#preview-recipients").html(totalRecipients + " recipients")
-      //
-      // don't uncheck once set.
-      //$("#expect_response").prop('checked', false);
-      $('#block_1').hide()
-      $('#block_3').hide()
-      $("#review-block").show()
-      $("#prevBtn").css("display", "inline")
-      //var check = $("#expect-response").is(":checked")
-      //alert(check)
-      if ($("#expect-response").is(":checked"))
-        $("#nextBtn").show()
-        //$("#nextBtn").css("display", "inline")
-      else
-        $("#nextBtn").hide()
-      $("#submit").show()
-      break;
-    case 'block_3':
-      if ($("#enable-manual-input").is(":checked")){
-        var text = checkToNumberField()
-        if (text != ""){
-          var pop = $('#recipients')
+
+      if (!check){
+        if (!checkAttachmentField()){
+          var pop = $('#attachment')
           pop.popover('show');
           hidePopover(pop)
+          return
+        }
+        if ($("#to-number-column").val() == ""){
+          var pop = $('#to-number-column')
+          pop.popover('show');
+          hidePopover(pop)
+          $('#to-number-column').focus()
           return
         }
       }else{
-        var text = checkToField()
-        if (text != ""){
-          //`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`
-          var pop = $('#to-number-column')
-          //pop.popover().setContent(text)
+        if ($("#recipients").val() == ""){
+          var pop =$('#recipients')
           pop.popover('show');
           hidePopover(pop)
           return
-          //return alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
         }
       }
 
-      if (!checkMessageField()){
-        var pop = $('#message')
-        pop.popover('show');
-        hidePopover(pop)
-        return //alert("Please enter a message!")
-      }
-      $("#nextBtn").css("display", "none")
-      //disableSubmitBtn(true)
-      $('#block_2').hide()
+      $('#block_1').hide()
+      $("#prevBtn").css("display", "inline")
+
+      $("#nextBtn").hide()
+      $("#submit").show()
+      setTimeout(function() {
+        $('#message').focus();
+      }, 0);
       break;
     default:
-
       return
   }
   currentBlock = newBlock
   $(`#${view}`).show()
 }
 
+function showAutoReplyFields(elm){
+  if (elm.checked){
+    $(`#reply-1`).show()
+    $(`#reply-2`).show()
+    $(`#reply-3`).show()
+    $(`#reply-1`).focus()
+  }else{
+    $(`#reply-1`).hide()
+    $(`#reply-2`).hide()
+    $(`#reply-3`).hide()
+  }
+  updatePreview("reply")
+}
+
 function showAutoReply(elm, index){
   if (elm.checked){
     $(`#reply-${index}`).show()
+    $(`#reply-${index}`).focus()
   }else{
     $(`#reply-${index}`).val("")
     $(`#reply-${index}`).hide()
   }
   updatePreview("reply")
 }
-// don't need this
-function setAutoReply(elm){
-  if (elm.checked){
-    $("#auto-reply-block").show()
-    $("#preview-reply-options").html("Enable auto-reply")
-    //$("#reply-sample").show()
-    updatePreview("reply")
-  }else{
-    $("#auto-reply-block").hide()
-    $("#preview-reply-options").html("No auto-reply")
-    //$("#reply-sample").hide()
-    updatePreview('reply')
-    //disableSubmitBtn(false)
-  }
-}
 
 function enableExpectingResponse(elm){
   if (elm.checked){
     $("#recipient-response-block").show()
-    if ($("#enable-manual-input").is(":checked")){
-      var text = checkToNumberField()
-      if (text != ""){
-        return
-      }
-    }else{
-      var text = checkToField()
-      if (text != ""){
-        return
-      }
-    }
-
-    if (!checkMessageField()){
-      return
-    }
-    //$("#preview-response-options").html("Expecting recipient's response")
-    nextView("next")
+    $("#survey-cost").show()
   }else{
     $("#recipient-response-block").hide()
-    //$("#preview-response-options").html("No response")
-    $("#nextBtn").hide()
+    $("#survey-cost").hide()
     // clear sample response and auto reply
     for (var i=1; i<4; i++){
       $(`#command_${i}`).val("")
       $(`#reply-${i}`).val("")
-      $(`#reply-${i}`).hide()
-      $(`#reply-${i}-enabler`).prop('checked', false)
     }
     $('#allow-correction').prop('checked', false)
     updatePreview('response')
     updatePreview('reply')
+    $("#estimated-survey-cost").html("0.00 USD *")
   }
 }
+
 // manual input
 function readFieldRecipients(elm){
   var dN = $(elm).val().trim()
@@ -374,33 +333,24 @@ function readFileRecipients(elm, f){
       var recipientsFromFile = e.target.result.trim().split("\r\n")
       var header = recipientsFromFile[0]
       var columns = header.trim().split(",")
-      displayColumns(columns)
+
       for (var i=0; i<columns.length; i++){
         csvColumnIndex[columns[i]] = i
       }
+
       var message = $("#message").val()
 
       totalRecipients = recipientsFromFile.length - 1
       $("#preview-recipients").html(totalRecipients + " recipients")
-      //$("#preview-recipients").html(totalRecipients + " recipients")
       if (recipientsFromFile.length >= 1){
         var row = recipientsFromFile[1]
         // need to detect double quotes from each col in a sample row
         row = detectAndHandleCommas(row)
         sampleRow = row.trim().split(",")
       }
-      /*
-      for (var i=1; i<recipientsFromFile.length; i++){
-        var row = recipientsFromFile[i]
-        // need to detect double quotes from each col in a sample row
-        row = detectAndHandleCommas(row)
-        var columns = row.trim().split(",")
-        if (i == 1){
-          sampleRow = columns
-          break
-        }
-      }
-      */
+      displayColumns(columns)
+      $("#recipient-phone-number").show()
+      $("#csv-template-columns").show()
     };
   }else{
     totalRecipients = 0
@@ -408,9 +358,13 @@ function readFileRecipients(elm, f){
     totalMessageSegments = 0
     calculateEstimatedCost()
     $("#columns").html("-")
+    $("#template-columns").html("-")
     $("#columns").hide()
+    $("#recipient-phone-number").hide()
+    $("#csv-template-columns").hide()
   }
 }
+
 function estimateCost(){
   var elm = $("#attachment").prop('files');
   readFileRecipients(null, elm[0])
@@ -419,9 +373,15 @@ function estimateCost(){
 function calculateEstimatedCost(){
   var estimatedCost = totalMessageSegments * SMS_COST
   //var msg = `Send a total of ${totalMessageSegments} messages to ${totalRecipients} recipients. Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
-  var msg = `$${estimatedCost.toFixed(3)} USD *.`
+  if (estimatedCost < 1.00)
+    estimatedCost = estimatedCost.toFixed(3)
+  else if (estimatedCost < 10.00)
+    estimatedCost = estimatedCost.toFixed(2)
+  else
+    estimatedCost = estimatedCost.toFixed(1)
+  var msg = `$${estimatedCost} USD *.`
   if (totalMessageSegments == 0)
-    msg = "$0.000 USD *."
+    msg = "$0.00 USD *."
   $("#estimated_cost").html(msg)
 }
 
@@ -450,9 +410,23 @@ function detectAndHandleCommas(row){
 function displayColumns(columns){
   $("#columns").show()
   var html = "|&nbsp;"
-  for (var col of columns)
-    html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
-  $("#columns").html(html)
+  var recipientCol = "|&nbsp;"
+  var filled = false
+  for (var col of columns){
+    //html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+    var value = sampleRow[csvColumnIndex[`${col}`]]
+    if (!isNaN(value) && value.length >= 9){
+      recipientCol += `<a href="javascript:addToRecipient('${col}')">${col}</a>&nbsp;|&nbsp;`
+      if (!filled){
+        filled = true
+        updateSampleRecipient(col)
+      }
+    }//else{
+      html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+    //}
+  }
+  $("#columns").html(recipientCol)
+  $("#template-columns").html(html)
 }
 
 function checkPos(){
@@ -470,9 +444,26 @@ function checkPos(){
   return pos;
 }
 
+function updateSampleRecipient(columnName){
+  var template = columnName
+  if (columnName == undefined)
+    template = $("#to-number-column").val()
+  var value = sampleRow[csvColumnIndex[`${template}`]]
+  if (isNaN(value)){
+    $("#preview-recipients").html("")
+    return _alert("Wrong column. Value is not a phone number!")
+  }
+  $("#to-number-column").val(template)
+  var sample = `${totalRecipients} recipients ["${value}","..."]`
+  $("#preview-recipients").html(sample)
+}
+
+function addToRecipient(template){
+    updateSampleRecipient(template)
+}
+
 function addToMessage(template){
   var insertPos = checkPos()
-  //var msg = $("#message").val() + `{${template}}`
   var msg = $("#message").val()
   var headMsg = msg.substring(0, insertPos).trim()
   var trailMsg = msg.substring(insertPos, msg.length)
@@ -497,10 +488,16 @@ function addOptoutInstruction(elm){
   $("#message").val(msg)
   $("#message").focus()
   updateSampleMessage()
+
 }
 
 function updateSampleMessage(){
   var msg = $("#message").val()
+  if (msg.length > 0){
+    disableSubmitBtn(false)
+  }else{
+    disableSubmitBtn(true)
+  }
   let re = new RegExp('/\{([^}]+)\}/g');
   var arr = msg.match(/{([^}]*)}/g)
   if (arr){
@@ -524,10 +521,6 @@ function updateSampleMessage(){
   }else{
     $("#sample").hide()
   }
-  if (sample.length > 0){
-    disableSubmitBtn(false)
-    $("#expect-response").prop('checked', false);
-  }
 
   $("#charcount").html("SMS length: " + msg.length + " chars.")
 
@@ -544,61 +537,77 @@ function isUpperCase(str) {
 }
 function qaTextMessage(msg){
   //var sample = ""
-
-  if (isUpperCase(msg)){
+  if (isUpperCase(msg) && isNaN(msg)){
     msg = `<span class='caplock_warning'>${msg}</span>`
     $("#caplock_warning").show()
   }else{
     $("#caplock_warning").hide()
   }
-  /*
-  var sUrls = ["https://", "http://"]
-  var sLinks = ["bit.ly/","tinyurl.com/","ow.ly/"]
-  for (var url of sUrl){
-    var urlIndex = msg.indexOf(url)
-    if (urlIndex >= 0){
-    for (var link of sLinks){
-      var index = msg.indexOf(url)
-      if (index >= 0){
-        var temp = msg.substring(index, msg.length-1)
-        var endIndex = temp.indexOf(" ")
-        var unsafeLink = msg.substr(index, endIndex)
-        msg = msg.replace(unsafeLink, `<span class='unsafe_link_warning'>${unsafeLink}</span`)
-      }
+  var tempMsg = msg.toLowerCase()
+  var shortenLinks = [
+    "https://bit.ly/",
+    "https://ow.ly",
+    "https://goo.gl/",
+    "https://tinyurl.com/",
+    "https://tiny.cc/",
+    "https://bc.vc/",
+    "https://budurl.com/",
+    "https://clicky.me/",
+    "https://is.gd/",
+    "https://lc.chat/",
+    "https://soo.gd/",
+    "https://s2r.co/",
+    "http://bit.ly/",
+    "http://ow.ly",
+    "http://goo.gl/",
+    "http://tinyurl.com/",
+    "http://tiny.cc/",
+    "http://bc.vc/",
+    "http://budurl.com/",
+    "http://clicky.me/",
+    "http://is.gd/",
+    "http://lc.chat/",
+    "http://soo.gd/",
+    "http://s2r.co/",
+  ]
+
+  for (var link of shortenLinks){
+    var index = tempMsg.indexOf(link)
+    if (index >= 0){
+      var temp = tempMsg.substring(index, tempMsg.length-1)
+      var endIndex = temp.indexOf(" ")
+      endIndex = (endIndex > 0) ? endIndex : temp.length+1
+      var unsafeLink = msg.substr(index, endIndex)
+      msg = msg.replace(unsafeLink, `<span class='unsafe_link_warning'>${unsafeLink}</span>`, "g")
+      $("#unsafe_link_warning").show()
+      //hasShortenLink = true
+      break
+    }else{
+      $("#unsafe_link_warning").hide()
     }
   }
-  */
-  var tempMsg = msg.toLowerCase()
-  /*
-  bit.ly
-  - goo.gl
-  - tinyurl.com
-  - Tiny.cc
-  - bc.vc
-  - budurl.com
-  - Clicky.me
-  - is.gd
-  - lc.chat
-  - soo.gd
-  - s2r.co
-  */
+
+/*
   var index = tempMsg.indexOf("https://bit.ly/")
   if (index >= 0){
     var temp = tempMsg.substring(index, tempMsg.length-1)
     var endIndex = temp.indexOf(" ")
     var unsafeLink = msg.substr(index, endIndex)
     //var re = new RegExp(unsafeLink, 'g');
+    console.log(unsafeLink)
     msg = msg.replace(unsafeLink, `<span class='unsafe_link_warning'>${unsafeLink}</span>`, "g")
     $("#unsafe_link_warning").show()
   }else{
     $("#unsafe_link_warning").hide()
   }
+*/
+  //console.log(msg)
   return msg
 }
 function disableSubmitBtn(flag){
   $("#submit").prop('disabled', flag);
 }
-
+/*
 function isAllReady() {
   var ready = true
   if (checkCampainNameField() == false){
@@ -627,13 +636,9 @@ function isAllReady() {
       return false
     }
   }
-  if ($("#auto-reply").is(":checked")){
-    if (!checkAutoReplyFields())
-      return false
-  }
   return true
 }
-
+*/
 // submit form using ajax seems not enforce required inputs
 function checkFromField(){
   if ($("#from-number").val() == ""){
@@ -646,7 +651,7 @@ function checkFromField(){
 function checkToField(){
   var toNumberColumnName = $("#to-number-column").val()
   if (toNumberColumnName == ""){
-    //alert(`Please specify the column name for recipient phone number.`)
+    //_alert(`Please specify the column name for recipient phone number.`)
     $("#to-number-column").focus()
     return "Please specify the column name for recipient phone number."
     //return false
@@ -656,7 +661,7 @@ function checkToField(){
       return ""
     }
   }
-  //alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
+  //_alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
   $("#to-number-column").focus()
   return `Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`
   //return false
@@ -693,13 +698,20 @@ function checkMessageField(){
   }
   return true
 }
-
+/*
+function _alert(message){
+  $("#alert-message").html(message)
+  $('#alert-dlg').modal('show')
+}
+*/
+/*
 function checkCommandFields(){
   var hasCommand = false
   var temp = $("#command_1").val().trim()
   if (temp != ""){
     if (temp.indexOf(" ") >= 0){
-      alert("Support a single word response only!")
+      //alert("Support a single word response only!")
+      _alert("Support a single word response only!")
       $("#command_1").focus()
       return false
     }else
@@ -709,7 +721,7 @@ function checkCommandFields(){
   temp = $("#command_2").val().trim()
   if (temp != ""){
     if (temp.indexOf(" ") >= 0){
-      alert("Support a single word response only!")
+      _alert("Support a single word response only!")
       $("#command_2").focus()
       return false
     }else
@@ -719,31 +731,42 @@ function checkCommandFields(){
   temp = $("#command_3").val().trim()
   if (temp != ""){
     if (temp.indexOf(" ") >= 0){
-      alert("Support a single word response only!")
+      _alert("Support a single word response only!")
       $("#command_3").focus()
       return false
     }else
       hasCommand = true
   }
   if (!hasCommand){
-    alert("Please enter at least one response option!")
+    _alert("Please enter at least one response option!")
     $("#command_1").focus()
   }
   return hasCommand
 }
-
-function checkAutoReplyFields(){
-  var ready = false
-  if ($("#reply_1").val().trim() != ""){
-    ready = true
+*/
+function checkCommandFields(){
+  var hasCommand = false
+  for (var i=1; i<4; i++){
+    var temp = $(`#command_${i}`).val().trim()
+    if (temp != ""){
+      hasCommand = true
+      if (temp.indexOf(" ") >= 0){
+        _alert("Support <b>a single word</b> response only!", "Stop", `#command_${i}`)
+        //$(`#command_${i}`).focus()
+        return false
+      }
+    }else{
+      if ($(`#reply-${i}`).val() != ""){
+        _alert(`Please provide <b>a response word</b> for option ${i}!`, "Stop", `#command_${i}`)
+        return false
+      }
+    }
   }
-  if ($("#reply_2").val().trim() != ""){
-    ready = true
+  if (!hasCommand){
+    $('#command_1').focus()
+    _alert("Please enter at least one response option!", "Stop", '#command_1')
   }
-  if ($("#reply_3").val().trim() != ""){
-    ready = true
-  }
-  return ready
+  return hasCommand
 }
 
 function sendBatchMessage(e) {
@@ -765,51 +788,31 @@ function sendBatchMessage(e) {
 
 function canSendMessages() {
   if (checkCampainNameField() == false){
-    return alert("Please provide a campaign name!")
+    return _alert("Please provide a campaign name!")
+
   }
   if ($("#enable-manual-input").is(":checked")){
     if (checkFromField() == false){
-      return alert("Please select a 'from' number!")
+      return _alert("Please select a 'from' number!")
     }
   }else{
     if (checkToField() != ""){
       return
-      //return alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
+      //return _alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
     }
     if (!checkAttachmentField()){
-      return alert("Please select a .csv file!")
+      return _alert("Please select a .csv file!")
     }
   }
   if (!checkMessageField()){
-    return alert("Please enter a message!")
+    return _alert("Please enter a message!")
   }
   if ($("#expect-response").is(":checked")){
     if (!checkCommandFields()){
-      return //alert("Please enter at least one response option!")
-    }
-    for (var i = 1; i < 4; i++){
-      var id = `#reply-${i}-enabler`
-      if ($(`${id}`).is(":checked")){
-        id = `#reply-${i}`
-        if ($(`${id}`).val() == "")
-          return alert(`Please provide auto-reply message for option ${i}!`)
-      }
+      return //_alert("Please enter at least one response option!")
     }
   }
-  /*
-  if ($("#auto-reply").is(":checked")){
-    if (!checkAutoReplyFields())
-      return alert("Please provide auto-reply message(s)!")
-  }
-  */
 
-  //return alert("All Passed")
-  /*
-  $("#result_block").hide()
-  $("#report_block").hide()
-  $("#vote_report_block").hide()
-  */
-  //showBlock("result")
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
 
@@ -820,20 +823,133 @@ function canSendMessages() {
       success: function (res) {
           if (res.status == "ok"){
             pendingBatch = true
-            currentBatchId = res.result.id
-            resetSentCampaign()
             showBlock("result")
-            startPollingResult(true)
             parseResultResponse(res)
-          }else if (res.status == "failed"){
-            alert(res.message)
-            window.location.href = "login"
+          }else if (res.status == "error" || res.status == "failed"){
+            _alert(res.message)
           }else{
-            alert(res.message)
+            window.setTimeout(function(){
+              window.location.href = "/index"
+            },10000)
           }
       },
       cache: false,
       contentType: false,
       processData: false
   });
+}
+
+function pollResult(){
+  if (currentBatchId == "")
+    return
+  var url = "getbatchresult?batchId=" + currentBatchId
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      parseResultResponse(res)
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
+  });
+}
+
+function parseResultResponse(resp){
+  var batchResult = resp.result
+  currentBatchId = batchResult.id
+  $("#status").html("Status: " + batchResult.status)
+  if (batchResult.status == "Processing"){
+    pendingBatch = true
+    // show the time since batch request was submited
+    $("#time").html("Duration: " + resp.time)
+    var text = `<div>Sending ${batchResult.processedCount} out of ${batchResult.batchSize} messages.</div>`
+    if (batchResult.rejectedNumbers.length){
+      text += `<div class="error">Rejected: ${batchResult.rejectedNumbers.length} recipients.</div>`
+      var rejectNumberList = "<h3>Invalid phone numbers</h3><div class='invalid-number-list'"
+      for (var number of batchResult.rejectedNumbers){
+        rejectNumberList += `<div>Index: ${number.index} - Number: ${number.to[0]} - Reason: ${number.description}`
+      }
+      $("#rejected-list-block").show()
+      $("#rejected-list-block").html(rejectNumberList)
+    }
+    $("#result").html(text)
+    pollTimer = window.setTimeout(function(){
+      pollResult()
+    }, 1000)
+  }else if (batchResult.status == "Completed" || batchResult.status == "Sent"){
+    pendingBatch = false
+    startPollingResult(false)
+    var createdAt = new Date(batchResult.creationTime).getTime()
+    var lastUpdatedAt = new Date(batchResult.lastModifiedTime).getTime()
+    var processingTime = (lastUpdatedAt - createdAt) / 1000
+    $("#time").html("Duration : " + formatSendingTime(processingTime))
+    var text = `<div>Sent: ${batchResult.processedCount} out of ${batchResult.batchSize} recipients.</div>`
+    if (batchResult.rejectedCount){
+      $("#download-reject-number").show()
+    }else{
+      showBlock("history")
+      selectedBatchId = "" // force to display latest campaign
+      readCampaigns()
+    }
+    $("#result").html(text)
+  }
+}
+
+function startPollingResult(poll){
+  if (poll){
+    $("#sendingAni").css('display', 'inline');
+    $("#polling-tips").css('display', 'inline');
+    pollResult()
+  }else{
+    if (pollTimer)
+      window.clearTimeout(pollTimer)
+    pollTimer = null
+    $("#sendingAni").css('display', 'none');
+    $("#polling-tips").css('display', 'none');
+  }
+}
+
+
+function showResult(flag){
+  if (flag){
+    $("#result-block").show()
+    $("#sendingAni").css('display', 'inline');
+  }else{
+    $("#result-block").hide()
+    $("#sendingAni").css('display', 'none');
+  }
+}
+
+function downloadRejectedList(){
+  var name = $("#campaign-name").val()
+  var url = `download-invalid-number?batchId=${currentBatchId}&campaign_name=${encodeURIComponent(name)}`
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      window.location.href = res.message
+    }else if (res.status == "error" || res.status == "failed"){
+      _alert(res.message)
+    }else{
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },10000)
+    }
+  });
+}
+
+function switchToHistoryView(){
+  showBlock("history")
+  selectedBatchId = "" // force to display latest campaign
+  readCampaigns()
+}
+
+function showEstimateCostClaimer(index){
+  var text = [
+    "Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS. The actual cost for sending these messages may be higher or lower.",
+    "Estimates are based on the assumption that every recipient would respond to the survey and including auto-reply message if it's set."
+  ]
+  _alert(text[index], "Information")
 }

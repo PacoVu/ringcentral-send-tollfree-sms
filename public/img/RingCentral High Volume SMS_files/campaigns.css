@@ -3,40 +3,74 @@
 }
 
 #history-list-column {
-  height: 400px;
+  height: 800px;
 }
 
 /* scrollable */
+/*
 #history-list {
   overflow-x: hidden;
   overflow-y: scroll;
   height: 400px;
 }
-
+*/
 .campaign-info-section  {
   border: 1px solid #dfe5e7;
   border-radius: 10px;
   background-color: #dfe5e7;
+  max-width: 550px!important;
 }
 .summary-section {
   background-color: #dfe5e7;
   font-size: 0.8em;
+  /*
   padding-left: -15px!important;
   padding-right: -15px!important;
-  min-width: 240px!important;
-  max-width: 240px!important;
-  min-height: 150px!important;
+  */
+  min-height: 200px!important;
   max-height: 200px!important;
 }
+.campaign-result {
+  min-width: 260px!important;
+  max-width: 260px!important;
+}
+.campaign-details {
+  background-color: #ffffff;
+  padding: 10px;
+  padding-left: 5px;
+  margin-left: 30px!important;
+  border: 2px solid #dfe5e7;
+  min-width: 272px!important;
+  max-width: 272px!important;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.vote-result {
+  min-width: 220px!important;
+  max-width: 220px!important;
+}
+
+.vote-details {
+  background-color: #ffffff;
+  padding: 10px;
+  padding-left: 5px;
+  margin-left: 30px!important;
+  border: 2px solid #dfe5e7;
+  min-width: 312px!important;
+  max-width: 312px!important;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
 .split {
-  min-width: 20px!important;
-  max-width: 20px!important;
+  min-width: 100px!important;
+  max-width: 100px!important;
 }
 .right-side {
   background-color: #ffffff;
   padding: 10px;
-  padding-left: 15px;
-  /*margin: auto;*/
+  padding-left: 5px;
   border: 2px solid #dfe5e7;
   /*border-right-color: #dfe5e7;*/
   border-top-right-radius: 10px;
@@ -71,13 +105,25 @@
   background-color: #2559e5;
 }
 
+.invalid-number-list{
+  margin-top: 10px;
+  max-height: 500px;
+  overflow: scroll;
+}
+
 .sample-message-block {
   width: 300px!important;
   min-width: 300px!important;
-  height: auto;
+  padding-top: 40px;
   min-height: 200px;
-
+  max-height: 400px;
   background-image: url("../img/phone2.png");
+}
+.all-samples{
+  position:relative;
+  /*padding-top: 60px;*/
+  max-height: 340px;
+  overflow: scroll;
 }
 
 .sample-message {
@@ -90,12 +136,24 @@
 /* top | right | bottom | left */
 .sample-response {
   float: right;
-  background-color: orange;
+  background-color: #d3f0fd;
   border-radius: 5px;
   padding: 10px;
   margin: 0px 20px 0px 20px;
 }
 
+.reply-option{
+  margin-left: 15px;
+}
+
+.auto-reply-option {
+  margin-left: 50px;
+}
+.no-border-input {
+  background-color: transparent!important;
+  border: none!important;
+  border-bottom: 1px solid red!important;
+}
 /*
 .campaign-input-col {
   min-width: 600px!important;

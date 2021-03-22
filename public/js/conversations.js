@@ -361,21 +361,13 @@ function createRecipientsList(recipientPhoneNumbers){
 }
 
 function showConversation(recipient, name){
-  //alert(`#${recipient}`)
-  //alert(currentSelectedItem)
-  //if (currentSelectedItem != undefined){
   var id = parseInt(currentSelectedItem)
-  //alert(id)
-    $(`#${id}`).removeClass("active");
-  //}
+  $(`#${id}`).removeClass("active");
   id = parseInt(recipient)
-  //alert(id)
   $(`#${id}`).addClass("active");
-  //currentSelectedItem = elm
   currentSelectedItem = recipient
   currentSelectedContact = name
   if (messageList != undefined){
-
     var html = '<div class="chat-container"><ul class="chat-box chatContainerScroll">'
     dateStr = ""
     var totalMessage = 0
@@ -384,10 +376,8 @@ function showConversation(recipient, name){
       $("#conversation-title").html(`All conversations`)
       totalMessage = messageList.length
       var maxLen = totalMessage - 1
-      //for (var msg of messageList){
       for (var i=maxLen; i>=0; i--){
         var msg = messageList[i]
-        //for (var msg of messageList){
         html += createConversationItem(msg, false)
       }
     }else {
@@ -395,12 +385,10 @@ function showConversation(recipient, name){
       params.message = ""
       $("#message-input").show()
       var title = `<span>${formatPhoneNumber(recipient)}${currentSelectedContact}</span> <a href="rcapp://r/call?number=${recipient}"><img src="../img/call.png" class="medium-icon"></img></a>`
-      //$("#conversation-title").html(`${formatPhoneNumber(recipient)}${currentSelectedContact}`)
       $("#conversation-title").html(title)
 
       var myNumbers = []
       var maxLen = messageList.length - 1
-      //for (var msg of messageList){
       for (var i=maxLen; i>=0; i--){
         var msg = messageList[i]
         if (msg.direction == "Inbound"){
@@ -422,7 +410,6 @@ function showConversation(recipient, name){
         }
       }
     }
-
     $("#total").html(`${totalMessage} messages`)
     html += "</ul></div>"
     $("#conversation").html(html)
