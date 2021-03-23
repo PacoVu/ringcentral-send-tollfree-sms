@@ -253,12 +253,13 @@ var engine = ActiveUser.prototype = {
           })
     },
     sendMessage: async function(requestBody){
-      var p = this.rc_platform.getPlatform()
+      if (this.rc_platform == undefined)
+        return
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
-          var jsonObj = await resp.json()
-          //console.log(jsonObj)
+          //var jsonObj = await resp.json()
           console.log("Auto-reply succeeded")
         }catch(e) {
           console.log("Auto-reply error")
@@ -419,7 +420,6 @@ var engine = ActiveUser.prototype = {
       if (this.webhooks == undefined || this.webhooks.url == "")
         return
       var https = require('https');
-      //console.log(data)
       var content = JSON.stringify(data)
       var url = this.webhooks.url.replace("https://", "")
       var arr = url.split("/")
@@ -437,7 +437,7 @@ var engine = ActiveUser.prototype = {
       if (this.webhooks.headerName.length && this.webhooks.headerValue.length){
         post_options.headers[`${this.webhooks.headerName}`] = this.webhooks.headerValue
       }
-      //return console.log(post_options)
+
       try{
         var post_req = https.request(post_options, function(res) {
             var response = ""

@@ -163,7 +163,8 @@ var engine = User.prototype = {
           req.session.extensionId = extensionId;
 
           //thisUser.deleteAllRegisteredWebHookSubscriptions()
-          var p = this.rc_platform.getPlatform()
+
+          var p = await this.rc_platform.getPlatform(this.extensionId)
           if (p){
             try {
               var resp = await p.get("/restapi/v1.0/account/~/extension/~/")
@@ -207,7 +208,6 @@ var engine = User.prototype = {
                   thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
                   // must push to router's activeUser list in order to receive routed subscription
                   router.activeUsers.push(thisUser.eventEngine)
-                  //thisUser.eventEngine.setPlatform(thisUser.rc_platform)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
                     if (err == null){
                       console.log("eventEngine is set")
@@ -461,7 +461,7 @@ var engine = User.prototype = {
           text: body.message,
           messages: [{to:[body.to]}]
       }
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
@@ -804,7 +804,7 @@ var engine = User.prototype = {
     sendBatchMessage: async function(res, requestBody, type, voteInfo){
       var thisUser = this
       //console.log(JSON.stringify(requestBody))
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
@@ -878,7 +878,7 @@ var engine = User.prototype = {
     _getBatchResult: async function(batchId){
       console.log("getBatchResult")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint)
@@ -942,7 +942,7 @@ var engine = User.prototype = {
       if (pageToken != "")
         params['pageToken'] = pageToken
 
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, params)
@@ -1012,7 +1012,7 @@ var engine = User.prototype = {
       if (pageToken != "")
         params['pageToken'] = pageToken
 
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, params)
@@ -1108,7 +1108,7 @@ var engine = User.prototype = {
       if (pageToken != "")
         params['pageToken'] = pageToken
 
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, params)
@@ -1195,7 +1195,7 @@ var engine = User.prototype = {
 
       var vote = this.eventEngine.getCampaignByBatchId(batchId)
       console.log("Set vote campaign info")
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, params)
@@ -1320,7 +1320,7 @@ var engine = User.prototype = {
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       console.log(endpoint)
       console.log(readParams)
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, readParams)
@@ -1675,7 +1675,11 @@ var engine = User.prototype = {
       if (this.eventEngine && this.eventEngine.voteCampaignArr.length > 0){
         callback(null, "logged out")
       }else{
-        await this.rc_platform.getPlatform().logout()
+        var p = await this.rc_platform.getPlatform(this.extensionId)
+        if (p)
+          await p.logout()
+        else
+          console.log("No platform?")
         // may need to clear tokens and destroy eventEngine etc.
         callback(null, "logged out")
       }
@@ -1716,7 +1720,7 @@ var engine = User.prototype = {
     },
     // Notifications
     subscribeForNotification: async function(callback){
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         var eventFilters = []
         for (var item of this.phoneHVNumbers){
@@ -1752,7 +1756,7 @@ var engine = User.prototype = {
       }
     },
     renewNotification: async function(callback){
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(`/restapi/v1.0/subscription/${this.subscriptionId}`)
@@ -1786,7 +1790,7 @@ var engine = User.prototype = {
     },
     /// Clean up WebHook subscriptions
     deleteAllRegisteredWebHookSubscriptions: async function() {
-      var p = this.rc_platform.getPlatform()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try{
           var resp = await p.get('/restapi/v1.0/subscription')
@@ -1879,7 +1883,7 @@ var engine = User.prototype = {
 
             var timeLeft = formatEstimatedTimeLeft(unsentCount * (thisUser.delayInterval/1000))
 
-            var p = thisUser.rc_platform.getPlatform()
+            var p = thisUser.rc_platform.getPlatform(this.extensionId)
             if (p){
               try {
                 var params = {

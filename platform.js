@@ -51,7 +51,14 @@ RCPlatform.prototype = {
     console.log("logout from platform engine")
     await this.platform.logout()
   },
-  getPlatform: function(){
+  getPlatform: async function(extId){
+    var tokenObj = await this.platform.auth().data()
+    if (extId != tokenObj.owner_id){
+      console.log(tokenObj.owner_id)
+      console.log(extId)
+      console.log("If this ever happens => SERIOUS PROBLEM. Need to check and fix!")
+      return null
+    }
     if (this.platform.loggedIn()){
         return this.platform
     }else{
@@ -67,8 +74,6 @@ RCPlatform.prototype = {
     var jsonObj = JSON.parse(data)
     await this.platform.auth().setData(jsonObj)
     if (await this.platform.loggedIn()){
-      //this.platform.refresh()
-      console.log(await this.platform.auth().accessTokenValid())
       console.log("Auto login succeeds")
       callback(null, "Auto login succeeded")
     }else{
@@ -83,11 +88,6 @@ RCPlatform.prototype = {
   },
   updateUserAccessTokens: function(tokenStr) {
     console.log("updateUserAccessTokens")
-
-    //var query = "INSERT INTO a2p_sms_active_users (user_id, subscription_id, connector_url, user_key, access_tokens)"
-    //query += " VALUES ($1,$2,$3,$4,$5)"
-    //console.log(tokenStr)
-    //var values = [this.extensionId,"","","",tokenStr]
     var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
     query += " VALUES ($1,$2,$3,$4,$5,$6,$7)"
     var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr]
