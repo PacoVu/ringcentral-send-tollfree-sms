@@ -232,6 +232,8 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: async function(req, res){
       // decide what page to load
+      console.log(this.phoneHVNumbers)
+      console.log(this.phoneTFNumbers)
       if (this.phoneHVNumbers.length > 0 && this.phoneTFNumbers.length > 0){
         // launch option page
         res.render('main', {
