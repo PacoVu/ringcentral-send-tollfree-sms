@@ -142,16 +142,6 @@ button:focus {
   color: #0073ae !important;
   border-bottom: 2px solid #0073ae;
 }
-/*
-.left-middle-align {
-  margin: 10px;
-  margin-top: 20px;
-  width: 500px !important;
-}
-.middle-align {
-  margin: 10px;
-}
-*/
 
 .no-border {
   border: 0px solid white !important;
@@ -369,6 +359,7 @@ button:focus {
 }
 .campaign-item:hover {
   background: #e5eafa;/*#DBDBDB;*/
+  color: #2559e5;
 }
 
 .help-item {
@@ -376,14 +367,9 @@ button:focus {
   background-color: #f5f6fb;
   margin: auto;
   padding: 10px;
-  /*
-  padding-right: -10px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  */
   font-size: 1.0em;
-  min-width: 170px!important;
-  max-width: 170px!important;
+  min-width: 183px!important;
+  max-width: 183px!important;
 }
 .help-item.active {
   color: #ffffff;
@@ -391,6 +377,7 @@ button:focus {
 }
 .help-item:hover {
   background: #e5eafa;
+  color: #2559e5;
 }
 
 .campaign-list-header{
@@ -445,6 +432,7 @@ button:focus {
 
 .recipient-item:hover {
   background: #e5eafa;/*#DBDBDB;*/
+  color: #2559e5;
 }
 
 #control-block {

@@ -139,17 +139,16 @@ var engine = User.prototype = {
       })
     },
     loadHVSMSPage: function(res){
-      var thisUser = this
       this.eventEngine.logNewMessage = false
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
 
       res.render('highvolume-sms', {
-        userName: thisUser.getUserName(),
-        phoneNumbers: thisUser.phoneHVNumbers,
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers,
         //smsBatchIds: this.smsBatchIds,
-        batchResult: thisUser.batchResult,
+        batchResult: this.batchResult,
         lowVolume: lowVolume
       })
     },
@@ -232,14 +231,21 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: async function(req, res){
       // decide what page to load
-      console.log(this.phoneHVNumbers)
-      console.log(this.phoneTFNumbers)
       if (this.phoneHVNumbers.length > 0 && this.phoneTFNumbers.length > 0){
         // launch option page
+        /*
         res.render('main', {
           userName: this.userName,
           lowVolume: true,
           highVolume: true
+        })
+        */
+        res.render('highvolume-sms', {
+          userName: this.getUserName(),
+          phoneNumbers: this.phoneHVNumbers,
+          //smsBatchIds: this.smsBatchIds,
+          batchResult: this.batchResult,
+          lowVolume: true
         })
       }else if (this.phoneHVNumbers.length > 0){
         // launch high volume page
@@ -1688,6 +1694,7 @@ var engine = User.prototype = {
     },
     readCampaignsLogFromDB: function(res){
       var thisUser = this
+      var voteReports = (this.eventEngine) ? thisUser.eventEngine.getCopyVoteCampaignsInfo() : []
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (!err && result.rows.length > 0){
@@ -1701,23 +1708,24 @@ var engine = User.prototype = {
             status: "ok",
             campaigns: batches,
             recentBatch: thisUser.batchSummaryReport,
-            voteReports: thisUser.eventEngine.getCopyVoteCampaignsInfo()
+            voteReports: voteReports //thisUser.eventEngine.getCopyVoteCampaignsInfo()
           })
         }else{ // no history
           res.send({
             status: "ok",
             campaigns: [],
             recentBatch: thisUser.batchSummaryReport,
-            voteReports: thisUser.eventEngine.getCopyVoteCampaignsInfo()
+            voteReports: voteReports //thisUser.eventEngine.getCopyVoteCampaignsInfo()
           })
         }
       })
     },
     readVoteReports: function(res){
       console.log("poll vote result")
+      var voteReports = (this.eventEngine) ? this.eventEngine.getCopyVoteCampaignsInfo() : []
       res.send({
           status: "ok",
-          voteReports: this.eventEngine.getCopyVoteCampaignsInfo()
+          voteReports: voteReports //this.eventEngine.getCopyVoteCampaignsInfo()
       })
     },
     // Notifications

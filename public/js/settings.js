@@ -67,12 +67,16 @@ function readWebhookAddress(view){
         $("#copy-btn").hide()
         $("#generator-btn").show()
       }
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
   getting.fail(function(response){
@@ -94,12 +98,16 @@ function deleteWebhookAddress(){
       $("#generator-btn").show()
       $("#code").html("")
       //disableWebhookInputs(false)
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
   getting.fail(function(response){
@@ -162,12 +170,16 @@ function uploadContactsFile(e){
           if (res.status == "ok"){
             contactList = contactList.concat(res.contactList)
             updateContactList()
-          }else if (res.status == "error" || res.status == "failed"){
+          }else if (res.status == "error"){
             _alert(res.message)
           }else{
+            if (res.message)
+              _alert(res.message)
+            else
+              _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
               window.location.href = "/index"
-            },10000)
+            },8000)
           }
       },
       cache: false,
@@ -185,12 +197,16 @@ function readContacts(){
       if (contactList.length)
         $("#delete-contact-btn").show()
       updateContactList()
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -230,12 +246,16 @@ function setWebhookAddress(){
         headerName: $("#header-name").val(),
         headerValue: $("#header-value").val()
       }
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
   posting.fail(function(response){

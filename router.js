@@ -35,18 +35,22 @@ function autoStart(){
                     if (!err){
                       console.log("Has platform")
                       aUser.setup(platform, (err, result) => {
-                        if (err == null){
+                        if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)
+                        }else{
+                          console.log("no survey campaign => don't add to ActiveUser list")
                         }
                         done()
                       })
                     }else{
                       console.log("No platform")
                       aUser.setup(null, (err, result) => {
-                        if (err == null){
+                        if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)
+                        }else{
+                          console.log("no survey campaign => don't add to ActiveUser list")
                         }
                         done()
                       })

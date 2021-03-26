@@ -825,12 +825,16 @@ function canSendMessages() {
             pendingBatch = true
             showBlock("result")
             parseResultResponse(res)
-          }else if (res.status == "error" || res.status == "failed"){
+          }else if (res.status == "error"){
             _alert(res.message)
           }else{
+            if (res.message)
+              _alert(res.message)
+            else
+              _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
               window.location.href = "/index"
-            },10000)
+            },8000)
           }
       },
       cache: false,
@@ -847,12 +851,16 @@ function pollResult(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       parseResultResponse(res)
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -930,12 +938,16 @@ function downloadRejectedList(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       window.location.href = res.message
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }

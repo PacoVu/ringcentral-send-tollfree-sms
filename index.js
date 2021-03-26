@@ -73,7 +73,7 @@ app.get('/logout', function (req, res) {
   router.logout(req, res)
 })
 
-app.get('/options', function (req, res) {
+app.get('/main', function (req, res) {
   console.log('loadOptionPage')
   if (req.session.extensionId != 0)
     router.loadOptionPage(req, res)

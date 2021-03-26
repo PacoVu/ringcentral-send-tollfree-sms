@@ -163,12 +163,16 @@ function sendTextMessage(message){
   posting.done(function( res ) {
     if (res.status == "ok"){
       ;
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
   posting.fail(function(response){
@@ -273,13 +277,17 @@ function readMessageStore(token){
       pollingTimer = window.setTimeout(function(){
         pollNewMessages()
       },3000)
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       $("#conversation").html("")
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
   posting.fail(function(response){

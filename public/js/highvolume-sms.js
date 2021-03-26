@@ -63,12 +63,16 @@ function readCampaigns(){
         $("#history").show()
 
       listAllCampaigns(res.recentBatch)
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -100,12 +104,16 @@ function readCampaignFromServer(campaign){
         campaign.totalCost = batchReport.totalCost
         //listAllCampaigns(undefined)
         updateThisCampaign(campaign)
-      }else if (res.status == "error" || res.status == "failed"){
+      }else if (res.status == "error"){
         _alert(res.message)
       }else{
+        if (res.message)
+          _alert(res.message)
+        else
+          _alert("You have been logged out. Please login again.")
         window.setTimeout(function(){
           window.location.href = "/index"
-        },10000)
+        },8000)
       }
   });
 }
@@ -302,12 +310,16 @@ function readVoteResult(){
           readVoteResult()
         }, 2000)
       }
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -437,7 +449,7 @@ function createVoteReport(voteReport, archived){
     else
       body += `${voteReport.voteResults[key]} person replied ${key}<br>`
   }
-  report += `<a href="javascript:emailSurveyResult('${body}')">Share Result</a></div>`
+  //report += `<a href="javascript:emailSurveyResult('${body}')">Share Result</a></div>`
   report += "</div>"
   return report
 }
@@ -514,12 +526,16 @@ function deleteSurveyResult(batchId){
   getting.done(function( res ) {
     if (res.status == "ok"){
       readCampaigns()
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -531,12 +547,16 @@ function downloadSurveyResult(batchId){
   getting.done(function( res ) {
     if (res.status == "ok"){
       window.location.href = res.message
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }

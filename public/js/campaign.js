@@ -64,12 +64,16 @@ function readCampaigns(){
         listAllCampaigns()
         setElementsHeight()
       }
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -145,12 +149,16 @@ function readCampaign(elm, batchId){
       item = ["Delivery Failed", batchReport.deliveryFailedCount]
       params.push(item);
       plotBatchReport(params)
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -201,12 +209,16 @@ function downloadBatchReport(name){
   getting.done(function( res ) {
     if (res.status == "ok"){
       window.location.href = res.message
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -221,12 +233,16 @@ function deleteCampaignResult(batchId){
       if (campaignList.length == 0)
         ;//createNewCampaign()
       listAllCampaigns()
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
@@ -237,12 +253,16 @@ function downloadInvalidNumbers(batchId, name){
   getting.done(function( res ) {
     if (res.status == "ok"){
       window.location.href = res.message
-    }else if (res.status == "error" || res.status == "failed"){
+    }else if (res.status == "error"){
       _alert(res.message)
     }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/index"
-      },10000)
+      },8000)
     }
   });
 }
