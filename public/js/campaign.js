@@ -166,9 +166,8 @@ function readCampaign(elm, batchId){
 function createFullReport(fullReports){
   var html = ""
   var timeOffset = new Date().getTimezoneOffset()*60000;
-
+  var i = 0;
   for (var item of fullReports){
-
     var date = new Date(item.lastModifiedTime)
     var timestamp = date.getTime() - timeOffset
     var updatedDate = new Date (timestamp)
@@ -177,14 +176,21 @@ function createFullReport(fullReports){
 
     var cost = (item.hasOwnProperty('cost')) ? item.cost : "0.000"
     var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : "-"
-    if (item.messageStatus == "SendingFailed" || item.messageStatus == "DeliveryFailed")
-      html += "<div class='row col-lg-12 error small_font'>"
-    else
-      html += "<div class='row col-lg-12 small_font'>"
-    html += `<div class="col-lg-2 hasborder">${formatPhoneNumber(item.to[0], true)}</div>`
+    if (item.messageStatus == "SendingFailed" || item.messageStatus == "DeliveryFailed"){
+      if (i == 0)
+        html += "<div class='row col-lg-12 error small_font'>"
+      else
+        html += "<div class='row col-lg-12 error small_font hasborder'>"
+    }else{
+      if (i == 0)
+        html += "<div class='row col-lg-12 small_font'>"
+      else
+        html += "<div class='row col-lg-12 small_font hasborder'>"
+    }
+    html += `<div class="col-lg-2">${formatPhoneNumber(item.to[0], true)}</div>`
 
-    html += `<div class="col-lg-3 hasborder">${updatedDateStr}</div>`
-    html += `<div class="col-lg-2 hasborder">${item.messageStatus}</div>`
+    html += `<div class="col-lg-3">${updatedDateStr}</div>`
+    html += `<div class="col-lg-2">${item.messageStatus}</div>`
     var errorCode = "-"
     var errorDes = "-"
     if (item.hasOwnProperty('errorCode')){
@@ -194,10 +200,11 @@ function createFullReport(fullReports){
           errorDes = errorCodes[key]
       }
     }
-    html += `<div class="col-lg-3 hasborder">${errorDes}</div>`
-    html += `<div class="col-lg-1 hasborder">$${cost}</div>`
-    html += `<div class="col-lg-1 hasborder">${segmentCount}</div>`
+    html += `<div class="col-lg-3">${errorDes}</div>`
+    html += `<div class="col-lg-1">$${cost}</div>`
+    html += `<div class="col-lg-1">${segmentCount}</div>`
     html += "</div>"
+    i++
   }
   $("#report-content").html(html)
 }

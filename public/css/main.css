@@ -206,8 +206,6 @@ button:focus {
 .header{
   font-size: 1.0em;
   font-weight: bold;
-  /*color: white;*/
-  /*background-color: #45485e;*/
   border-top: 2px solid #dedede;
   border-bottom: 3px solid #dedede;
 }
@@ -253,7 +251,7 @@ button:focus {
 .fixed{
   width: 200px;
 }
-
+/*
 .corner {
   position: relative;
   top: 0;
@@ -281,7 +279,7 @@ button:focus {
   margin-left: 100px;
   display: inline;
 }
-
+*/
 .rc-login-footer {
   font-size: 10px;
   padding: 10px 30px;
@@ -294,32 +292,13 @@ button:focus {
   overflow-y: scroll;
   height: 800px;
 }
-/*
-#campaign-list {
-  overflow-x: hidden;
-  overflow-y: scroll;
-  height: 400px;
-}
-*/
+
 .campain-input-col {
   min-width: 600px!important;
   max-width: 600px!important;
-  background-color: #f5f6fb;/*#F1F1F1;*/
+  background-color: #f5f6fb;
 }
 
-.campaign-list{
-  margin-left: -30px;
-}
-/*
-.campaign-list:hover{
-  background: #DBDBDB;
-}
-*/
-/*
-#campaign-list > div:hover{
-  background: #DBDBDB;
-}
-*/
 #report-content {
   overflow-x: hidden;
   overflow-y: scroll;
@@ -333,32 +312,31 @@ button:focus {
 .campaign-detailed-list{
 
 }
-/*
-.list > div{
-  width: 100%;
-}
-*/
 
 .content-list {
   min-width: 150px!important;
   max-width: 250px!important;
-  background-color: #f5f6fb;/*#F1F1F1;*/
+  background-color: #f5f6fb;
 }
-
+.campaign-list{
+  margin-left: -30px;
+  min-width: 292px!important;
+  max-width: 292px!important;
+}
 .campaign-item {
   color: inherit;
-  background-color: #f5f6fb;/*#F1F1F1;*/
+  background-color: #f5f6fb;
   margin: auto;
   padding: 6px;
-  min-width: 150px!important;
-  max-width: 250px!important;
+  min-width: 290px!important;
+  max-width: 290px!important;
 }
 .campaign-item.active {
   color: #ffffff;
-  background-color: #2559e5;/*#2564E1;*/
+  background-color: #2559e5;
 }
 .campaign-item:hover {
-  background: #e5eafa;/*#DBDBDB;*/
+  background: #e5eafa;
   color: #2559e5;
 }
 
@@ -367,9 +345,12 @@ button:focus {
   background-color: #f5f6fb;
   margin: auto;
   padding: 10px;
+
+  margin-left: -14px;
+  margin-right: 0px;
   font-size: 1.0em;
-  min-width: 183px!important;
-  max-width: 183px!important;
+  min-width: 197px!important;
+  max-width: 197px!important;
 }
 .help-item.active {
   color: #ffffff;
@@ -417,7 +398,7 @@ button:focus {
 .recipient-item {
   position: relative;
   color: inherit;
-  background-color: #f5f6fb;/*#F1F1F1;*/
+  background-color: #f5f6fb;
   margin: auto;
   margin-left: 0px;
   padding: 6px;
@@ -427,11 +408,11 @@ button:focus {
 
 .recipient-item.active {
   color: #ffffff;
-  background-color: #2559e5;/*#2564E1;*/
+  background-color: #2559e5;
 }
 
 .recipient-item:hover {
-  background: #e5eafa;/*#DBDBDB;*/
+  background: #e5eafa;
   color: #2559e5;
 }
 
@@ -495,7 +476,7 @@ button:focus {
   min-width: 500px;
 }
 .hasborder {
-  border: 1px dotted purple;
+  border-top: 1px dotted purple;
 }
 
 .small_font{

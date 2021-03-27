@@ -59,13 +59,13 @@
             <p class="info-text">Upload your contacts to improve user experience. If provided, contacts' name will be used instead of phone number on the message conversation list.</p>
             <form id="contact-form" class="form-group" enctype="multipart/form-data">
               <div class="block_space">
-                <label class="label-input">Load contacts from CSV file</label>
+                <label class="">Load contacts from CSV file</label>
                 <input type="file" name="contacts" class="form-control" onchange="loadContactsFile(this)"></input>
               </div>
               <hr style="margin: 2px !important"></hr>
               <div id="columns-block" class="block_space" style="display: none">
                 <div class="block_space">
-                  <label class="label-input">CSV columns</label>
+                  <label class="label-input">CSV columns</label></br>
                   <div id="columns" class="form-control">-</div>
                 </div>
                 <div class="block_space">
@@ -84,34 +84,35 @@
               </div>
             </form>
           </div>
-          <div class="col-lg-4">
-            <div><label class="label-input">My contacts</label><a id="delete-contact-btn" class="form-control navbutton" style="display: none" href="javascript:deleteWarning()">Delete all contacts</a></div>
+          <div class="col-lg-6">
+            <div><label class="label-input">My contacts</label><a id="delete-contact-btn" class="form-control navbutton" style="display: none" href="javascript:deleteWarning()">Delete contacts</a></div>
             <div id="contact-list"></div>
           </div>
         </div>
         <div id="webhook-block" class="form-inline col-lg-12" style="margin-top: 20px;display: none">
-          <p class="info-text">Setup webhook to receive your campaign detailed report data (in JSON format) after a campaign is sent. For a survey campaign, you will receive the detailed survey result data as soon as the survey is completed or after the survey expired, which ever happens first.</p>
-          <div class="block_space">
-            <label class="label-input" for="webhook-address">Webhook address</label><br>
-            <input id="webhook-address" class="form-control" type="text" size="73" value="" oninput="checkValueChange()" placeholder="Enter your webhook address"></input>
+          <div id="webhook-inputs">
+            <p class="info-text">Setup webhook to receive your campaign detailed report data (in JSON format) after a campaign is sent. For a survey campaign, you will receive the detailed survey result data as soon as the survey is completed or after the survey expired, which ever happens first.</p>
+            <div class="block_space">
+              <label class="label-input" for="webhook-address">Webhook address</label><br>
+              <input id="webhook-address" class="form-control" type="text" size="73" value="" oninput="checkValueChange()" placeholder="Enter your webhook address"></input>
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="header-name">Header name</label><br>
+              <input id="header-name" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header name">
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="header-value">Header value</label>
+              <a id="generator-btn" class="form-control navbutton" href="javascript:generateCode()">Generate random value</a>
+              <a id="copy-btn" class="form-control navbutton" href="javascript:copyHeaderValue()">Copy header value</a><br>
+              <input id="header-value" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header value">
+            </div>
+            <!--hr style="margin: 2px !important"></hr-->
+            <div class="block_space">
+              <button id="set-webhook" class="form-control btn-rc" onclick="setWebhookAddress()">Set</button>
+              <button id="delete-webhook" class="form-control btn-rc" onclick="deleteWebhookAddress()">Delete</button>
+            </div>
           </div>
-          <div class="block_space">
-            <label class="label-input" for="header-name">Header name</label><br>
-            <input id="header-name" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header name">
-          </div>
-          <div class="block_space">
-            <label class="label-input" for="header-value">Header value</label>
-            <a id="generator-btn" class="form-control navbutton" href="javascript:generateCode()">Generate random value</a>
-            <a id="copy-btn" class="form-control navbutton" href="javascript:copyHeaderValue()">Copy header value</a><br>
-            <input id="header-value" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header value">
-          </div>
-
-          <!--hr style="margin: 2px !important"></hr-->
-          <div class="block_space">
-            <button id="set-webhook" class="form-control btn-rc" onclick="setWebhookAddress()">Set</button>
-            <button id="delete-webhook" class="form-control btn-rc" onclick="deleteWebhookAddress()">Delete</button>
-          </div>
-          <div id="code"></div>
+          <div id="code" class="scrollable"></div>
         </div>
     </div>
   </section>

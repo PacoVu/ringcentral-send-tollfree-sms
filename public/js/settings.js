@@ -19,6 +19,7 @@ function setElementsHeight(){
   $("#menu-pane").height(swindow)
   $("#control-col").height(swindow)
   $("#contact-list").height(swindow - 200)
+  $("#code").height(swindow - $("#webhook-inputs").outerHeight(true) - 30)
 }
 
 var prevView = "contacts-block"
@@ -34,9 +35,10 @@ function showView(view){
   if (view == "contacts-block"){
     $("#webhook").hide()
   }else if (view == "webhook-block") {
-    if ($("#webhook-address").val() == "")
+    if ($("#webhook-address").val() == ""){
+      setElementsHeight()
       return readWebhookAddress(view)
-    else{
+    }else{
       $("#contacts-block").hide()
     }
   }
@@ -308,7 +310,7 @@ function copyHeaderValue(){
 function showSampleCode(key, value){
   var url = $("#webhook-address").val().replace("https://", "")
   var arr = url.split("/")
-  var codeStr = `<h3>Express Node JS sample code:</h3> \
+  var codeStr = `<label>Express Node JS sample code:</label> \
 <xmp>\
 var app = require('express')();
 var server = require('http').createServer(app);
