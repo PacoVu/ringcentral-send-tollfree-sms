@@ -406,7 +406,7 @@ var engine = User.prototype = {
           fs.unlinkSync(tempFile);
         }
         // read contacts from db
-        this.updateContactsDataInDB(contactList, (err, newContactList) => {
+        this.updateContactsDataInDB(body.group_name, contactList, (err, newContactList) => {
           if (!err)
             res.send({
               status: "ok",
@@ -436,7 +436,42 @@ var engine = User.prototype = {
         }
       })
     },
-    updateContactsDataInDB: function(contactList, callback){
+    updateContactsDataInDB: function(groupName, contactList, callback){
+      this.readContactsFromDataInDB((err, savedContacts) => {
+        if (!err){
+          var newContactList = []
+          var updateContactList = undefined
+          var savedGroup = savedContacts.find(o => o.groupName === groupName)
+          if (savedGroup){
+            for (var contact of contactList){
+              var c = savedGroup.contacts.find(o => o.phoneNumber === contact.phoneNumber)
+              if (!c)
+                newContactList.push(contact)
+            }
+            updateContactList = savedGroup.contacts.concat(newContactList)
+            savedGroup.contacts = updateContactList
+          }else{
+            savedGroup = {
+              groupName: groupName,
+              contacts: contactList
+            }
+            savedContacts.push(savedGroup)
+          }
+          var query = 'UPDATE a2p_sms_users SET '
+          query += "contacts='" + JSON.stringify(savedContacts) + "' WHERE user_id='" + this.extensionId + "'"
+          pgdb.update(query, (err, result) =>  {
+            if (err){
+              console.error(err.message);
+              callback(err, "updated contacts failed")
+            }
+            callback(null, savedGroup)
+          })
+        }else {
+          callback(err.message, "failed updating contacts")
+        }
+      })
+    },
+    updateContactsDataInDB_old: function(contactList, callback){
       this.readContactsFromDataInDB((err, savedContacts) => {
         if (!err){
           var newContactList = []

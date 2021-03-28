@@ -134,7 +134,19 @@ function readContacts(){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      contactList = res.contactList
+      for (var contactGroup of res.contactList){
+        for (var contact of contactGroup.contacts){
+          if (contactList.length > 0){
+            var item = contactList.find(o => o.phoneNumber == contact.phoneNumber)
+            if (!item)
+              contactList.push(contact)
+          }else{
+            contactList.push(contact)
+          }
+        }
+      }
+      //contactList = res.contactList
+      console.log(JSON.stringify(contactList))
       readMessageStore("")
     }else if (res.status == "failed") {
       alert(res.message)

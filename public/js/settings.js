@@ -1,4 +1,5 @@
 var contactList = []
+var selectedContactGroup = ""
 var webhook = undefined
 function init(){
   window.onresize = function() {
@@ -130,12 +131,24 @@ function loadContactsFile(elm){
       displayColumns(columns)
     };
   }else{
-    $("#columns").html("-")
-    $("#columns-block").hide()
+    resetContactForm()
   }
 }
+
+function resetContactForm(){
+  $("#number-column").val("")
+  $("#fname-column").val("")
+  $("#lname-column").val("")
+  $("#group-name").val("")
+  $("#columns").html("-")
+  $("#columns-block").hide()
+}
+
 function displayColumns(columns){
   $("#columns-block").show()
+  if (contactList.length > 0){
+    $("#update-group-field").show()
+  }
   var html = "|&nbsp;"
   for (var col of columns)
     html += `<a href="javascript:addToField('${col}')">${col}</a>&nbsp;|&nbsp;`
@@ -153,7 +166,31 @@ function addToField(col){
 
 function updateContactList(){
   var html = ""
-  for (var contact of contactList){
+  var groups = ""
+  for (var group of contactList){
+    groups += `<option value="${group.groupName.replace(/\s/g, "-")}">${group.groupName}</option>`
+  }
+  $("#contact-groups").html(groups)
+  $("#new-contact-groups").html(groups)
+  $('#new-contact-groups').selectpicker('refresh');
+  var contactGroup = contactList[0]
+  selectedContactGroup = contactGroup.groupName
+  for (var contact of contactGroup.contacts){
+    html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
+  }
+  $("#contact-list").html(html)
+}
+
+function setContactGroupName(){
+  var groupName = $("#new-contact-groups option:selected").text()
+  $("#group-name").val(groupName)
+}
+
+function displayContacts(){
+  var html = ""
+  selectedContactGroup = $("#contact-groups option:selected").text()
+  var contactGroup = contactList.find(o => o.groupName === selectedContactGroup)
+  for (var contact of contactGroup.contacts){
     html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
   }
   $("#contact-list").html(html)
@@ -170,8 +207,26 @@ function uploadContactsFile(e){
       data: formData,
       success: function (res) {
           if (res.status == "ok"){
-            contactList = contactList.concat(res.contactList)
-            updateContactList()
+            var contactGroup = undefined //contactList.find(o => o.groupName == res.contactList.groupName)
+            var updated = false
+            for (var i=0; i<contactList.length; i++){
+              contactGroup = contactList[i]
+              if (contactGroup.groupName == res.contactList.groupName){
+                contactList[i] = res.contactList
+                updated = true
+                break
+              }
+            }
+            if (!updated){
+              contactList.push(res.contactList) //= contactList.concat(res.contactList)
+            }
+            if (contactList.length > 0){
+              $("#my-contacts-pane").show()
+              updateContactList()
+            }
+            // reset update form
+            $("#csv-file").val("")
+            resetContactForm()
           }else if (res.status == "error"){
             _alert(res.message)
           }else{
@@ -196,9 +251,11 @@ function readContacts(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       contactList = res.contactList
-      if (contactList.length)
-        $("#delete-contact-btn").show()
-      updateContactList()
+      //alert(JSON.stringify(contactList))
+      if (contactList.length > 0){
+        $("#my-contacts-pane").show()
+        updateContactList()
+      }
     }else if (res.status == "error"){
       _alert(res.message)
     }else{

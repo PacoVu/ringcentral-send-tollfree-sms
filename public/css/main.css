@@ -73,10 +73,14 @@ button:focus {
   max-height: 100px;
   overflow: scroll;
 }
-#contact-list{
-  height: 200px;
+
+.contact-list{
+  height: 400px;
   overflow: scroll;
+  min-width: 300px;
+  max-width: 300px;
 }
+
 /*
 #groups_list {
   display: none;
