@@ -1372,8 +1372,8 @@ var engine = User.prototype = {
       //console.log("_readMessageList")
       var thisUser = this
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      console.log(endpoint)
-      console.log(readParams)
+      //console.log(endpoint)
+      //console.log(readParams)
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
