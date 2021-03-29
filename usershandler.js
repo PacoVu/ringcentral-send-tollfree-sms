@@ -1151,7 +1151,6 @@ var engine = User.prototype = {
         deliveryFailedCount: 0,
         totalCost: 0.0
       }
-      console.log(batchId)
       this._readCampaignDetailsFromServer(res, batchId, batchReport, "")
     },
     _readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){

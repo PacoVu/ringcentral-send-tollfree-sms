@@ -145,8 +145,12 @@ var engine = ActiveUser.prototype = {
               notFound = false
               // process this vote campaign
               console.log("Processing response")
-              this.processThisCampaign(campaign, voter, body)
-              break
+              if (this.processThisCampaign(campaign, voter, body)){
+                console.log("Processed")
+                break
+              }else{
+                console.log("process next campaign if any")
+              }
             }
           }else continue;
         }
@@ -169,12 +173,14 @@ var engine = ActiveUser.prototype = {
               console.log(res)
             })
           }
-          return
+          return true
         }
         var needUpdateDd = false
+        var processed = false
         if (!voter.isReplied){
           for (var command of campaign.voteCommands){
             if (body.text.trim().toLowerCase() == command.toLowerCase()){
+              processed = true
               campaign.voteCounts.Replied++
               voter.isReplied = true
               voter.repliedTime = new Date().getTime()
@@ -190,7 +196,6 @@ var engine = ActiveUser.prototype = {
                       text: repliedMsg,
                       messages: [{to:[body.from]}]
                   }
-                  //console.log(requestBody)
                   this.sendMessage(requestBody)
                 }
               }
@@ -215,12 +220,10 @@ var engine = ActiveUser.prototype = {
               needUpdateDd = true
             }
           }
-          //console.log(campaign.voterList)
-          //console.log(campaign)
-          //console.log("======")
         }else if(campaign.allowCorrection){
           for (var command of campaign.voteCommands){
             if (body.text.trim().toLowerCase() == command.toLowerCase()){
+              processed = true
               campaign.voteResults[voter.repliedMessage]--
               voter.repliedMessage = command
               campaign.voteResults[command]++
@@ -239,9 +242,9 @@ var engine = ActiveUser.prototype = {
               break
             }
           }
-          //console.log(campaign.voterList)
-          //console.log(campaign)
-          //console.log("======")
+          console.log(campaign.voterList)
+          console.log(campaign)
+          console.log("======")
         }
         if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
           campaign.status = "Completed"
@@ -252,6 +255,7 @@ var engine = ActiveUser.prototype = {
           this.updateVoteDataInDB((err, res) => {
             console.log(res)
           })
+        return processed
     },
     sendMessage: async function(requestBody){
       if (this.rc_platform == undefined)
@@ -260,7 +264,6 @@ var engine = ActiveUser.prototype = {
       if (p){
         try {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
-          //var jsonObj = await resp.json()
           console.log("Auto-reply succeeded")
         }catch(e) {
           console.log("Auto-reply error")

@@ -197,6 +197,7 @@ function pollNewMessages(){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
+      console.log(res.newMessages)
       for (var msg of res.newMessages){
         //messageList.push(msg)
         messageList.splice(0, 0, msg);

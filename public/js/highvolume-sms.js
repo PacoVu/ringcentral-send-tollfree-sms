@@ -7,8 +7,9 @@ var pollingVoteResultTimer = null
 var loaded = 0
 var timeOffset = 0
 function init(){
-  google.charts.load('current', {'packages':['corechart'], callback: onloaded});
-
+  //google.charts.load('current', {'packages':['corechart'], callback: onloaded});
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(onloaded);
   window.onresize = function() {
     setElementsHeight()
   }
@@ -44,7 +45,9 @@ function setCampaignHistoryListHeight(){
 function onloaded(){
   loaded++
   if (loaded == 3){
-    readCampaigns()
+    window.setTimeout(function(){
+      readCampaigns()
+    }, 1000)
   }
 }
 
@@ -62,7 +65,8 @@ function readCampaigns(){
       else
         $("#history").show()
 
-      listAllCampaigns(res.recentBatch)
+      //listAllCampaigns(res.recentBatch)
+      listAllCampaigns(undefined)
     }else if (res.status == "error"){
       _alert(res.message)
     }else{
@@ -301,6 +305,7 @@ function readVoteResult(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       voteReportList = res.voteReports
+      console.log(voteReportList)
       for (var vote of voteReportList){
         var campaign = campaignList.find(o => o.batchId === vote.batchId)
         if (campaign){
@@ -358,7 +363,6 @@ function displaySelectedCampaign(batchReport){
   params.push(item);
   item = ["Failed", batchReport.unreachableCount]
   params.push(item);
-
   plotBatchReport(params)
   // display vote report
   var archived = false
