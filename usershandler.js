@@ -93,6 +93,9 @@ var engine = User.prototype = {
       this.readA2PSMSPhoneNumber(req, res)
     },
     loadStandardSMSPage: function(res){
+      this.updateNotification(false, (err, result) => {
+        console.log("Stop getting outbound notification")
+      })
       var enableHVSMS = (this.phoneHVNumbers.length) ? false : true
       res.render('standard-sms', {
         userName: this.getUserName(),
@@ -120,6 +123,9 @@ var engine = User.prototype = {
     },
     loadMessageStorePage: function(res){
       this.eventEngine.logNewMessage = true
+      this.updateNotification(true, (err, result) => {
+        console.log("Start getting outbound/inbound notification")
+      })
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -130,6 +136,9 @@ var engine = User.prototype = {
       })
     },
     loadCampaignHistoryPage: function(res){
+      this.updateNotification(false, (err, result) => {
+        console.log("Stop getting outbound notification")
+      })
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -140,6 +149,9 @@ var engine = User.prototype = {
     },
     loadHVSMSPage: function(res){
       this.eventEngine.logNewMessage = false
+      this.updateNotification(false, (err, result) => {
+        console.log("Stop getting outbound notification")
+      })
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -1769,11 +1781,10 @@ var engine = User.prototype = {
       if (p){
         var eventFilters = []
         for (var item of this.phoneHVNumbers){
-          //var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
-          eventFilters.push(filter)
+          //filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
+          //eventFilters.push(filter)
         }
         try {
           var resp = await p.post('/restapi/v1.0/subscription', {
@@ -1829,7 +1840,43 @@ var engine = User.prototype = {
           })
         }
       }else{
-        console.log("err: " + renewNotification);
+        console.log("err: renewNotification");
+        callback("err", "failed")
+      }
+    },
+    updateNotification: async function( outbound, callback){
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        var eventFilters = []
+        for (var item of this.phoneHVNumbers){
+          //var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+          var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+          eventFilters.push(filter)
+          if (outbound){
+            filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
+            eventFilters.push(filter)
+          }
+        }
+        try {
+          var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
+            eventFilters: eventFilters,
+            deliveryMode: {
+              transportType: 'WebHook',
+              address: process.env.DELIVERY_MODE_ADDRESS
+            },
+            expiresIn: process.env.WEBHOOK_EXPIRES_IN
+          })
+          var jsonObj = await resp.json()
+          this.subscriptionId = jsonObj.id
+          console.log("Subscription updated")
+          console.log(this.subscriptionId)
+          callback(null, jsonObj.id)
+        } catch (e) {
+          console.log('ERR ' + e.message);
+          callback(e.message, "failed")
+        }
+      }else{
+        console.log("err: updateNotification");
         callback("err", "failed")
       }
     },

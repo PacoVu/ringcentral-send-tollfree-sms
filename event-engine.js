@@ -474,6 +474,11 @@ var engine = ActiveUser.prototype = {
                 if (record.id != this.subscriptionId){
                   var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                     console.log("Deleted")
+                }else{
+                  console.log("my only subscription")
+                  this.updateNotification((err, res) => {
+                    console.log("update")
+                  })
                 }
               }
             }
@@ -486,6 +491,34 @@ var engine = ActiveUser.prototype = {
         }
       }else{
         console.log("Cannot get platform => Delete all subscriptions error")
+      }
+    },
+    updateNotification: async function(callback){
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        var eventFilters = [`/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`]
+        
+        try {
+          var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
+            eventFilters: eventFilters,
+            deliveryMode: {
+              transportType: 'WebHook',
+              address: process.env.DELIVERY_MODE_ADDRESS
+            },
+            expiresIn: process.env.WEBHOOK_EXPIRES_IN
+          })
+          var jsonObj = await resp.json()
+          this.subscriptionId = jsonObj.id
+          console.log("Subscription updated")
+          console.log(this.subscriptionId)
+          callback(null, jsonObj.id)
+        } catch (e) {
+          console.log('ERR ' + e.message);
+          callback(e.message, "failed")
+        }
+      }else{
+        console.log("err: updateNotification");
+        callback("err", "failed")
       }
     }
 };
