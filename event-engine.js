@@ -139,7 +139,7 @@ var engine = ActiveUser.prototype = {
           var voter = campaign.voterList.find(o => o.phoneNumber == body.from)
           //console.log(voter)
           if (voter != undefined){
-            if (campaign.status == "Completed" && !campaign.allowCorrection){
+            if (campaign.status == "Completed" /*&& !campaign.allowCorrection*/){
               continue
             }else{
               notFound = false
@@ -471,7 +471,7 @@ var engine = ActiveUser.prototype = {
           var jsonObj = await resp.json()
           if (jsonObj.records.length > 0){
             for (var record of jsonObj.records) {
-              console.log(JSON.stringify(record))
+              //console.log(JSON.stringify(record))
               if (record.deliveryMode.transportType == "WebHook"){
                 if (record.id != this.subscriptionId){
                   var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
