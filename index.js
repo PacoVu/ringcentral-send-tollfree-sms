@@ -415,7 +415,7 @@ app.post('/webhookcallback', function(req, res) {
                 //console.log(jsonObj)
               }
             }else{
-              console.log("Export does not work")
+              console.log("Not ready. Still loading users")
             }
             res.statusCode = 200;
             res.end();

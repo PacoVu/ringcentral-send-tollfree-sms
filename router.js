@@ -13,20 +13,16 @@ function autoStart(){
   console.log("autoStart")
   createUserTable()
   createUsersAdditionalDataTable()
-  //createActiveUsersTable()
   var query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users`
   pgdb.read(query, (err, result) => {
     if (err){
       console.error(err.message);
     }else{
       if (result.rows){
-        //console.log(result.rows)
         async.forEachLimit(result.rows, 1, function(user, setupNextUser){
-          //console.log(user)
             async.waterfall([
               function setupNextUser(done) {
                 // create platform
-                //console.log(user.access_tokens)
                 if (user.access_tokens.length > 0){
                   var platform = new RCPlatform()
                   //console.log(user.access_tokens)
@@ -38,8 +34,6 @@ function autoStart(){
                         if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)
-                        }else{
-                          console.log("no survey campaign => don't add to ActiveUser list")
                         }
                         done()
                       })
@@ -49,8 +43,6 @@ function autoStart(){
                         if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)
-                        }else{
-                          console.log("no survey campaign => don't add to ActiveUser list")
                         }
                         done()
                       })

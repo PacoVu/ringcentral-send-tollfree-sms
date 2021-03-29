@@ -31,7 +31,6 @@ var engine = ActiveUser.prototype = {
           }
         }
         thisUser.readWebhookInfoFromDB( async (err, res) => {
-          console.log("readWebhookInfoFromDB")
           await thisUser.deleteAllRegisteredWebHookSubscriptions()
           callback(null, result)
         })
@@ -471,7 +470,7 @@ var engine = ActiveUser.prototype = {
             for (var record of jsonObj.records) {
               console.log(JSON.stringify(record))
               if (record.deliveryMode.transportType == "WebHook"){
-                if (record.id == this.subscriptionId){
+                if (record.id != this.subscriptionId){
                   var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                     console.log("Deleted")
                 }else{

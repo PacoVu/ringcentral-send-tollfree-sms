@@ -74,10 +74,10 @@ RCPlatform.prototype = {
     var jsonObj = JSON.parse(data)
     await this.platform.auth().setData(jsonObj)
     if (await this.platform.loggedIn()){
-      console.log("Auto login succeeds")
-      callback(null, "Auto login succeeded")
+      console.log("Auto login ok")
+      callback(null, "Auto login ok")
     }else{
-      console.log("BOTH TOKEN TOKENS EXPIRED")
+      console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED")
       console.log("CAN'T REFRESH: " + e.message)
       callback(e.message, "Auto login Failed")
     }
