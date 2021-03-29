@@ -9,7 +9,7 @@ var totalMessageSegments = 0
 var sampleRow = null
 var csvColumnIndex = {}
 const MASK = "#!#"
-//var secondLine = ""
+var contactList = []
 
 function hidePopover(elm){
   setTimeout(function () {
@@ -139,6 +139,8 @@ function showBlock(block){
         $("#result-block").hide();
         $("#sms-form").show();
         $("#preview-block").show();
+        if (contactList.length == 0)
+          readContacts()
         break
       case "history":
         $('#create').hide()
@@ -148,6 +150,49 @@ function showBlock(block){
         $("#control-block").hide()
         break
     }
+}
+
+function readContacts(){
+  var url = "get-contacts"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      contactList = res.contactList
+      if (contactList.length > 0){
+        var groups = ""
+        for (var group of contactList){
+          groups += `<option value="${group.groupName.replace(/\s/g, "-")}">${group.groupName}</option>`
+        }
+        $("#contact-groups").html(groups)
+        $('#contact-groups').selectpicker('refresh');
+      }
+    }else if (res.status == "error"){
+      _alert(res.message)
+    }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/index"
+      },8000)
+    }
+  });
+}
+
+function setRecipientFromContacts(){
+  var selectedGroup = $("#contact-groups option:selected").text()
+  var contactGroup = contactList.find(o => o.groupName === selectedGroup)
+  if (contactGroup){
+    var recipients = ""
+    for (var contact of contactGroup.contacts){
+      recipients += contact.phoneNumber + "\n"
+    }
+    $("#recipients").val(recipients)
+    totalRecipients = contactGroup.contacts.length
+    var sample = `${totalRecipients} recipients`
+    $("#preview-recipients").html(sample)
+  }
 }
 
 function resetCampaignInput(){

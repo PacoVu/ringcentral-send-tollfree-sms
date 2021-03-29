@@ -92,9 +92,18 @@
                 </div>
                 <!-- new test -->
                 <div id="manual-input" class="block_space" style="display: none">
-                  <label class="">Recipient's phone number</label><br>
-                  <textarea rows="4" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
+                  <span style="float: left">
+                    <label class="">Recipient's phone number</label><br>
+                    <textarea rows="4" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
+                  </span>
+                  <span style="float: left;margin-left: 30px;">
+                    <label class="">Select contact group</label><br>
+                    <select id="contact-groups" class="selectpicker filter-select" onchange="setRecipientFromContacts()" style="display: none">
+                      <opion value="">Test</option>
+                    </select>
+                  </span>
                 </div>
+                <span style="clear: both"></span>
                 <div class="block_space" id="recipient-phone-number" style="display: none">
                   <label class="">Phone number column(s)</label><br>
                   <div id="columns" class="form-control" style="display: none">-</div>

@@ -30,7 +30,9 @@ var engine = ActiveUser.prototype = {
             }, this.updateInterval)
           }
         }
-        thisUser.readWebhookInfoFromDB((err, res) => {
+        thisUser.readWebhookInfoFromDB( async (err, res) => {
+          console.log("readWebhookInfoFromDB")
+          await thisUser.deleteAllRegisteredWebHookSubscriptions()
           callback(null, result)
         })
       })
@@ -454,6 +456,36 @@ var engine = ActiveUser.prototype = {
       }catch(e){
         console.log("CRASHED PORT RESULT")
         console.log(e.message)
+      }
+    },
+    /// Clean up WebHook subscriptions
+    deleteAllRegisteredWebHookSubscriptions: async function() {
+      if (this.rc_platform == undefined)
+        return
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try{
+          var resp = await p.get('/restapi/v1.0/subscription')
+          var jsonObj = await resp.json()
+          if (jsonObj.records.length > 0){
+            for (var record of jsonObj.records) {
+              console.log(JSON.stringify(record))
+              if (record.deliveryMode.transportType == "WebHook"){
+                if (record.id != this.subscriptionId){
+                  var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
+                    console.log("Deleted")
+                }
+              }
+            }
+            console.log("Deleted all")
+          }else{
+            console.log("No subscription to delete")
+          }
+        }catch(e){
+            console.log(e.message)
+        }
+      }else{
+        console.log("Cannot get platform => Delete all subscriptions error")
       }
     }
 };

@@ -119,6 +119,8 @@ function readCampaignFromServer(campaign){
 }
 
 function listAllCampaigns(recentBatch){
+  if (campaignList.length == 0)
+    return
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
