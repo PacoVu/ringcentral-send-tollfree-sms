@@ -471,7 +471,7 @@ var engine = ActiveUser.prototype = {
             for (var record of jsonObj.records) {
               console.log(JSON.stringify(record))
               if (record.deliveryMode.transportType == "WebHook"){
-                if (record.id != this.subscriptionId){
+                if (record.id == this.subscriptionId){
                   var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                     console.log("Deleted")
                 }else{
@@ -497,7 +497,7 @@ var engine = ActiveUser.prototype = {
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         var eventFilters = [`/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`]
-        
+
         try {
           var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
             eventFilters: eventFilters,
