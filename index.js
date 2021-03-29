@@ -408,10 +408,12 @@ app.post('/webhookcallback', function(req, res) {
             var jsonObj = JSON.parse(body)
             if (aUsers.length){
               var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
-              if (eventEngine)
+              if (eventEngine){
                 eventEngine.processNotification(jsonObj)
-              else
+              }else{
                 console.log("Not my notification!!!")
+                console.log(jsonObj)
+              }
             }else{
               console.log("Export does not work")
             }
