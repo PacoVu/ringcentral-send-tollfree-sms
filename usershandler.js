@@ -13,7 +13,7 @@ function User(id) {
   this.accountId = 0;
   this.userName = ""
   this.userEmail = ""
-  this.rc_platform = new RCPlatform()
+  this.rc_platform = new RCPlatform(id)
 
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []

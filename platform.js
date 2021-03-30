@@ -1,9 +1,11 @@
 var RC = require('ringcentral')
 
-function RCPlatform() {
+function RCPlatform(id) {
   this.extensionId = ""
   this.accountId = ""
+  var userId = `user_${userId}`  
   var rcsdk = new RC({
+      cachePrefix: userId,
       server:RC.server.production,
       appKey: process.env.CLIENT_ID_PROD,
       appSecret:process.env.CLIENT_SECRET_PROD
