@@ -16,13 +16,13 @@ function RCPlatform(userId) {
       clientSecret:clientSecret,
       redirectUri: process.env.RC_APP_REDIRECT_URL,
       })
-  
+
   this.platform = this.rcsdk.platform()
   this.platform.on(this.platform.events.loginSuccess, this.loginSuccess)
   this.platform.on(this.platform.events.logoutSuccess, this.logoutSuccess)
   //this.platform.on(this.platform.events.refreshSuccess, this.refreshSuccess)
   this.platform.on(this.platform.events.refreshError, this.refreshError)
-  ///*
+  
   var boundFunction = ( async function() {
       console.log("WONDERFUL")
       console.log(this.extensionId);
