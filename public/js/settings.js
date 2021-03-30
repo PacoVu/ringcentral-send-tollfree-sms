@@ -78,7 +78,7 @@ function readWebhookAddress(view){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -109,7 +109,7 @@ function deleteWebhookAddress(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -235,7 +235,7 @@ function uploadContactsFile(e){
             else
               _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
-              window.location.href = "/index"
+              window.location.href = "/relogin"
             },8000)
           }
       },
@@ -264,7 +264,7 @@ function readContacts(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -313,7 +313,7 @@ function setWebhookAddress(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });

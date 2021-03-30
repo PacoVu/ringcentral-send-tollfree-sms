@@ -75,7 +75,7 @@ function readCampaigns(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -116,7 +116,7 @@ function readCampaignFromServer(campaign){
         else
           _alert("You have been logged out. Please login again.")
         window.setTimeout(function(){
-          window.location.href = "/index"
+          window.location.href = "/relogin"
         },8000)
       }
   });
@@ -325,7 +325,7 @@ function readVoteResult(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -540,7 +540,7 @@ function deleteSurveyResult(batchId){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -561,7 +561,7 @@ function downloadSurveyResult(batchId){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });

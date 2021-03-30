@@ -174,7 +174,7 @@ function readContacts(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -878,7 +878,7 @@ function canSendMessages() {
             else
               _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
-              window.location.href = "/index"
+              window.location.href = "/relogin"
             },8000)
           }
       },
@@ -904,7 +904,7 @@ function pollResult(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -991,7 +991,7 @@ function downloadRejectedList(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });

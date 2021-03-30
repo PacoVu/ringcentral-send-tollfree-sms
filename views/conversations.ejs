@@ -89,6 +89,9 @@
                   <% }; i++ %>
                 <% } %>
               </select>
+            <% } else { %>
+              <label class="label-input" for="my-numbers">From number</label>
+              <input type="text" id="my-numbers" size="15" class="form-control text-input" readonly style="display:none" value="<%- phoneNumbers[0].number %>"></input><span><%= phoneNumbers[0].format %></span>
             <% } %>
           </div>
           <div class="block_space">

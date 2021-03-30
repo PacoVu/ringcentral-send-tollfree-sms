@@ -59,12 +59,22 @@ app.get('/index', function (req, res) {
   }
 })
 
+app.get('/relogin', function (req, res) {
+  console.log('force to relogin')
+  if (req.session.hasOwnProperty("userId"))
+    req.session.userId = 0;
+  if (req.session.hasOwnProperty("extensionId"))
+    req.session.extensionId = 0;
+
+  res.render('index')
+})
+
 app.get('/login', function (req, res) {
   req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
   if (!req.session.hasOwnProperty("userId"))
     req.session.userId = 0;
-    if (!req.session.hasOwnProperty("extensionId"))
-      req.session.extensionId = 0;
+  if (!req.session.hasOwnProperty("extensionId"))
+    req.session.extensionId = 0;
 
   router.loadLogin(req, res)
 })

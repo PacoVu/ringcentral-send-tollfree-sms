@@ -1,25 +1,33 @@
-const RingCentral = require('@ringcentral/sdk').SDK
 const pgdb = require('./db')
 require('dotenv').load()
 
 function RCPlatform(userId) {
-
+  //var RingCentral = new (require('@ringcentral/sdk').SDK)();
   this.extensionId = ""
   var clientId = process.env.CLIENT_ID_PROD
   var clientSecret = process.env.CLIENT_SECRET_PROD
-  var serverURL = RingCentral.server.production
+  var serverURL = "https://platform.ringcentral.com"//RingCentral.server.production
   var userId = `user_${userId}`
+  this.rcsdk = new (require('@ringcentral/sdk').SDK)({
+      cachePrefix: userId,
+      server: serverURL,
+      clientId: clientId,
+      clientSecret:clientSecret,
+      redirectUri: process.env.RC_APP_REDIRECT_URL
+      })
+  console.log(userId)
+  /*
   this.rcsdk = new RingCentral({
-  cachePrefix: userId,
       server: serverURL,
       clientId: clientId,
       clientSecret:clientSecret,
       redirectUri: process.env.RC_APP_REDIRECT_URL,
       })
-  
+  */
   this.platform = this.rcsdk.platform()
   this.platform.on(this.platform.events.loginSuccess, this.loginSuccess)
   this.platform.on(this.platform.events.logoutSuccess, this.logoutSuccess)
+  //this.platform.on(this.platform.events.beforeRefresh, this.beforeRefresh)
   //this.platform.on(this.platform.events.refreshSuccess, this.refreshSuccess)
   this.platform.on(this.platform.events.refreshError, this.refreshError)
   ///*

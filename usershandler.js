@@ -16,7 +16,7 @@ function User(id) {
   this.userName = ""
   this.subscriptionId = ""
   this.eventEngine = undefined
-  this.rc_platform = new RCPlatform()
+  this.rc_platform = new RCPlatform(id)
   //this.sendVote = false
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
@@ -166,7 +166,7 @@ var engine = User.prototype = {
     },
     login: async function(req, res, callback){
       if (req.query.code) {
-        var rc_platform = this.rc_platform
+        //var rc_platform = this.rc_platform
         var thisUser = this
         var extensionId = await this.rc_platform.login(req.query.code)
         if (extensionId){
@@ -195,8 +195,10 @@ var engine = User.prototype = {
             res.send('login success');
             // only customers with A2P SMS would be able to subscribe for notification
             if (this.phoneHVNumbers.length){
-              this.eventEngine = router.activeUsers.find(o => o.extensionId.toString() === this.extensionId.toString())
+              this.eventEngine = router.getEngine().find(o => o.extensionId.toString() === this.extensionId.toString())
               if (this.eventEngine){
+                // replace the one created by auto start
+                this.eventEngine.setPlatform(this.rc_platform)
                 this.subscriptionId = this.eventEngine.subscriptionId
                 if (this.eventEngine.subscriptionId == ""){
                   this.subscribeForNotification((err, subscriptionId) => {
@@ -217,8 +219,9 @@ var engine = User.prototype = {
               }else{ // should subscribe for notification and create eventEngine by default
                 this.subscribeForNotification((err, subscriptionId) => {
                   thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
+                  //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
                   // must push to router's activeUser list in order to receive routed subscription
-                  router.activeUsers.push(thisUser.eventEngine)
+                  router.getEngine().push(thisUser.eventEngine)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
                     if (err == null){
                       console.log("eventEngine is set")
@@ -516,6 +519,7 @@ var engine = User.prototype = {
           text: body.message,
           messages: [{to:[body.to]}]
       }
+      console.log(JSON.stringify(requestBody))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
@@ -732,20 +736,7 @@ var engine = User.prototype = {
         rejectedCount: 0,
         totalCost: 0.0
       }
-/*
-      console.log(this.batchSummaryReport)
-      console.log("=====voteInfo=====")
-      console.log(voteInfo)
-      console.log(requestBody)
-*/
-/*
-      res.send({
-        status: "Failed",
-        message: "Testing"
-      })
-      return
-*/
-      this.eventEngine.setPlatform(this.rc_platform)
+      //this.eventEngine.setPlatform(this.rc_platform)
       this.sendBatchMessage(res, requestBody, "vote", voteInfo)
     },
     _sendTailoredMessage: function(req, res){

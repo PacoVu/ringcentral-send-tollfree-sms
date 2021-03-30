@@ -72,7 +72,7 @@ function readCampaigns(){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -157,7 +157,7 @@ function readCampaign(elm, batchId){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -224,7 +224,7 @@ function downloadBatchReport(name){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -248,7 +248,7 @@ function deleteCampaignResult(batchId){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -268,7 +268,7 @@ function downloadInvalidNumbers(batchId, name){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });

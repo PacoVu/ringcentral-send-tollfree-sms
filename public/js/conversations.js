@@ -150,7 +150,7 @@ function readContacts(){
       readMessageStore("")
     }else if (res.status == "failed") {
       alert(res.message)
-      window.location.href = "/index"
+      window.location.href = "/relogin"
     }else{
       alert(res.message)
     }
@@ -183,7 +183,7 @@ function sendTextMessage(message){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });
@@ -208,7 +208,7 @@ function pollNewMessages(){
       },3000)
     }else{
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },10000)
     }
   });
@@ -299,7 +299,7 @@ function readMessageStore(token){
       else
         _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
-        window.location.href = "/index"
+        window.location.href = "/relogin"
       },8000)
     }
   });

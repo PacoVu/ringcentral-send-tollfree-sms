@@ -111,7 +111,7 @@ function addToRecipient(elm){
   $("#to-new-number").val($(elm).val())
 }
 
-function openSendNewText(fromNumber){
+function openSendNewText(){
   if (contactList.length > 0){
     $("#contacts-block").show()
     if ($("#contact-list").val() == ""){
@@ -125,6 +125,7 @@ function openSendNewText(fromNumber){
     $('#contact-list').selectpicker('refresh');
   }
   var fromNumber = $("#my-numbers").val()
+  
   var message = $('#send_new_form');
   setTimeout(function (){
     $("#to-new-number").focus()

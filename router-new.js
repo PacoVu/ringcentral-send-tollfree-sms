@@ -6,12 +6,13 @@ require('dotenv').load()
 var users = []
 
 const activeUsers = []
-//exports.activeUsers = activeUsers
+
 autoStart()
 function autoStart(){
   console.log("autoStart")
-  var RCPlatform = require('./platform.js');
-  var ActiveUser = require('./event-engine.js');
+  //var RCPlatform = new (require('./platform.js'))();
+  //var ActiveUser = new (require('./event-engine.js'))();
+  //var ActiveUser = require('./event-engine.js');
   createUserTable()
   createUsersAdditionalDataTable()
   var query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users`
@@ -25,11 +26,12 @@ function autoStart(){
               function setupNextUser(done) {
                 // create platform
                 if (user.access_tokens.length > 0){
-                  var platform = new RCPlatform(user.user_id)
+                  //var platform = new RCPlatform()
                   var platform = new (require('./platform.js'))(user.user_id);
-                  //console.log(user.access_tokens)
+                  console.log(user.access_tokens)
                   platform.autoLogin(user.access_tokens, (err, res) => {
-                    var aUser = new ActiveUser(user.user_id, user.subscription_id)
+                    //var aUser = new ActiveUser(user.user_id, user.subscription_id)
+                    var aUser = new (require('./event-engine.js'))(user.user_id, user.subscription_id);
                     if (!err){
                       console.log("Has platform")
                       aUser.setup(platform, (err, result) => {
@@ -61,6 +63,7 @@ function autoStart(){
               setupNextUser()
             });
           }, function(err){
+            console.log("activeUsers.length: " + activeUsers.length)
             console.log("autoStart completed")
           });
       }
@@ -114,6 +117,8 @@ function getUserIndexByExtensionId(extId){
   }
   return -1
 }
+
+exports.activeUsers = activeUsers
 
 var router = module.exports = {
   getEngine: function(){
@@ -189,6 +194,8 @@ var router = module.exports = {
               req.session.userId = oldUser.getUserId()
               users[newUserIndex] = null
               users.splice(newUserIndex, 1);
+              console.log("oldUser.extensionList from new user")
+              console.log(oldUser.extensionList)
               break
             }
           }
@@ -199,6 +206,8 @@ var router = module.exports = {
               req.session.userId = userId
               users[newUserIndex] = null
               users.splice(newUserIndex, 1);
+              console.log("oldUser.extensionList from old user")
+              console.log(oldUser.extensionList)
               break
             }
           }
