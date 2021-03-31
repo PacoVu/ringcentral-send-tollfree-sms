@@ -73,7 +73,7 @@
                 </div>
                 <div class="block_space" id="update-group-field" style="display: none">
                   <label class="label-input">Select update group</label>
-                  <select id="new-contact-groups" class="form-control selectpicker filter-select" data-width="172" style="margin-top: 10px;" onchange="setContactGroupName()" title="Update group"></select>
+                  <select id="new-contact-groups" class="form-control" data-width="172" style="margin-top: 10px;" onchange="setContactGroupName()" title="Update group"></select>
                 </div>
                 <div class="block_space">
                   <label class="label-input">Group name</label>
@@ -84,9 +84,12 @@
             </form>
           </div>
           <div class="col-lg-6" id="my-contacts-pane" style="display: none">
-            <div><label class="label-input">My contacts</label><select id="contact-groups" onchange="displayContacts()" class="form-control" title="My contact groups"></select>
-            </br>
-            <a id="delete-contact-btn" class="form-control navbutton" href="#" onclick="deleteWarning()">Delete contact group</a></div>
+            <div>
+              <label class="label-input">My contacts</label>
+              <select id="contact-groups" onchange="displayContacts()" class="form-control" title="My contact groups"></select>
+              </br>
+              <a id="delete-contact-btn" class="form-control navbutton" href="#" onclick="deleteWarning();return false;">Delete contact group</a>
+            </div>
             <div id="contact-list" class="contact-list"></div>
           </div>
         </div>
@@ -103,8 +106,8 @@
             </div>
             <div class="block_space">
               <label class="label-input" for="header-value">Header value</label>
-              <a id="generator-btn" class="form-control navbutton" href="#" onclick="generateCode()">Generate random value</a>
-              <a id="copy-btn" class="form-control navbutton" href="#" onclick="copyHeaderValue()">Copy header value</a><br>
+              <a id="generator-btn" class="form-control navbutton" href="#" onclick="generateCode();return false;">Generate random value</a>
+              <a id="copy-btn" class="form-control navbutton" href="#" onclick="copyHeaderValue();return false;">Copy header value</a><br>
               <input id="header-value" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header value">
             </div>
             <!--hr style="margin: 2px !important"></hr-->
@@ -130,7 +133,7 @@
             <!--button class="btn-rc inline" onclick="checkOptoutNumbers()">Read</button-->
             <div id="oo-numbers" class="block_space" style="display: none;margin-top: 15px;width: 315px;">
               <label>Opted-out numbers</label>
-              <a class="navbutton" href="#" onclick="copyOptoutNumbersToClipboard()" style="float: right">Copy</a>
+              <a class="navbutton" href="#" onclick="copyOptoutNumbersToClipboard();return false;" style="float: right">Copy</a>
             </div>
           </div>
           <div id="opted-out-list" class="contact-list"></div>

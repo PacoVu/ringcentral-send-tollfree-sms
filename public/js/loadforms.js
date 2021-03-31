@@ -115,17 +115,21 @@ function openSendNewText(){
   if (contactList.length > 0){
     $("#contacts-block").show()
     if ($("#contact-list").val() == ""){
+      var contacts = ""
       for (var contact of contactList){
         var name = `${contact.fname} ${contact.lname}`
-        var optionText = name;
-        var optionValue = contact.phoneNumber;
-        $('#contact-list').append(`<option value="${optionValue}"> ${optionText} </option>`);
+        //var optionText = name;
+        //var optionValue = contact.phoneNumber;
+        //$('#contact-list').append(`<option value="${optionValue}"> ${optionText} </option>`);
+        contacts += `<option value="${contact.phoneNumber}">${name}</option>`
       }
     }
+    $("#contact-list").html(contacts)
     $('#contact-list').selectpicker('refresh');
   }
+
   var fromNumber = $("#my-numbers").val()
-  
+
   var message = $('#send_new_form');
   setTimeout(function (){
     $("#to-new-number").focus()

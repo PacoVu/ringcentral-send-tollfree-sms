@@ -455,7 +455,7 @@ function createConversationItem(item, conversation){
       line += `<div class="chat-avatar chat-name">${timeStr}</div>`
       line += `<div class="chat-text">${item.text}</div>`
     }else{
-      line += `<div class="chat-avatar chat-name"><a class="reply" href="#" onclick="openReplyForm('${item.from}', '${item.to[0]}')">${getContactName(item.from)}</a><br>${timeStr}</div>`
+      line += `<div class="chat-avatar chat-name"><a class="reply" href="#" onclick="openReplyForm('${item.from}', '${item.to[0]}');return false;">${getContactName(item.from)}</a><br>${timeStr}</div>`
       line += `<div class="chat-text">${item.text}</div>`
     }
   }else{ // Outbound

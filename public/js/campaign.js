@@ -123,10 +123,10 @@ function readCampaign(elm, batchId){
       //$("#campaign-title").html("Selected campaign: <p>" + campaign.campaignName + "</p>")
       //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
       var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
-      title += `<a href="#" onclick="downloadBatchReport('${campaign.campaignName}')">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
-      title += `<a href="#" onclick="deleteCampaignResult('${campaign.batchId}')">Delete campaign</a></div>`
+      title += `<a href="#" onclick="downloadBatchReport('${campaign.campaignName}');return false;">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
+      title += `<a href="#" onclick="deleteCampaignResult('${campaign.batchId}');return false;">Delete campaign</a></div>`
       if (campaign.rejectedCount > 0)
-        title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" onclick="downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}')">Download invalid numbers</a></div>`
+        title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" onclick="downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}');return false;">Download invalid numbers</a></div>`
       $("#campaign-title").html( title )
       var report = `<div>`
       report += `<div class="info-line"><img class="medium-icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`

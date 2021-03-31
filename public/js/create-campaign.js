@@ -497,13 +497,13 @@ function displayColumns(columns){
     //html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
     var value = sampleRow[csvColumnIndex[`${col}`]]
     if (!isNaN(value) && value.length >= 9){
-      recipientCol += `<a href="#" onclick="addToRecipient('${col}')">${col}</a>&nbsp;|&nbsp;`
+      recipientCol += `<a href="#" onclick="addToRecipient('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
       if (!filled){
         filled = true
         updateSampleRecipient(col)
       }
     }//else{
-      html += `<a href="#" onclick="addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+      html += `<a href="#" onclick="addToMessage('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
     //}
   }
   $("#columns").html(recipientCol)

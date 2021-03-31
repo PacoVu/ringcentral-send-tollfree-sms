@@ -160,7 +160,7 @@ function displayColumns(columns){
   }
   var html = "|&nbsp;"
   for (var col of columns)
-    html += `<a href="#" onclick="addToField('${col}')">${col}</a>&nbsp;|&nbsp;`
+    html += `<a href="#" onclick="addToField('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
   $("#columns").html(html)
 }
 
@@ -181,7 +181,7 @@ function updateContactList(){
   }
   $("#contact-groups").html(groups)
   $("#new-contact-groups").html(groups)
-  //$('#new-contact-groups').selectpicker('refresh');
+  $('#new-contact-groups').selectpicker('refresh');
   var contactGroup = contactList[0]
   selectedContactGroup = contactGroup.groupName
   for (var contact of contactGroup.contacts){
@@ -281,7 +281,7 @@ function deleteWarning(){
     }
 }
 function deleteAllContacts(){
-  _alert("Delete all contacts will be coming soon")
+  _alert("Delete all contacts will be coming soon", "Information")
 }
 
 function setWebhookAddress(){

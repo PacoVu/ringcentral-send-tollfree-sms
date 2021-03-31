@@ -35,7 +35,7 @@
 
     <ul class="nav navbar-nav navbar-left left-align-nav">
       <% if (enableHighVolumeSMS) { %>
-      <li><a href="#" onclick="launchRequestApp()">Enable High Volume SMS</a></li>
+      <li><a href="#" onclick="launchRequestApp();return false;">Enable High Volume SMS</a></li>
       <% } else { %>
         <li><a href="/highvolume-sms">High Volume SMS</a></li>
       <% } %>
@@ -45,12 +45,12 @@
       <li class="dropdown">
         <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
         <ul class="dropdown-menu">
-          <li><a href="#" onclick="openWindow()">Report Issues</a></li>
-          <li><a href="#" onclick="openFeedbackForm()">Feedback</a></li>
+          <li><a href="#" onclick="openWindow();return false;">Report Issues</a></li>
+          <li><a href="#" onclick="openFeedbackForm();return false;">Feedback</a></li>
         </ul>
       </li>
       <li><span>|</span></li>
-      <li><a href="#" onclick="logout()">Logout</a></li>
+      <li><a href="#" onclick="logout();return false;">Logout</a></li>
     </ul>
   </nav>
   <section id='content'>
@@ -106,8 +106,8 @@
           <div id="time"></div>
           <div id="success"></div>
           <div id="failure"></div>
-          <a id="download_json" href="#" onclick="downloadReport('JSON')" style="display: none">Download Detailed Report (JSON)</a>
-          <a id="download_csv" href="#" onclick="downloadReport('CSV')" style="display: none">Download Detailed Report (CSV)</a>
+          <a id="download_json" href="#" onclick="downloadReport('JSON');return false;" style="display: none">Download Detailed Report (JSON)</a>
+          <a id="download_csv" href="#" onclick="downloadReport('CSV');return false;" style="display: none">Download Detailed Report (CSV)</a>
         </div>
       </div>
     </div>
