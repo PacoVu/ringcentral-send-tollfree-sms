@@ -37,20 +37,11 @@
   <section id='content'>
     <div class="row col-lg-12">
       <%- include('_menu') %>
-      <!--div id="control-col" class="col-lg-3 control-pane small-pane">
-        <div class="form-inline" style="margin-top: 20px">
-          <div class="block_space">
-            <button class="rc-oval-btn" width="200px" onclick="showView('contacts-block')">Import Contacts</button>
-          </div>
-          <div class="block_space">
-            <button class="rc-oval-btn" width="200px" onclick="showView('webhook')">Setup Webhook</button>
-          </div>
-        </div>
-      </div-->
       <div id="control-col" class="col-lg-3 control-pane small-pane">
         <div class="form-inline" style="margin-top: 20px">
           <div id="contacts-block-btn" class="help-item active" onclick="showView('contacts-block')">Import Contacts</div>
           <div id="webhook-block-btn" class="help-item" onclick="showView('webhook-block')">Setup Webhook</div>
+          <div id="optout-block-btn" class="help-item" onclick="showView('optout-block')">Opted-out Numbers</div>
         </div>
       </div>
       <div id="content-col" class="col-lg-7">
@@ -95,7 +86,7 @@
           <div class="col-lg-6" id="my-contacts-pane" style="display: none">
             <div><label class="label-input">My contacts</label><select id="contact-groups" onchange="displayContacts()" class="form-control" title="My contact groups"></select>
             </br>
-            <a id="delete-contact-btn" class="form-control navbutton" href="javascript:deleteWarning()">Delete contact group</a></div>
+            <a id="delete-contact-btn" class="form-control navbutton" href="#" onclick="deleteWarning()">Delete contact group</a></div>
             <div id="contact-list" class="contact-list"></div>
           </div>
         </div>
@@ -112,8 +103,8 @@
             </div>
             <div class="block_space">
               <label class="label-input" for="header-value">Header value</label>
-              <a id="generator-btn" class="form-control navbutton" href="javascript:generateCode()">Generate random value</a>
-              <a id="copy-btn" class="form-control navbutton" href="javascript:copyHeaderValue()">Copy header value</a><br>
+              <a id="generator-btn" class="form-control navbutton" href="#" onclick="generateCode()">Generate random value</a>
+              <a id="copy-btn" class="form-control navbutton" href="#" onclick="copyHeaderValue()">Copy header value</a><br>
               <input id="header-value" type="text" class="form-control" size="73" oninput="checkValueChange()" placeholder="Enter header value">
             </div>
             <!--hr style="margin: 2px !important"></hr-->
@@ -123,6 +114,26 @@
             </div>
           </div>
           <div id="code" class="scrollable"></div>
+        </div>
+        <div id="optout-block" class="form-inline col-lg-12" style="margin-top: 20px;display: none">
+          <div id="optout-block-header" class="block_space">
+            <label>My number</label>
+            <% if (phoneNumbers.length > 1) { %>
+            <select data-width="291" id="from-number" class="selectpicker filter-select" onchange="checkOptoutNumbers()" title="Select your phone number" data-placement="right" data-content="Please select a 'from' number">
+            <% } else {%>
+            <select data-width="291" id="from-number" class="selectpicker filter-select">
+            <% } %>
+            <% for (var item of phoneNumbers) { %>
+              <option value="<%- item.number %>" selected><%= item.format %> - <%= item.type %></option>
+            <% } %>
+            </select>
+            <!--button class="btn-rc inline" onclick="checkOptoutNumbers()">Read</button-->
+            <div id="oo-numbers" class="block_space" style="display: none;margin-top: 15px;width: 315px;">
+              <label>Opted-out numbers</label>
+              <a class="navbutton" href="#" onclick="copyOptoutNumbersToClipboard()" style="float: right">Copy</a>
+            </div>
+          </div>
+          <div id="opted-out-list" class="contact-list"></div>
         </div>
     </div>
   </section>

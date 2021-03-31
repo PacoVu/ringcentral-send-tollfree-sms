@@ -126,6 +126,14 @@ app.get("/pollnewmessages", function (req, res) {
   }
 })
 
+app.get("/optout-numbers", function (req, res) {
+  if (req.session.extensionId != 0)
+    router.readOptedOutNumber(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/read-campaign-summary', function (req, res) {
   console.log('readCampaignSummary')
   if (req.session.extensionId != 0)

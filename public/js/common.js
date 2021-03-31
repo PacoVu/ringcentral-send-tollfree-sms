@@ -37,65 +37,6 @@ function formatPhoneNumber(phoneNumberString, countryCode) {
   }
   return phoneNumberString
 }
-/*
-function parseResultResponse(resp){
-  //currentBatchId = resp.result.id
-  $("#control_block").show()
-  $("#status").html("Status: " + resp.result.status)
-  if (resp.result.status == "Processing"){
-    pendingBatch = true
-    // show the time since batch request was submited
-    $("#time").html("Duration: " + resp.time)
-    var text = "Sending " + resp.result.processedCount + " out of " + resp.result.batchSize + " messages."
-    $("#result").html(text)
-    pollTimer = window.setTimeout(function(){
-      //isPolling = true
-      pollResult()
-    }, 5000)
-  }else if (resp.result.status == "Completed" || resp.result.status == "Sent"){
-    pendingBatch = false
-    var createdAt = new Date(resp.result.creationTime).getTime()
-    var lastUpdatedAt = new Date(resp.result.lastModifiedTime).getTime()
-    var processingTime = (lastUpdatedAt - createdAt) / 1000
-    $("#time").html("Duration : " + formatSendingTime(processingTime))
-    var text = "Sent " + resp.result.processedCount + " out of " + resp.result.batchSize + " messages."
-    $("#result").html(text)
-    //isPolling = true // force to stop polling!
-    //switchPollResult()
-    startPollingResult(false)
-    readReport()
-  }
-}
-*/
-/*
-function readReport(){
-  if (currentBatchId == "")
-    return
-  $("#report_block").show()
-  $("#report").html("Reading report ...")
-  var url = "getbatchreport?batchId=" + currentBatchId
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok"){
-      var report = "<div>"
-      for (var key of Object.keys(res.summaryReport)){
-        if (key == "Total_Cost")
-          report += "<div>" + key.replace(/_/g, " ") + ": " + res.summaryReport[key].toFixed(3) + " USD</div>"
-        else
-          report += "<div>" + key.replace(/_/g, " ") + ": " + res.summaryReport[key] + "</div>"
-      }
-      report += "</div>"
-      $("#report").html(report)
-    }else if (res.status == "failed") {
-      alert(res.message)
-      window.location.href = "login"
-    }else{
-      alert(res.message)
-    }
-  });
-}
-////
-*/
 
 function openWindow(){
   window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
@@ -143,6 +84,12 @@ function submitFeedback(params){
 }
 
 function _alert(msg, title, focusField){
+  if(navigator.userAgent.indexOf("Firefox") != -1 ) {
+    if (focusField)
+      $(focusField).focus()
+    //$('#hidden-div-error').model({show: true});
+    return alert(msg);
+  }
   if (title == undefined)
     title = "Error"
   BootstrapDialog.show({

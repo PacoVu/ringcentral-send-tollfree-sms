@@ -70,7 +70,7 @@
                   <!--label class="label-input"></label-->
                   <% if (phoneNumbers.length > 1) { %>
                   <select data-width="291" id="from-number" onchange="updatePreview('from')" name="from_number" class="selectpicker filter-select" title="Select your phone number" data-placement="right" data-content="Please select a 'from' number">
-                  <% }else {%>
+                  <% } else {%>
                   <select data-width="291" id="from-number" onchange="updatePreview('from')" name="from_number" class="selectpicker filter-select">
                   <% } %>
                     <% for (var item of phoneNumbers) { %>
@@ -87,10 +87,10 @@
                   </div>
                   <div class="block_space">
                     <!--div>Manually enter phone numbers <input type="checkbox" id="enable-manual-input" name="enable_manual_input" onchange="enableManualInput(this)"></input></div-->
-                    <div id="csv-option">Load a CSV file <input type="file" id="attachment" name="attachment" class="form-control" onchange="readFileRecipients(this, null)" data-placement="right" data-content="Select a CSV template file or enable manual input mode."></input></div>
+                    <div id="csv-option">Load a CSV file <input type="file" id="attachment" name="attachment" class="form-control" onchange="readFileRecipients(this)" data-placement="right" data-content="Select a CSV template file or enable manual input mode."></input></div>
                   </div>
                 </div>
-                <!-- new test -->
+
                 <div id="manual-input" class="block_space" style="display: none">
                   <span style="float: left">
                     <label class="">Recipient's phone number</label><br>
@@ -98,22 +98,22 @@
                   </span>
                   <span style="float: left;margin-left: 30px;">
                     <label class="">Select contact group</label><br>
-                    <select id="contact-groups" class="selectpicker filter-select" onchange="setRecipientFromContacts()" style="display: none">
-                      <opion value="">Test</option>
-                    </select>
+                    <select id="contact-groups" class="selectpicker filter-select" onchange="setRecipientFromContacts()" style="display: none"></select>
                   </span>
                 </div>
-                <span style="clear: both"></span>
+                <div style="clear: both"></div>
                 <div class="block_space" id="recipient-phone-number" style="display: none">
                   <label class="">Phone number column(s)</label><br>
                   <div id="columns" class="form-control" style="display: none">-</div>
                   <br>
                   <label class="">Recipient's phone number column</label><br>
-                  <input type="text" id="to-number-column" size="37" name="to_number_column" onchange="updateSampleRecipient()" class="form-control" placeholder="Enter phone number column name" data-toggle="popover" data-placement="right" data-content="Please specify the name of a column containing recipients' phone number."></input>
+                  <input type="text" id="to-number-column" size="25" name="to_number_column" onchange="updateSampleRecipient()" class="form-control" placeholder="Enter phone number column name" data-toggle="popover" data-placement="right" data-content="Please specify the name of a column containing recipients' phone number."></input>
                 </div>
-
-                <br>
-                <!--a class="form-control navbutton" href="javascript:nextView('second_block')">Next</a-->
+                <!--
+                <div id="opted-out-block" style="display: none">
+                  <span>Exclude opted-out numbers <input type="checkbox" class="" onchange="checkOptoutNumbers()"></input></span>
+                </div>
+                -->
               </div>
               <div id="block_2" class="input_page" style="display: none">
                 <div id="csv-template-columns" class="block_space" style="display: none">
@@ -138,10 +138,6 @@
                   <span>Request response <input type="checkbox" id="expect-response" name="expect_response" onchange="enableExpectingResponse(this)"></input></span>
                   <!--span class="auto-reply-option">Auto-reply </span><input id="reply-enabler" name="reply_enabler" type="checkbox" onchange="showAutoReplyFields(this)"></input-->
                 </div>
-                <!--
-                <a class="form-control navbutton" href="javascript:nextView('first_block')">Prev</a>
-                <a class="form-control navbutton" href="javascript:nextView('third_block')">Next</a>
-                -->
                 <div id="recipient-response-block" style="display: none">
                   <div class="block_space">
                     <div>
@@ -212,10 +208,10 @@
                 </div>
                 <div class="block-space" style="width: 300px!important;">
                   <label class="warning">Estimated cost:</label>
-                  <span class="cost warning" id="estimated_cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="javascript:showEstimateCostClaimer(0)">&#9432;</a><br>
+                  <span class="cost warning" id="estimated_cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="#" onclick="showEstimateCostClaimer(0)">&#9432;</a><br>
                   <span id="survey-cost" style="display: none">
                     <label class="warning">Estimated survey cost:</label>
-                    <span class="cost warning" id="estimated-survey-cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="javascript:showEstimateCostClaimer(1)">&#9432;</a>
+                    <span class="cost warning" id="estimated-survey-cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="#" onclick="showEstimateCostClaimer(1)">&#9432;</a>
                   <span>
                   <!--p class="claimed">* Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS. The actual cost for sending these messages may be higher or lower.</p-->
                 </div>
@@ -226,7 +222,7 @@
           </div>
         </div>
       </div>
-      <div id="history" class="col-lg-11" style="display: none;">
+      <div id="history" class="col-lg-11" style="display: block;">
         <div id="history-info-block" class="row col-lg-12">
           <div class="col-lg-12 history">
             <div class="row col-lg-6">

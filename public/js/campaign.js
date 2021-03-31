@@ -32,6 +32,9 @@ function init(){
   $(`#${mainMenuItem}`).removeClass("active")
   mainMenuItem = "campaign-log"
   $(`#${mainMenuItem}`).addClass("active")
+
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  $("#campaign-list").html(readingAni)
 }
 
 function setElementsHeight(){
@@ -46,9 +49,11 @@ function setElementsHeight(){
 
 function onloaded(){
   loaded++
-  if (loaded == 2){
+  if (loaded == 1){
     loaded = 4
-    readCampaigns()
+    window.setTimeout(function(){
+      readCampaigns()
+    }, 1000)
   }
 }
 
@@ -118,10 +123,10 @@ function readCampaign(elm, batchId){
       //$("#campaign-title").html("Selected campaign: <p>" + campaign.campaignName + "</p>")
       //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
       var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
-      title += `<a href="javascript:downloadBatchReport('${campaign.campaignName}')">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
-      title += `<a href="javascript:deleteCampaignResult('${campaign.batchId}')">Delete campaign</a></div>`
+      title += `<a href="#" onclick="downloadBatchReport('${campaign.campaignName}')">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
+      title += `<a href="#" onclick="deleteCampaignResult('${campaign.batchId}')">Delete campaign</a></div>`
       if (campaign.rejectedCount > 0)
-        title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="javascript:downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}')">Download invalid numbers</a></div>`
+        title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" onclick="downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}')">Download invalid numbers</a></div>`
       $("#campaign-title").html( title )
       var report = `<div>`
       report += `<div class="info-line"><img class="medium-icon" src="../img/creation-date.png"></img> ${createdDateStr}</div>`

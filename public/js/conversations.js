@@ -15,19 +15,6 @@ var params = {
 }
 
 function init(){
-  $( "#fromdatepicker" ).datepicker({ dateFormat: "yy-mm-dd"});
-  $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
-  var pastMonth = new Date();
-  var day = pastMonth.getDate()  - 6
-  var month = pastMonth.getMonth()
-  var year = pastMonth.getFullYear()
-  if (month < 0){
-    month = 11
-    year -= 1
-  }
-  $( "#fromdatepicker" ).datepicker('setDate', new Date(year, month, day));
-  $( "#todatepicker" ).datepicker('setDate', new Date());
-  timeOffset = new Date().getTimezoneOffset()*60000;
 
   window.onresize = function() {
     setElementsHeight()
@@ -49,6 +36,16 @@ function init(){
     sendTextMessage($('#send-text').val())
     $('#send-text').val("")
   });
+
+  timeOffset = new Date().getTimezoneOffset()*60000;
+
+  $( "#fromdatepicker" ).datepicker({ dateFormat: "yy-mm-dd"});
+  $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
+
+  var past30Days = new Date().getTime() - (86400000 * 30)
+
+  $( "#fromdatepicker" ).datepicker('setDate', new Date(past30Days));
+  $( "#todatepicker" ).datepicker('setDate', new Date());
 }
 
 function setElementsHeight(){
@@ -146,7 +143,7 @@ function readContacts(){
         }
       }
       //contactList = res.contactList
-      console.log(JSON.stringify(contactList))
+      //console.log(JSON.stringify(contactList))
       readMessageStore("")
     }else if (res.status == "failed") {
       alert(res.message)
@@ -458,7 +455,7 @@ function createConversationItem(item, conversation){
       line += `<div class="chat-avatar chat-name">${timeStr}</div>`
       line += `<div class="chat-text">${item.text}</div>`
     }else{
-      line += `<div class="chat-avatar chat-name"><a class="reply" href="javascript:openReplyForm('${item.from}', '${item.to[0]}')">${getContactName(item.from)}</a><br>${timeStr}</div>`
+      line += `<div class="chat-avatar chat-name"><a class="reply" href="#" onclick="openReplyForm('${item.from}', '${item.to[0]}')">${getContactName(item.from)}</a><br>${timeStr}</div>`
       line += `<div class="chat-text">${item.text}</div>`
     }
   }else{ // Outbound

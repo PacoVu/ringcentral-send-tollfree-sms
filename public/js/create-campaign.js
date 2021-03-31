@@ -5,11 +5,13 @@ const SMS_COST = 0.007
 const SMS_SEGMENT_LEN = 153
 const SMS_MAX_LEN = 160
 var totalRecipients = 0
+var recipientsFromFile = []
 var totalMessageSegments = 0
 var sampleRow = null
 var csvColumnIndex = {}
 const MASK = "#!#"
 var contactList = []
+var optedOutNumbers = []
 
 function hidePopover(elm){
   setTimeout(function () {
@@ -89,6 +91,45 @@ function updatePreview(field){
     $("#reply-sample").html(text)
     //_alert($("#response-sample").html())
   }
+}
+
+function checkOptoutNumbers(){
+  var url = "/optout-numbers"
+  var params = {
+    fromNumber: $("#from-number").val()
+  }
+  var getting = $.get( url, params );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      optedOutNumbers = res.result
+      if (recipientsFromFile.length >= 1){
+        var col = $("#to-number-column").val()
+        for (var i=1; i<recipientsFromFile.length; i++){
+          var row = recipientsFromFile[i]
+          row = detectAndHandleCommas(row)
+          var cleanRow = row.trim().split(",")
+          var number = cleanRow[csvColumnIndex[`${col}`]]
+          number = (number[0] == "+") ? number : `+${number}`
+          var optedOut = optedOutNumbers.indexOf(number)
+          if (optedOut >= 0){
+            alert(`This number ${number} is opted out`)
+            recipientsFromFile.splice(i, 1)
+          }
+        }
+        processCsvFileContent()
+      }
+    }else if (res.status == "error"){
+      _alert(res.message)
+    }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
 }
 
 function updateSurveyEstimatedCost(multiply){
@@ -364,38 +405,14 @@ function readFieldRecipients(elm){
   calculateEstimatedCost()
 }
 // template file input
-function readFileRecipients(elm, f){
-  var file = null
-  if (f != null)
-    file = f
-  else
-    file = elm.files[0]
-
+function readFileRecipients(elm){
+  var file = elm.files[0]
   if (file) {
     var reader = new FileReader();
     reader.readAsText(file);
     reader.onload = function(e) {
-      var recipientsFromFile = e.target.result.trim().split("\r\n")
-      var header = recipientsFromFile[0]
-      var columns = header.trim().split(",")
-
-      for (var i=0; i<columns.length; i++){
-        csvColumnIndex[columns[i]] = i
-      }
-
-      var message = $("#message").val()
-
-      totalRecipients = recipientsFromFile.length - 1
-      $("#preview-recipients").html(totalRecipients + " recipients")
-      if (recipientsFromFile.length >= 1){
-        var row = recipientsFromFile[1]
-        // need to detect double quotes from each col in a sample row
-        row = detectAndHandleCommas(row)
-        sampleRow = row.trim().split(",")
-      }
-      displayColumns(columns)
-      $("#recipient-phone-number").show()
-      $("#csv-template-columns").show()
+      recipientsFromFile = e.target.result.trim().split("\r\n")
+      processCsvFileContent()
     };
   }else{
     totalRecipients = 0
@@ -407,13 +424,32 @@ function readFileRecipients(elm, f){
     $("#columns").hide()
     $("#recipient-phone-number").hide()
     $("#csv-template-columns").hide()
+    //$("#opted-out-block").hide()
   }
 }
 
-function estimateCost(){
-  var elm = $("#attachment").prop('files');
-  readFileRecipients(null, elm[0])
+function processCsvFileContent(){
+  var header = recipientsFromFile[0]
+  var columns = header.trim().split(",")
+
+  for (var i=0; i<columns.length; i++){
+    csvColumnIndex[columns[i]] = i
+  }
+  var message = $("#message").val()
+  totalRecipients = recipientsFromFile.length - 1
+  $("#preview-recipients").html(totalRecipients + " recipients")
+  if (recipientsFromFile.length >= 1){
+    var row = recipientsFromFile[1]
+    // need to detect double quotes from each col in a sample row
+    row = detectAndHandleCommas(row)
+    sampleRow = row.trim().split(",")
+  }
+  displayColumns(columns)
+  $("#recipient-phone-number").show()
+  $("#csv-template-columns").show()
+  //$("#opted-out-block").show()
 }
+
 // cost estimation
 function calculateEstimatedCost(){
   var estimatedCost = totalMessageSegments * SMS_COST
@@ -461,13 +497,13 @@ function displayColumns(columns){
     //html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
     var value = sampleRow[csvColumnIndex[`${col}`]]
     if (!isNaN(value) && value.length >= 9){
-      recipientCol += `<a href="javascript:addToRecipient('${col}')">${col}</a>&nbsp;|&nbsp;`
+      recipientCol += `<a href="#" onclick="addToRecipient('${col}')">${col}</a>&nbsp;|&nbsp;`
       if (!filled){
         filled = true
         updateSampleRecipient(col)
       }
     }//else{
-      html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
+      html += `<a href="#" onclick="addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
     //}
   }
   $("#columns").html(recipientCol)
@@ -520,6 +556,7 @@ function addToMessage(template){
 
   $("#message").val(msg)
   $("#message").focus()
+  $("#message").val(msg + ' ')
   updateSampleMessage()
 }
 

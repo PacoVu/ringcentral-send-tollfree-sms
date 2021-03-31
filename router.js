@@ -266,6 +266,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].readMessageList(req, res, "")
   },
+  readOptedOutNumber: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].readOptedOutNumber(req, res, "")
+  },
   readCampaignsLogFromDB: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

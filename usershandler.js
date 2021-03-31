@@ -110,7 +110,8 @@ var engine = User.prototype = {
         lowVolume = true
       res.render('settings', {
         userName: this.getUserName(),
-        lowVolume: lowVolume
+        lowVolume: lowVolume,
+        phoneNumbers: this.phoneHVNumbers
       })
     },
     getContacts: function(res, pageToken){
@@ -1334,6 +1335,39 @@ var engine = User.prototype = {
         res.send({
           status: "ok",
           newMessages: []
+        })
+      }
+    },
+    readOptedOutNumber: async function (req, res){
+      var params = {
+        from: req.query.fromNumber,
+        perPage: 1000
+      }
+      var endpoint = '/restapi/v1.0/account/~/a2p-sms/opt-outs'
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          var optedOutNumbers = []
+          for (var record of jsonObj.records){
+            optedOutNumbers.push(record.to)
+          }
+          res.send({
+              status: "ok",
+              result: optedOutNumbers,
+          })
+        } catch (e) {
+          console.log('ERR ' + e.message);
+          res.send({
+              status: "error",
+              message: e.message
+            })
+        }
+      }else{
+        res.send({
+          status: "failed",
+          message: "You have been logged out. Please login again."
         })
       }
     },

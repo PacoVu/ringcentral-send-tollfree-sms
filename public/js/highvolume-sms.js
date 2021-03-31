@@ -20,6 +20,8 @@ function init(){
   mainMenuItem = "campaign-new"
   $(`#${mainMenuItem}`).addClass("active")
   timeOffset = new Date().getTimezoneOffset()*60000;
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  $("#history-list").html(readingAni)
 }
 
 function setElementsHeight(){
@@ -44,7 +46,7 @@ function setCampaignHistoryListHeight(){
 
 function onloaded(){
   loaded++
-  if (loaded == 3){
+  if (loaded == 1){
     window.setTimeout(function(){
       readCampaigns()
     }, 1000)
@@ -443,8 +445,8 @@ function createVoteReport(voteReport, archived){
     if (voteReport.status != "Active"){
       report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
     }
-    report += `<div class="info-line"><a href="javascript:downloadSurveyResult('${voteReport.batchId}')">Download Detailed Result</a> | `
-    report += `<a href="javascript:deleteSurveyResult('${voteReport.batchId}')">Delete Detailed Result</a></div>`
+    report += `<div class="info-line"><a href="#" onclick="downloadSurveyResult('${voteReport.batchId}')">Download Detailed Result</a> | `
+    report += `<a href="#" onclick="deleteSurveyResult('${voteReport.batchId}')">Delete Detailed Result</a></div>`
   }else{
     report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey detailed result was deleted!</p>`
   }

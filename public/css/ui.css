@@ -19,7 +19,9 @@
 
 /* CHECKED STYLES */
 [type=radio]:checked + img {
-  outline: 2px solid #8796af;
+  /*outline: 2px solid #8796af;*/
+  border: 1px solid #8796af;
+  border-radius: 25px;
 }
 
 .left-middle-align {
@@ -209,7 +211,60 @@ ul > li > span {
   right: 5px;
   margin-top: -8px;
 }
+
+/* Navbar stuff*/
+.navbar-default .navbar-nav > li > a:hover, .navbar-default .navbar-nav > li > a:focus {
+  color: #000;  /*Sets the text hover color on navbar*/
+}
+
+.navbar-default .navbar-nav > .active > a, .navbar-default .navbar-nav > .active >
+   a:hover, .navbar-default .navbar-nav > .active > a:focus {
+  color: #01a982; /* #01a982; BACKGROUND color for active*/
+  background-color: #fff; /*#01a982;*/
+}
+
+.navbar-brand {
+  color: #fff !important;
+  font-size: 22px;
+}
+.navbar-header {
+  color: #fff !important;
+}
+.navbar-default {
+  background-color: #fff;
+  border-color: #030033;
+  border-radius: 0;
+}
+
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus {
+   color: #262626;
+   text-decoration: none;
+   background-color: #66CCFF;  /*change color of links in drop down here*/
+ }
+
+.nav > li > a:hover,
+.nav > li > a:focus {
+  text-decoration: none;
+  /*color: #0073ae !important;*/
+  /*border-bottom: 2px solid #0073ae;*/
+}
+.tab-selected{
+  text-decoration: none;
+  /*background-color: silver;*/ /*Change rollover cell color here*/
+  color: #0073ae !important;
+  border-bottom: 2px solid #0073ae;
+}
+
+.navbar-default .navbar-nav > li > a {
+  font-size: 14px;
+  color: #0073ae;
+  border: 0px !important;
+  padding: 0px !important;
+}
+
 /* Override bootstrap */
+
 /*
 .col-lg-1, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-lg-10, .col-lg-11, .col-lg-12 {
     position: relative;

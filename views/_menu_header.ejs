@@ -3,19 +3,30 @@
     <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral-labs.png" height="40"></a></span>&nbsp;&nbsp;
     <span class="title">High Volume SMS</span>
   </span>
-  <% if (locals.lowVolume) { %>
+
   <ul class="nav navbar-nav navbar-left left-align-nav">
+    <% if (locals.lowVolume) { %>
     <li><a href="/standard">Standard Toll-Free SMS</a></li>
-  </ul>
-  <% } %>
-  <ul class="nav navbar-nav navbar-right middle-align">
-    <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
+    <% } %>
     <li class="dropdown">
-      <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
-      <ul class="dropdown-menu">
-        <li><a href="javascript:openWindow()">Report Issues</a></li>
-        <li><a href="javascript:openFeedbackForm()">Feedback</a></li>
+      <a class="dropdown-toggle" data-toggle="dropdown" href="#">Contact us <b class="caret"></b></a>
+      <ul class="dropdown-menu" role="menu">
+        <li><a role="menuitem" href="javascript:openWindow()">Report Issues</a></li>
+        <li><a role="menuitem" href="javascript:openFeedbackForm()">Feedback</a></li>
       </ul>
     </li>
+  </ul>
+
+  <ul class="nav navbar-nav navbar-right middle-align">
+    <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
+    <!--
+    <li class="dropdown">
+      <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
+      <ul class="dropdown-menu" role="menu">
+        <li><a role="menuitem" tabindex="0"  href="javascript:openWindow()">Report Issues</a></li>
+        <li><a role="menuitem" tabindex="1" href="javascript:openFeedbackForm()">Feedback</a></li>
+      </ul>
+    </li>
+    -->
   </ul>
 </nav>

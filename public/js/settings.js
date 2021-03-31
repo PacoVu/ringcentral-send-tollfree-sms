@@ -1,4 +1,5 @@
 var contactList = []
+var optedOutNumbers = []
 var selectedContactGroup = ""
 var webhook = undefined
 function init(){
@@ -20,7 +21,8 @@ function setElementsHeight(){
   $("#menu-pane").height(swindow)
   $("#control-col").height(swindow)
   $("#contact-list").height(swindow - 200)
-  $("#code").height(swindow - $("#webhook-inputs").outerHeight(true) - 30)
+  $("#opted-out-list").height(swindow - $("#optout-block-header").outerHeight(true) - 20)
+  $("#code").height(swindow - $("#webhook-inputs").outerHeight(true) - 20)
 }
 
 var prevView = "contacts-block"
@@ -35,16 +37,21 @@ function showView(view){
 
   if (view == "contacts-block"){
     $("#webhook").hide()
+    $("#optout-block").hide()
   }else if (view == "webhook-block") {
-    if ($("#webhook-address").val() == ""){
-      setElementsHeight()
+    $("#optout-block").hide()
+    $("#contacts-block").hide()
+    if ($("#webhook-address").val() == "")
       return readWebhookAddress(view)
-    }else{
-      $("#contacts-block").hide()
-    }
+  }else if (view == "contact-block") {
+    $("#webhook-block").hide()
+    $("#optout-block").hide()
+  }else if (view == "optout-block") {
+    checkOptoutNumbers()
+    $("#webhook-block").hide()
+    $("#contact-block").hide()
   }
 }
-
 
 function readWebhookAddress(view){
   var url = "/readwebhook"
@@ -62,7 +69,7 @@ function readWebhookAddress(view){
         $("#set-webhook").hide()
         $("#copy-btn").show()
         $("#generator-btn").hide()
-        //disableWebhookInputs(true)
+        setElementsHeight()
         showSampleCode($("#header-name").val(), $("#header-value").val())
       }else{
         $("#delete-webhook").hide()
@@ -75,11 +82,12 @@ function readWebhookAddress(view){
     }else{
       if (res.message)
         _alert(res.message)
-      else
+      else{
         _alert("You have been logged out. Please login again.")
-      window.setTimeout(function(){
-        window.location.href = "/relogin"
-      },8000)
+        window.setTimeout(function(){
+          window.location.href = "/relogin"
+        },8000)
+      }
     }
   });
   getting.fail(function(response){
@@ -106,11 +114,12 @@ function deleteWebhookAddress(){
     }else{
       if (res.message)
         _alert(res.message)
-      else
+      else{
         _alert("You have been logged out. Please login again.")
-      window.setTimeout(function(){
-        window.location.href = "/relogin"
-      },8000)
+        window.setTimeout(function(){
+          window.location.href = "/relogin"
+        },8000)
+      }
     }
   });
   getting.fail(function(response){
@@ -151,7 +160,7 @@ function displayColumns(columns){
   }
   var html = "|&nbsp;"
   for (var col of columns)
-    html += `<a href="javascript:addToField('${col}')">${col}</a>&nbsp;|&nbsp;`
+    html += `<a href="#" onclick="addToField('${col}')">${col}</a>&nbsp;|&nbsp;`
   $("#columns").html(html)
 }
 
@@ -172,12 +181,13 @@ function updateContactList(){
   }
   $("#contact-groups").html(groups)
   $("#new-contact-groups").html(groups)
-  $('#new-contact-groups').selectpicker('refresh');
+  //$('#new-contact-groups').selectpicker('refresh');
   var contactGroup = contactList[0]
   selectedContactGroup = contactGroup.groupName
   for (var contact of contactGroup.contacts){
     html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
   }
+
   $("#contact-list").html(html)
 }
 
@@ -230,10 +240,7 @@ function uploadContactsFile(e){
           }else if (res.status == "error"){
             _alert(res.message)
           }else{
-            if (res.message)
-              _alert(res.message)
-            else
-              _alert("You have been logged out. Please login again.")
+            _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
               window.location.href = "/relogin"
             },8000)
@@ -259,10 +266,7 @@ function readContacts(){
     }else if (res.status == "error"){
       _alert(res.message)
     }else{
-      if (res.message)
-        _alert(res.message)
-      else
-        _alert("You have been logged out. Please login again.")
+      _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/relogin"
       },8000)
@@ -310,11 +314,12 @@ function setWebhookAddress(){
     }else{
       if (res.message)
         _alert(res.message)
-      else
+      else{
         _alert("You have been logged out. Please login again.")
-      window.setTimeout(function(){
-        window.location.href = "/relogin"
-      },8000)
+        window.setTimeout(function(){
+          window.location.href = "/relogin"
+        },8000)
+      }
     }
   });
   posting.fail(function(response){
@@ -358,12 +363,65 @@ function generateCode() {
   $("#header-value").val(text)
 }
 
+function checkOptoutNumbers(){
+  var url = "/optout-numbers"
+  var params = {
+    fromNumber: $("#from-number").val()
+  }
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  $("#opted-out-list").html(readingAni)
+  var getting = $.get( url, params );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      optedOutNumbers = res.result
+      if (optedOutNumbers.length > 0){
+        $("#oo-numbers").show()
+      }else{
+        _alert("No opted out number!", "Information")
+        $("#oo-numbers").hide()
+      }
+      setElementsHeight()
+      var html = ""
+      for (var number of optedOutNumbers){
+        html += `<div class="campaign-item">${formatPhoneNumber(number, true)}</div>`
+      }
+      $("#opted-out-list").html(html)
+    }else if (res.status == "error"){
+      $("#opted-out-list").html("")
+      _alert(res.message)
+    }else{
+      $("#opted-out-list").html("")
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
+}
+
+function copyOptoutNumbersToClipboard () {
+    var dummy = document.createElement("textarea");
+    document.body.appendChild(dummy);
+    var text = ""
+    for (var number of optedOutNumbers){
+      text += `${number}\n`
+    }
+    dummy.value = text;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+}
+
 function copyHeaderValue(){
   var copyText = document.getElementById("header-value");
   copyText.select();
   copyText.setSelectionRange(0, 99999);
   document.execCommand("copy");
 }
+
 function showSampleCode(key, value){
   var url = $("#webhook-address").val().replace("https://", "")
   var arr = url.split("/")
