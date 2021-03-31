@@ -15,7 +15,6 @@ var params = {
 }
 
 function init(){
-
   window.onresize = function() {
     setElementsHeight()
   }
@@ -39,7 +38,7 @@ function init(){
 
   timeOffset = new Date().getTimezoneOffset()*60000;
 
-  $( "#fromdatepicker" ).datepicker({ dateFormat: "yy-mm-dd"});
+  $( "#fromdatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
   $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
 
   var past30Days = new Date().getTime() - (86400000 * 30)
