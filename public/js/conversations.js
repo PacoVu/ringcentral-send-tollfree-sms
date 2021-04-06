@@ -13,7 +13,7 @@ var params = {
   to: "",
   message: ""
 }
-
+var conversationHeight = 50
 function init(){
   window.onresize = function() {
     setElementsHeight()
@@ -55,76 +55,64 @@ function setElementsHeight(){
   $("#control-list-col").height(swindow)
 
   $("#recipient-list").height(swindow - ($("#col2-header").outerHeight(true) + 120))
-  $("#conversation").height(swindow - ($("#conversation-header").outerHeight(true) + 90))
+  $("#conversation").height(swindow - ($("#conversation-header").outerHeight(true) + conversationHeight))
 }
 
-function searchRecipientNumberOold(elm){
-  var number = `+${$(elm).val()}`
-  var index = recipientPhoneNumbers.indexOf(number)
-  if (index >= 0){
-    var recipient = recipientPhoneNumbers[index]
-    var contact = contactList.find(o => o.phoneNumber === recipient)
-    var name = ""
-    if (contact)
-      var name = ` - ${contact.fname} ${contact.lname}`
-    showConversation(recipient, name)
-
-    var id = parseInt(recipient)
-    var element = document.getElementById(`${id}`)
-    //element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
-    //$(`#${id}`).scrollIntoView()
-
-    var topPos = element.offsetTop;
-    document.getElementById('recipient-list').scrollTop = topPos;
-    element.scrollIntoView()
+function searchRecipientName(name){
+  for (var contact of contactList){
+    var fullName = `${contact.fname} ${contact.lname}`
+    if (fullName.toLowerCase().indexOf(name.toLowerCase()) >= 0){
+      //var number = contact.phoneNumber
+      var recipient = recipientPhoneNumbers.find(o => o == contact.phoneNumber)
+      if (recipient){
+        showConversation(contact.phoneNumber, ` - ${fullName}`, true)
+        var id = parseInt(contact.phoneNumber)
+        var element = document.getElementById(`${id}`)
+        var topPos = element.offsetTop;
+        document.getElementById('recipient-list').scrollTop = topPos;
+        element.scrollIntoView()
+        return
+      }
+    }
   }
+  showConversation(0)
 }
+
 function clearSearch(elm){
   $(elm).val('')
 }
+
 function searchRecipientNumber(elm){
   var number = $(elm).val()
-  if (number.length < 4)
+  if (number.length < 3)
     return
-  //var index = recipientPhoneNumbers.indexOf(number)
-  var index = 0
+
+  if (isNaN(number)){
+    console.log(number)
+    searchRecipientName(number)
+    return
+  }
+
+  //var index = 0
   for (var recipient of recipientPhoneNumbers){
     if (recipient.indexOf(number) >= 0){
       var contact = contactList.find(o => o.phoneNumber === recipient)
       var name = ""
       if (contact)
         var name = ` - ${contact.fname} ${contact.lname}`
-      showConversation(recipient, name)
+      showConversation(recipient, name, true)
 
       var id = parseInt(recipient)
       var element = document.getElementById(`${id}`)
       var topPos = element.offsetTop;
       document.getElementById('recipient-list').scrollTop = topPos;
       element.scrollIntoView()
-      break
+      return
     }
   }
+  showConversation(0)
 }
-/*
-function searchRecipientName(elm){
-  var number = `${$(elm).val()}`
-  var index = contactList.find(number)
-  if (index >= 0){
-    var recipient = recipientPhoneNumbers[index]
-    var contact = contactList.find(o => o.phoneNumber === recipient)
-    var name = ""
-    if (contact)
-      var name = ` - ${contact.fname} ${contact.lname}`
-    showConversation(recipient, name)
 
-    var id = parseInt(recipient)
-    var element = document.getElementById(`${id}`)
-    var topPos = element.offsetTop;
-    document.getElementById('recipient-list').scrollTop = topPos;
-    element.scrollIntoView()
-  }
-}
-*/
 function readContacts(){
   var url = "get-contacts"
   var getting = $.get( url );
@@ -193,7 +181,6 @@ function pollNewMessages(){
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
-      console.log(res.newMessages)
       for (var msg of res.newMessages){
         //messageList.push(msg)
         messageList.splice(0, 0, msg);
@@ -281,6 +268,7 @@ function readMessageStore(token){
   var posting = $.post( url, configs );
   posting.done(function( res ) {
     if (res.status == "ok") {
+      $("#search-number").focus()
       messageList = res.result
       processResult(res.pageTokens.nextPage)
       pollingTimer = window.setTimeout(function(){
@@ -363,21 +351,11 @@ function createRecipientsList(recipientPhoneNumbers){
     }
   }
   $("#recipient-list").html(html)
-  //selectedRecipient = undefined
-  //alert(currentSelectedItem)
-  /*
-  if (currentSelectedItem != undefined){
-    //alert($(currentSelectedItem).id)
-    showConversation(currentSelectedItem)
-  }else{
-    //alert("currentSelectedItem is undefined")
-    showConversation(currentSelectedItem)
-  }
-  */
+
   showConversation(currentSelectedItem, currentSelectedContact)
 }
 
-function showConversation(recipient, name){
+function showConversation(recipient, name, fromSearch){
   var id = parseInt(currentSelectedItem)
   $(`#${id}`).removeClass("active");
   id = parseInt(recipient)
@@ -390,6 +368,8 @@ function showConversation(recipient, name){
     var totalMessage = 0
     if (recipient == 0){
       $("#message-input").hide()
+      conversationHeight = 50
+      setElementsHeight()
       $("#conversation-title").html(`All conversations`)
       totalMessage = messageList.length
       var maxLen = totalMessage - 1
@@ -398,6 +378,8 @@ function showConversation(recipient, name){
         html += createConversationItem(msg, false)
       }
     }else {
+      conversationHeight = 312
+      setElementsHeight()
       params.to = recipient //selectedRecipient
       params.message = ""
       $("#message-input").show()
@@ -431,7 +413,8 @@ function showConversation(recipient, name){
     html += "</ul></div>"
     $("#conversation").html(html)
     $("#conversation").animate({ scrollTop: $("#conversation")[0].scrollHeight}, 100);
-    $("#send-text").focus()
+    if (!fromSearch)
+      $("#send-text").focus()
   }
 }
 

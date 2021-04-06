@@ -1,0 +1,56 @@
+<div id="hidden-div-save-template" style="display: none">
+  <form id="create-template-form">
+    <div class="block_space">
+      <label class="" for="new-template-name">Template name</label>
+      <input type="text" id="new-template-name" class="form-control" placeholder="Enter template name" style="display: inline;width: 180px;margin-bottom: 5px"></input>
+      <span id="templates-block" style="display: none;">
+        <select id="templates-list" class="selectpicker filter-select" onchange="setTemplateName(this)" title="Replace a template" style="display: inline;width: 100px"></select>
+      </span>
+    </div>
+
+    <div class="block_space">
+      <textarea id="new-template-message" cols=70 rows="4" class="form-control" readonly></textarea>
+    </div>
+    <div id="template-recipient-response-block" style="display: none">
+      <div class="block_space">
+        <div class="block_space">
+          <span>Response 1: </span><span id="template-command_1"></span>
+          <span class="reply-option" id="template-reply-1"></span>
+        </div>
+        <div class="block_space">
+          <span>Response 2: </span><span id="template-command_2"></span>
+          <span class="reply-option" id="template-reply-2"></span>
+        </div>
+        <div class="block_space">
+          <span>Response 3: </span><span id="template-command_3"></span>
+          <span class="reply-option" id="template-reply-3"></span>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+<div id="hidden-div-load-template" style="display: none">
+  <form id="load-template-form" class="form-group">
+    <div class="block_space">
+      <label class="" for="my-templates">Templates</label>
+      <select id="my-templates" class="selectpicker filter-select" onchange="displaySelectTemplate(this)" title="Select a template" style="display: inline;width: 100px"></select>
+    </div>
+    <div class="block_space">
+      <textarea id="saved-template-message" cols=70 rows="4" class="form-control" readonly></textarea>
+    </div>
+    <div id="saved-template-recipient-response-block" style="display: none">
+      <div class="dlg-block-space" id="response-1" style="display: none">
+        <div><label>Response 1: </label><span id="saved-template-command_1" class="template-response"></span></div>
+        <div><label> Auto-reply: </label><span class="template-reply" id="saved-template-reply-1"></span></div>
+      </div>
+      <div class="dlg-block-space" id="response-2" style="display: none">
+        <div><label>Response 2: </label><span id="saved-template-command_2" class="template-response"></span></div>
+        <div><label> Auto-reply: </label><span class="template-reply" id="saved-template-reply-2"></span></div>
+      </div>
+      <div class="dlg-block-space" id="response-3" style="display: none">
+        <div><label>Response 3: </label><span id="saved-template-command_3" class="template-response"></span></div>
+        <div><label> Auto-reply: </label><span class="template-reply" id="saved-template-reply-3"></span></div>
+      </div>
+    </div>
+  </form>
+</div>

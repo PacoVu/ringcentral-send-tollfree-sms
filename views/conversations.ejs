@@ -31,6 +31,13 @@
   	<script src="http://code.jquery.com/jquery-1.9.0.js"></script>
   	<script src="http://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     -->
+    <!-- test emoji -->
+    <link rel="stylesheet" type="text/css" href="./assets/css/reset.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/style.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/emojiarea.css">
+    <script src="./assets/js/jquery.emojiarea.js"></script>
+    <script src="./assets/js/main.js"></script>
+    <!-- test emoji end -->
     <script>
       window.phoneNumbers = '<%- JSON.stringify(phoneNumbers) %>'
       $(document).ready(function(){
@@ -53,12 +60,17 @@
   <div id="hidden-div-new-conversation" style="display: none">
     <form id="send_new_form">
       <div class="block_space">
-        <label class="" for="my-numbers">To</label>
-        <input id="to-new-number" class="form-control" placeholder="Enter phone number" style="display: inline;width: 180px"></input>
         <span id="contacts-block" style="display: none;"><label class="" for="my-numbers">Contacts</label>
+          <!--select id="contact-group" class="selectpicker filter-select" onchange="loadContactsFromGroup(this)" title="Select group" style="display: inline;width: 100px"></select-->
           <select id="contact-list" class="selectpicker filter-select" onchange="addToRecipient(this)" title="Select contact" style="display: inline;width: 100px"></select>
+          <label class="" for="my-numbers">To</label>
+          <input id="to-new-number" class="form-control" placeholder="Enter phone number" style="display: inline;width: 180px;margin-bottom: 5px"></input>
         </span>
       </div>
+      <!--div class="block_space">
+        <label class="" for="my-numbers">To</label>
+        <input id="to-new-number" class="form-control" placeholder="Enter phone number" style="display: inline;width: 180px;margin-bottom: 5px"></input>
+      </div-->
       <div class="block_space">
         <textarea id="new-text-message" cols=70 rows="4" class="form-control" placeholder="Enter text message..."></textarea>
       </div>
@@ -114,7 +126,7 @@
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
         <div class="block_space">
-          <input type="text" class="form-control search-input" style="display: inline;" placeholder="Search number" value="" id="search-number" onfocus="clearSearch(this)" oninput="searchRecipientNumber(this)"></input>
+          <input type="text" class="form-control search-input" style="display: inline;" placeholder="Search recipient" value="" id="search-number" onfocus="clearSearch(this)" oninput="searchRecipientNumber(this)"></input>
           <input type="button" class="form-control" style="display: inline;width: 50px;" value="+" onclick="openSendNewText()" data-toggle="popover" data-trigger="hover" data-placement="right" data-content="Send new text"></input>
           <!--input type="text" class="form-control search-input" placeholder="Search name" value="" id="search-name" oninput="searchRecipientName(this)"></input-->
         </div>
@@ -133,7 +145,12 @@
             </div>
             <div id="conversation"></div>
             <div id="message-input" style="display: none">
-              <input type="text" id="send-text" style="height: 40px" size="auto" placeholder="Enter text here"></input>
+              <!--input type="text" id="send-text" style="height: 40px" size="auto" placeholder="Enter text here"></input-->
+              <div data-emojiarea data-type="unicode" data-global-picker="false">
+                <!--span class="emoji-button">&#x1f604;</span-->
+                <span class="emoji-button"><img class="medium-icon" src="/img/emoji.png"></img></span>
+                <input type="text" id="send-text" style="height: 40px" size="auto" placeholder="Enter text here"></input>
+              </div>
             </div>
           </div>
           <div class="col-lg-4">

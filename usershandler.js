@@ -23,7 +23,7 @@ function User(id) {
 
   // High Volume SMS Report
   this.batchSummaryReport = {
-    //live: false,
+    //pending: true,
     campaignName: "",
     creationTime: 0,
     type: "",
@@ -119,6 +119,14 @@ var engine = User.prototype = {
         res.send({
           status: "ok",
           contactList: contacts
+        })
+      })
+    },
+    readTemplates: function(res, pageToken){
+      this.readTemplatesFromDataInDB((err, templates) => {
+        res.send({
+          status: "ok",
+          templateList: templates
         })
       })
     },
@@ -334,7 +342,7 @@ var engine = User.prototype = {
       }
     },
     setWebhookAddress: function (req, res){
-      var userKey = makeId()
+      //var userKey = makeId()
       var query = 'UPDATE a2p_sms_users SET '
       var data = {
         url: req.body.address,
@@ -343,15 +351,100 @@ var engine = User.prototype = {
       }
       this.eventEngine.webhooks = data
       query += `webhooks='${JSON.stringify(data)}' WHERE user_id='${this.extensionId}'`
-      console.log(query)
       pgdb.update(query, (err, result) =>  {
         if (err){
           console.error(err.message);
         }
         res.send({
           status: "ok",
-          message: userKey
+          message: ""
         })
+      })
+    },
+    saveTemplate: function (req, res){
+      this.readTemplatesFromDataInDB((err, templates) => {
+        var query = 'UPDATE a2p_sms_users SET '
+        if (err){
+          res.send({
+            status: "error",
+            message: "Cannot save template. Please try again."
+          })
+          return
+        }
+        var data = {
+          type: req.body.type,
+          name: req.body.name,
+          message: escape(req.body.message),
+          requestResponse: req.body.requestResponse
+        }
+        var replace = false
+        for (var i=0; i<templates.length; i++){
+          var template = templates[i]
+          if (template.name == req.body.name){
+            replace = true
+            templates[i] = data
+            break
+          }
+        }
+        if (!replace){
+          templates.push(data)
+        }
+        query += `templates='${JSON.stringify(templates)}' WHERE user_id='${this.extensionId}'`
+        pgdb.update(query, (err, result) =>  {
+          if (err){
+            console.error(err.message);
+          }
+          res.send({
+            status: "ok",
+            message: ""
+          })
+        })
+      })
+    },
+    deleteTemplate: function (req, res){
+      var thisUser = this
+      this.readTemplatesFromDataInDB((err, templates) => {
+        if (err){
+          res.send({
+            status: "error",
+            message: "Cannot delete template. Please try again."
+          })
+        }
+        var query = 'UPDATE a2p_sms_users SET '
+        for (var i=0; i<templates.length; i++){
+          var item = templates[i]
+          if (item.type == req.body.type && item.name == req.body.name) {
+            templates.splice(i, 1)
+            query += `templates='${JSON.stringify(templates)}' WHERE user_id='${this.extensionId}'`
+            pgdb.update(query, (err, result) =>  {
+              if (err){
+                console.error(err.message);
+              }
+            })
+
+          }
+        }
+        res.send({
+          status: "ok",
+          message: ""
+        })
+      })
+    },
+    readTemplatesFromDataInDB: function(callback){
+      var query = `SELECT templates FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          return callback(err.message, null)
+        }
+        if (!err && result.rows.length > 0){
+          var templates = []
+          if (result.rows[0].templates.length)
+            templates = JSON.parse(result.rows[0].templates)
+          callback(null, templates)
+        }else{ // no history
+          callback(null, [])
+        }
       })
     },
     deleteWebhookAddress: function (res){
@@ -406,8 +499,12 @@ var engine = User.prototype = {
             var columns = row.trim().split(",")
             var contactNumber = columns[csvColumnIndex[body.number_column]]
             contactNumber = (contactNumber[0] != "+") ? `+${contactNumber}` : contactNumber
-            var contactFirstName = columns[csvColumnIndex[body.fname_column]]
-            var contactLastName = columns[csvColumnIndex[body.lname_column]]
+            var contactFirstName = ""
+            var contactLastName = ""
+            if (body.fname_column)
+              contactFirstName = columns[csvColumnIndex[body.fname_column]]
+            if (body.lname_column)
+              contactLastName = columns[csvColumnIndex[body.lname_column]]
             var contact = {
               phoneNumber: contactNumber,
               fname: contactFirstName,
@@ -435,6 +532,38 @@ var engine = User.prototype = {
           })
         })
       }
+    },
+    deleteContacts: function (req, res){
+      var body = req.body
+      this.readContactsFromDataInDB((err, savedContacts) => {
+        var index = savedContacts.findIndex(o => o.groupName === body.groupName)
+        var savedGroup = savedContacts[index]
+        if (body.removeGroup == 'true'){
+          savedContacts.splice(index, 1)
+          savedGroup.contacts = []
+        }else{
+          if (savedGroup){
+            var deleteContactList = JSON.parse(body.phoneNumber)
+            for (var phoneNumber of deleteContactList){
+              var contactIndex = savedGroup.contacts.findIndex(o => o.phoneNumber === phoneNumber)
+              if (contactIndex >= 0){
+                savedGroup.contacts.splice(contactIndex, 1)
+              }
+            }
+          }
+        }
+        var query = 'UPDATE a2p_sms_users SET '
+        query += "contacts='" + JSON.stringify(savedContacts) + "' WHERE user_id='" + this.extensionId + "'"
+        pgdb.update(query, (err, result) =>  {
+          if (err){
+            console.error(err.message);
+          }
+        })
+        res.send({
+          status: "ok",
+          contactList: savedGroup
+        })
+      })
     },
     readContactsFromDataInDB: function(callback){
       var query = `SELECT contacts FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
@@ -487,32 +616,6 @@ var engine = User.prototype = {
         }
       })
     },
-    updateContactsDataInDB_old: function(contactList, callback){
-      this.readContactsFromDataInDB((err, savedContacts) => {
-        if (!err){
-          var newContactList = []
-          //var savedContactList = JSON.parse(savedContacts)
-          for (var contact of contactList){
-            var c = savedContacts.find(o => o.phoneNumber === contact.phoneNumber)
-            if (!c)
-              newContactList.push(contact)
-          }
-          var updateContactList = savedContacts.concat(newContactList)
-          var query = 'UPDATE a2p_sms_users SET '
-          query += "contacts='" + JSON.stringify(updateContactList) + "' WHERE user_id='" + this.extensionId + "'"
-          pgdb.update(query, (err, result) =>  {
-            if (err){
-              console.error(err.message);
-              callback(err, "updated contacts failed")
-            }
-            callback(null, newContactList)
-          })
-        }else {
-          callback(err.message, "failed updating contacts")
-        }
-      })
-
-    },
     sendIndividualMessage: async function(req, res){
       var body = req.body
       var requestBody = {
@@ -520,7 +623,7 @@ var engine = User.prototype = {
           text: body.message,
           messages: [{to:[body.to]}]
       }
-      console.log(JSON.stringify(requestBody))
+      //console.log(JSON.stringify(requestBody))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
@@ -704,7 +807,6 @@ var engine = User.prototype = {
               }
               voteInfo.voterList.push(voter)
             }
-            console.log(JSON.stringify(requestBody))
           }
 
           var currentFolder = process.cwd();
@@ -722,7 +824,7 @@ var engine = User.prototype = {
       sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
       voteInfo.message = sampleMessage
       this.batchSummaryReport = {
-        //live: true,
+        //pending: true,
         campaignName: body.campaign_name,
         creationTime: new Date().getTime(),
         type: "vote",
@@ -828,7 +930,7 @@ var engine = User.prototype = {
         sampleMessage = body.message
       sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
       this.batchSummaryReport = {
-        //live: true,
+        //pending: true,
         campaignName: body.campaign_name,
         creationTime: new Date().getTime(),
         type: sendMode,
@@ -939,13 +1041,13 @@ var engine = User.prototype = {
           //console.log(jsonObj)
           // implement for vote
           if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
-            /* no need
-            this.batchSummaryReport.queuedCount = 0
-            this.batchSummaryReport.deliveredCount = 0
-            this.batchSummaryReport.sentCount = 0
-            this.batchSummaryReport.unreachableCount = 0
-            this.batchSummaryReport.totalCost = 0
-            this.batchFullReport = []
+            /*
+            don't need for now
+            this.batchSummaryReport.pending = false
+            // update DB
+            this._updateCampaignDB(null, (err, result) => {
+              console.log("Batch sending completed")
+            })
             */
             if (this.batchType == "vote"){
               console.log("Done Batch Result, call _getVoteReport")
@@ -1254,7 +1356,6 @@ var engine = User.prototype = {
                 this.batchSummaryReport.queuedCount++
                 break;
               case "Sent":
-              console.log("Sent status")
               var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
               if (voter && voter.isSent == false){
                 vote.voteCounts.Delivered++
@@ -1264,7 +1365,6 @@ var engine = User.prototype = {
               }
               break;
               case "Delivered":
-                console.log("Sent status")
                 var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
                 if (voter && voter.isSent == false){
                   vote.voteCounts.Delivered++
@@ -1792,7 +1892,6 @@ var engine = User.prototype = {
       })
     },
     readVoteReports: function(res){
-      console.log("poll vote result")
       var voteReports = (this.eventEngine) ? this.eventEngine.getCopyVoteCampaignsInfo() : []
       res.send({
           status: "ok",
@@ -2160,9 +2259,9 @@ var engine = User.prototype = {
         }else{ // add new to db
           var batches = [thisUser.batchSummaryReport]
 
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches)]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches),"[]","[]","","","","[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2252,9 +2351,9 @@ var engine = User.prototype = {
       //query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
       //var values = [this.extensionId, this.accountId, "", "", "", this.subscriptionId, "", ""]
 
-      var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
-      query += " VALUES ($1,$2,$3,$4,$5,$6,$7)"
-      var values = [this.extensionId, this.accountId, "", "", this.subscriptionId, "", ""]
+      var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
+      query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
+      var values = [this.extensionId, this.accountId, "[]", "[]", this.subscriptionId, "", "", "[]"]
 
       query += ` ON CONFLICT (user_id) DO UPDATE SET account_id='${this.accountId}', subscription_id='${this.subscriptionId}'`
 
@@ -2308,9 +2407,9 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [newBatch]
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7)  ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "[]", "", "", ""]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "[]", "[]", "", "", "[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);

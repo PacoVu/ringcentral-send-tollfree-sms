@@ -83,7 +83,7 @@ function createUsersAdditionalDataTable() {
 function createUserTable() {
   console.log("createUserTable")
   var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)"
+  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]')"
   pgdb.create_table(query, (err, res) => {
     if (err) {
       console.log(err.message)
@@ -364,11 +364,35 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].uploadContacts(req, res)
   },
+  deleteContacts: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteContacts(req, res)
+  },
   setWebhookAddress: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].setWebhookAddress(req, res)
+  },
+  saveTemplate: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].saveTemplate(req, res)
+  },
+  deleteTemplate: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteTemplate(req, res)
+  },
+  deleteSignature: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].deleteSignature(req, res)
   },
   deleteWebhookAddress: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -382,14 +406,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].readWebhookAddress(res)
   },
-  /*
-  readCampaign: function(req, res){
+  readTemplates: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getBatchReport(res, req.query.batchId)
+    users[index].readTemplates(res)
   },
-  */
   postFeedbackToGlip: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)

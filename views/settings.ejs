@@ -76,7 +76,7 @@
                   <select id="new-contact-groups" class="form-control" data-width="172" style="margin-top: 10px;" onchange="setContactGroupName()" title="Update group"></select>
                 </div>
                 <div class="block_space">
-                  <label class="label-input">Group name</label>
+                  <label class="label-input">New group name</label>
                   <input type="text" id="group-name" name="group_name" class="form-control" placeholder="enter group name" data-placement="bottom" data-content="Specify a new name for this contact group. Or select an existing contact group to update."></input>
                 </div>
                 <button id="submit" type="submit" class="form-control btn-rc" onclick="uploadContactsFile(event)">Upload</button>
@@ -88,9 +88,10 @@
               <label class="label-input">My contacts</label>
               <select id="contact-groups" onchange="displayContacts()" class="form-control" title="My contact groups"></select>
               </br>
+              <a id="delete-contact-btn" class="form-control navbutton" href="#" onclick="deleteSelectedContactsWarning();return false;">Delete selected contacts</a>&nbsp;&nbsp;
               <a id="delete-contact-btn" class="form-control navbutton" href="#" onclick="deleteWarning();return false;">Delete contact group</a>
             </div>
-            <div id="contact-list" class="contact-list"></div>
+            <div id="contact-list" class="col-lg-12 contact-list"></div>
           </div>
         </div>
         <div id="webhook-block" class="form-inline col-lg-12" style="margin-top: 20px;display: none">
@@ -136,7 +137,7 @@
               <a class="navbutton" href="#" onclick="copyOptoutNumbersToClipboard();return false;" style="float: right">Copy</a>
             </div>
           </div>
-          <div id="opted-out-list" class="contact-list"></div>
+          <div id="opted-out-list" class="opted-out-list"></div>
         </div>
     </div>
   </section>

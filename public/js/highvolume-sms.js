@@ -66,8 +66,7 @@ function readCampaigns(){
         createNewCampaign()
       else
         $("#history").show()
-
-      //listAllCampaigns(res.recentBatch)
+      console.log(JSON.stringify(campaignList))
       listAllCampaigns(undefined)
     }else if (res.status == "error"){
       _alert(res.message)
@@ -187,11 +186,11 @@ function listAllCampaigns(recentBatch){
       console.log("adjusted")
       console.log(item)
       total = item.totalCount
-      item.unreachableCount = total
+      //item.unreachableCount = total
     }
-
     var progress = (item.deliveredCount/total) * 100
-    progress = progress.toFixed(0)
+    if (progress != 0)
+      progress = progress.toFixed(0)
     html += `<div class="col-lg-1">${progress}%</div>`
     html += "</div>"
   }
@@ -273,9 +272,20 @@ function updateThisCampaign(campaign){
   else
     cost = cost.toFixed(1)
   html += `<div class="col-lg-2">${cost} USD</div>`
-  var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount
+  var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
+
+  if (total == 0){
+    console.log("adjusted")
+    console.log(campaign)
+    total = campaign.totalCount
+    //campaign.unreachableCount = total
+  }
+
   var progress = (campaign.deliveredCount/total) * 100
-  progress = progress.toFixed(0)
+
+  if (progress != 0)
+    progress = progress.toFixed(0)
+
   html += `<div class="col-lg-1">${progress}%</div>`
 
   $(`#${campaign.batchId}`).html(html)
@@ -307,7 +317,7 @@ function readVoteResult(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       voteReportList = res.voteReports
-      console.log(voteReportList)
+      //console.log(voteReportList)
       for (var vote of voteReportList){
         var campaign = campaignList.find(o => o.batchId === vote.batchId)
         if (campaign){
@@ -514,6 +524,10 @@ function isAnyLiveCampaign(){
   for (var campaign of campaignList){
     if (campaign.queuedCount){
       return campaign
+    }else{
+      var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
+      if (total == 0)
+        return campaign
     }
   }
   return null

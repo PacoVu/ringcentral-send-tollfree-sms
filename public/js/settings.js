@@ -177,18 +177,18 @@ function updateContactList(){
   var html = ""
   var groups = ""
   for (var group of contactList){
-    groups += `<option value="${group.groupName.replace(/\s/g, "-")}">${group.groupName}</option>`
+    if (group.groupName == selectedContactGroup)
+      groups += `<option value="${group.groupName.replace(/\s/g, "-")}" selected>${group.groupName}</option>`
+    else
+      groups += `<option value="${group.groupName.replace(/\s/g, "-")}">${group.groupName}</option>`
   }
   $("#contact-groups").html(groups)
   $("#new-contact-groups").html(groups)
   $('#new-contact-groups').selectpicker('refresh');
-  var contactGroup = contactList[0]
-  selectedContactGroup = contactGroup.groupName
-  for (var contact of contactGroup.contacts){
-    html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
-  }
-
-  $("#contact-list").html(html)
+  //if (selectedContactGroup == ""){
+  //  selectedContactGroup = contactList[0].groupName
+  //}
+  displayContacts()
 }
 
 function setContactGroupName(){
@@ -197,17 +197,46 @@ function setContactGroupName(){
 }
 
 function displayContacts(){
+  deleteContactList = [] // reset selected contacts
   var html = ""
   selectedContactGroup = $("#contact-groups option:selected").text()
   var contactGroup = contactList.find(o => o.groupName === selectedContactGroup)
   for (var contact of contactGroup.contacts){
-    html += `<div class="campaign-item">${formatPhoneNumber(contact.phoneNumber)} - ${contact.fname} ${contact.lname}</div>`
+    html += `<div class="row col-lg-12 contact-item">`
+    html += `<div class="col-lg-1"><input type="checkbox" value="${contact.phoneNumber}" onclick="markToDelete(this)" ></input></div>`
+    html += `<div class="col-lg-7">${contact.fname} ${contact.lname}</div>`
+    html += `<div class="col-lg-4">${formatPhoneNumber(contact.phoneNumber)}</div>`
+    //html += `<div class="col-lg-1"><img class="icon" src="../img/delete.png"></img></div>`
+    html += "</div>"
   }
   $("#contact-list").html(html)
+}
+var deleteContactList = []
+function markToDelete(elm){
+  if (elm.checked)
+    deleteContactList.push($(elm).val())
+  else{
+    var index = deleteContactList.indexOf($(elm).val())
+    if (index != -1)
+      deleteContactList.splice(index, 1)
+  }
 }
 
 function uploadContactsFile(e){
   e.preventDefault();
+
+  if ($("#number-column").val() == ""){
+    return _alert("Please select a contact phone number column!")
+  }
+
+  if ($("#fname-column").val() == "" && $("#lname-column").val() == ""){
+    return _alert("Please select a contact name column!")
+  }
+
+  if ($("#group-name").val() == ""){
+    return _alert("Please enter a contact group name!")
+  }
+
   var form = $("#contact-form");
   var formData = new FormData(form[0]);
 
@@ -219,6 +248,7 @@ function uploadContactsFile(e){
           if (res.status == "ok"){
             var contactGroup = undefined //contactList.find(o => o.groupName == res.contactList.groupName)
             var updated = false
+            selectedContactGroup = res.contactList.groupName
             for (var i=0; i<contactList.length; i++){
               contactGroup = contactList[i]
               if (contactGroup.groupName == res.contactList.groupName){
@@ -275,14 +305,78 @@ function readContacts(){
 }
 
 function deleteWarning(){
-  var r = confirm("Do you really want to delete all contacts?");
+  var r = confirm("Do you really want to delete selected contact group?");
     if (r == true) {
-      deleteAllContacts()
+      deleteContacts(true)
     }
 }
-function deleteAllContacts(){
-  _alert("Delete all contacts will be coming soon", "Information")
+
+function deleteSelectedContactsWarning(){
+  if (deleteContactList.length){
+    var r = confirm("Do you really want to delete selected contacts?");
+      if (r == true) {
+        deleteContacts(false)
+      }
+  }else{
+    _alert("Select contacts to be deleted", "Information")
+  }
 }
+function deleteContacts(removeGroup){
+  var url = "delete-contacts"
+  var params = {
+    groupName: selectedContactGroup,
+    phoneNumber: JSON.stringify(deleteContactList),
+    removeGroup: removeGroup
+  }
+  var posting = $.post( url, params );
+  posting.done(function( res ) {
+    if (res.status == "ok"){
+      if (removeGroup){
+        for (var i=0; i<contactList.length; i++){
+          contactGroup = contactList[i]
+          if (contactGroup.groupName == selectedContactGroup){
+            contactList.splice(i, 1)
+            selectedContactGroup = ""
+            break
+          }
+        }
+      }else{
+        var contactGroup = undefined
+        var updated = false
+        for (var i=0; i<contactList.length; i++){
+          contactGroup = contactList[i]
+          if (contactGroup.groupName == res.contactList.groupName){
+            contactList[i] = res.contactList
+            updated = true
+            break
+          }
+        }
+        if (!updated){
+          contactList.push(res.contactList)
+        }
+      }
+      if (contactList.length > 0){
+        $("#my-contacts-pane").show()
+        updateContactList()
+      }
+    }else if (res.status == "error"){
+      _alert(res.message)
+    }else{
+      if (res.message)
+        _alert(res.message)
+      else{
+        _alert("You have been logged out. Please login again.")
+        window.setTimeout(function(){
+          window.location.href = "/relogin"
+        },8000)
+      }
+    }
+  });
+  posting.fail(function(response){
+    alert(response);
+  });
+}
+
 
 function setWebhookAddress(){
   if ($("#webhook-address").val() == ""){
@@ -377,13 +471,14 @@ function checkOptoutNumbers(){
       if (optedOutNumbers.length > 0){
         $("#oo-numbers").show()
       }else{
-        _alert("No opted out number!", "Information")
-        $("#oo-numbers").hide()
+        $("#opted-out-list").html("No opted out number!")
+        $("#oo-numbers").show()
+        return
       }
       setElementsHeight()
       var html = ""
       for (var number of optedOutNumbers){
-        html += `<div class="campaign-item">${formatPhoneNumber(number, true)}</div>`
+        html += `<div class="row col-lg-12 opted-out-item">${formatPhoneNumber(number, true)}</div>`
       }
       $("#opted-out-list").html(html)
     }else if (res.status == "error"){

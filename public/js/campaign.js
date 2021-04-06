@@ -68,6 +68,9 @@ function readCampaigns(){
         $("#content-col").show()
         listAllCampaigns()
         setElementsHeight()
+      }else{
+        _alert("You have no campaign.", "Information")
+        $("#campaign-list").html("")
       }
     }else if (res.status == "error"){
       _alert(res.message)

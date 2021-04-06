@@ -1,0 +1,26 @@
+<div id="hidden-div-create-signature" style="display: none">
+  <form id="create-signature-form">
+    <div class="block_space">
+      <label class="" for="new-signature-name">Signature name</label>
+      <input type="text" id="new-signature-name" class="form-control" placeholder="Enter signature name" style="display: inline;width: 180px;margin-bottom: 5px"></input>
+      <span id="signatures-block" style="display: none;">
+        <select id="signatures-list" class="selectpicker filter-select" onchange="setSignatureName(this)" title="Replace a signature" style="display: inline;width: 100px"></select>
+      </span>
+    </div>
+    <div class="block_space">
+      <textarea id="new-signature-message" cols=70 rows="4" class="form-control"></textarea>
+    </div>
+  </form>
+</div>
+
+<div id="hidden-div-load-signature" style="display: none">
+  <form id="load-signature-form">
+    <div class="block_space">
+      <label>Signatures</label>
+      <select id="my-signatures" class="selectpicker filter-select" onchange="setSignatureMessage(this)" title="Select a signature" style="display: inline;width: 100px"></select>
+    </div>
+    <div class="block_space">
+      <textarea id="saved-signature-message" cols=70 rows="4" class="form-control"></textarea>
+    </div>
+  </form>
+</div>

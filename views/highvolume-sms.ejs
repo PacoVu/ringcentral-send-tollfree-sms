@@ -25,6 +25,13 @@
     <link rel="stylesheet" type="text/css" href="css/main.css">
     <link rel="stylesheet" type="text/css" href="css/ui.css">
     <link rel="stylesheet" type="text/css" href="css/campaigns.css">
+    <!-- test emoji -->
+    <link rel="stylesheet" type="text/css" href="./assets/css/reset.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/style.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/emojiarea.css">
+    <script src="./assets/js/jquery.emojiarea.js"></script>
+    <!-- test emoji end -->
+
     <script>
       $(document).ready(function(){
           $('[data-toggle="popover"]').popover();
@@ -39,6 +46,8 @@
     </script>
 </head>
 <body onload="init()">
+  <%- include('_signature_dialogs') %>
+  <%- include('_template_dialogs') %>
   <%- include('_feedback_form') %>
   <%- include('_alert_dialog') %>
   <%- include('_menu_header') %>
@@ -94,11 +103,11 @@
                 <div id="manual-input" class="block_space" style="display: none">
                   <span style="float: left">
                     <label class="">Recipient's phone number</label><br>
-                    <textarea rows="4" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
+                    <textarea rows="8" cols="14" id="recipients" name="recipients" onchange="readFieldRecipients(this)" placeholder="+11234567890&#10;+14087654322&#10;+16501234567" class="form-control text-input" data-placement="right" data-content="Please enter at least one recipient's phone number."></textarea>
                   </span>
-                  <span style="float: left;margin-left: 30px;">
+                  <span id="contacts-block" style="display: none;float: left;margin-left: 30px;">
                     <label class="">Select contact group</label><br>
-                    <select id="contact-groups" class="selectpicker filter-select" onchange="setRecipientFromContacts()" style="display: none"></select>
+                    <select id="contact-groups" class="selectpicker filter-select" multiple onchange="setRecipientFromContacts()" style="display: none"></select>
                   </span>
                 </div>
                 <div style="clear: both"></div>
@@ -124,7 +133,22 @@
 
                 <div class="block_space">
                   <!--label class="label-input" for="message">Message</label-->
-                  <textarea rows="1" cols="60" id="message" name="message" oninput="updateSampleMessage()" class="form-control text-input" placeholder="Enter text message" data-placement="right" data-content="You can click a CSV column above to compose customized messages. E.g. Hello {name}"></textarea>
+                  <div class="right" style="padding-top: 0px;">
+                    <span onclick="savedTemplates()" class="emoji-button" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="Save message as a template.">
+                      <img class="medium-icon" src="/img/save.png"></img>
+                    </span>
+                    <span onclick="showSavedTemplates()" class="emoji-button" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="Load a template.">
+                      <img class="medium-icon" src="/img/template.png"></img>
+                    </span>
+                    <span onclick="showSavedSignatures()" class="emoji-button" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="Load a signature.">
+                      <img class="medium-icon" src="/img/signature.png"></img>
+                    </span>
+                  </div>
+                  <div data-emojiarea data-type="unicode" data-global-picker="false">
+                    <div class="emoji-button"><img class="medium-icon" src="/img/emoji.png" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="Add emoji icon"></img></div>
+                    <textarea id="message" class="text-message" name="message" oninput="updateSampleMessage()" class="form-control text-input" placeholder="Enter text message" data-placement="right" data-content="You can click a CSV column above to compose customized messages. E.g. Hello {name}"></textarea>
+                  </div>
+                  <!--textarea rows="1" cols="60" id="message" name="message" oninput="updateSampleMessage()" class="form-control text-input" placeholder="Enter text message" data-placement="right" data-content="You can click a CSV column above to compose customized messages. E.g. Hello {name}"></textarea-->
                 </div>
 
                 <div class="block_space">
@@ -136,26 +160,20 @@
                 <div class="block_space">
                   <!--label class="label-input">Recipient response</label-->
                   <span>Request response <input type="checkbox" id="expect-response" name="expect_response" onchange="enableExpectingResponse(this)"></input></span>
-                  <!--span class="auto-reply-option">Auto-reply </span><input id="reply-enabler" name="reply_enabler" type="checkbox" onchange="showAutoReplyFields(this)"></input-->
                 </div>
                 <div id="recipient-response-block" style="display: none">
                   <div class="block_space">
-                    <div>
-                      <div class="block_space">
-                        <span>Option 1: </span><input type="text" id="command_1" name="command_1" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
-                        <input class="form-control text-input reply-option" type="text" id="reply-1" name="reply_1_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
-                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-1-enabler" name="reply_1_enabler" type="checkbox" onchange="showAutoReply(this, 1)"></input-->
-                      </div>
-                      <div class="block_space">
-                        <span>Option 2: </span><input type="text" id="command_2" name="command_2" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
-                        <input class="form-control text-input reply-option" type="text" id="reply-2" name="reply_2_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
-                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-2-enabler" name="reply_2_enabler" type="checkbox" onchange="showAutoReply(this, 2)"></input-->
-                      </div>
-                      <div class="block_space">
-                        <span>Option 3: </span><input type="text" id="command_3" name="command_3" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
-                        <input class="form-control text-input reply-option" type="text" id="reply-3" name="reply_3_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
-                        <!--span class="auto-reply-option">Auto-reply </span><input id="reply-3-enabler" name="reply_3_enabler" type="checkbox" onchange="showAutoReply(this, 3)"></input-->
-                      </div>
+                    <div class="block_space">
+                      <span>Option 1: </span><input type="text" id="command_1" name="command_1" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                      <input class="form-control text-input reply-option" type="text" id="reply-1" name="reply_1_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
+                    </div>
+                    <div class="block_space">
+                      <span>Option 2: </span><input type="text" id="command_2" name="command_2" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                      <input class="form-control text-input reply-option" type="text" id="reply-2" name="reply_2_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
+                    </div>
+                    <div class="block_space">
+                      <span>Option 3: </span><input type="text" id="command_3" name="command_3" size="8" oninput="updatePreview('response')" placeholder="Response word" class="form-control text-input" data-toggle="popover" data-trigger="hover" data-placement="bottom" data-content="Response word (single word only!)"></input>
+                      <input class="form-control text-input reply-option" type="text" id="reply-3" name="reply_3_message" oninput="updatePreview('reply')" placeholder="Enter auto-reply message (optional)" size="40"></input>
                     </div>
                   </div>
                   <div class="block_space">
@@ -165,9 +183,7 @@
                     <span>Response time period:
                       <input type="number" id="expire" name="expire" min="1" max="144" class="form-control" value="2"></input><span class="tail-word"> hours</span>
                     </span>
-
                   </div>
-                  <hr style="margin: 2px !important"></hr>
                 </div>
               </div>
               <div class="block_space">

@@ -24,6 +24,8 @@ function enableManualInput(elm){
   if (option == "manual"){
     $("#manual-input").show()
     //$("#csv-option").css("visibility","hidden")
+    if (contactList.length > 0)
+      $("#contacts-block").show()
     $("#csv-option").hide()
     $("#recipient-phone-number").hide()
     $("#to-number-column").val("")
@@ -34,6 +36,48 @@ function enableManualInput(elm){
     $("#csv-option").show()
     $("#manual-input").hide()
   }
+}
+function updatePreviewFromTemplate(){
+  updateSampleMessage()
+  var text = ""
+  var id = ""
+  for (var i=1; i<4; i++){
+    id = `#command_${i}`
+    text = $(id).val()
+    if (text != "")
+    break
+  }
+
+  if (text == "")
+  $("#response-sample").hide()
+  else{
+    $("#response-sample").show()
+    updateSurveyEstimatedCost(1)
+  }
+  $("#response-sample").html(text)
+
+  $("#reply-sample").html("")
+  var text = ""
+  var i = 1
+  for (i=1; i<4; i++){
+    text = $(`#reply-${i}`).val()
+    if (text != "")
+    break
+  }
+  //var text = $('#reply-1').val()
+  if (text == ""){
+    $("#reply-sample").hide()
+    updateSurveyEstimatedCost(1)
+  }else{
+    $("#reply-sample").show()
+    updateSurveyEstimatedCost(2)
+  }
+
+  if ($("#reply-sample").html() == ""){
+    var response = $(`#command_${i}`).val()
+    $("#response-sample").html(response)
+  }
+  $("#reply-sample").html(text)
 }
 
 function updatePreview(field){
@@ -168,29 +212,29 @@ function createNewCampaign(){
 }
 
 function showBlock(block){
-  //alert(block)
-    //$("#control-block").show()
-    switch (block){
-      case "result":
-        $("#preview-block").hide();
-        $("#sms-form").hide();
-        $("#result-block").show();
-        break
-      case "preview":
-        $("#result-block").hide();
-        $("#sms-form").show();
-        $("#preview-block").show();
-        if (contactList.length == 0)
-          readContacts()
-        break
-      case "history":
-        $('#create').hide()
-        $('#history').show()
-        break
-      default:
-        $("#control-block").hide()
-        break
-    }
+  switch (block){
+    case "result":
+    $("#preview-block").hide();
+    $("#sms-form").hide();
+    $("#result-block").show();
+    break
+    case "preview":
+    $("#result-block").hide();
+    $("#sms-form").show();
+    $("#preview-block").show();
+    if (contactList.length == 0)
+    readContacts()
+    if (templateList.length == 0)
+    readTemplates()
+    break
+    case "history":
+    $('#create').hide()
+    $('#history').show()
+    break
+    default:
+    $("#control-block").hide()
+    break
+  }
 }
 
 function readContacts(){
@@ -222,18 +266,42 @@ function readContacts(){
 }
 
 function setRecipientFromContacts(){
-  var selectedGroup = $("#contact-groups option:selected").text()
-  var contactGroup = contactList.find(o => o.groupName === selectedGroup)
-  if (contactGroup){
-    var recipients = ""
-    for (var contact of contactGroup.contacts){
-      recipients += contact.phoneNumber + "\n"
-    }
+  var groups = $('#contact-groups').val()
+  var groupsName = $('#contact-groups option:selected').toArray().map(item => item.text).join();
+  var groupsNameList = groupsName.split(",")
+  var recipients = ""
+  totalRecipients = 0
+  if (groupsNameList.length == 0){
     $("#recipients").val(recipients)
-    totalRecipients = contactGroup.contacts.length
+    totalRecipients = 0 //contactGroup.contacts.length
     var sample = `${totalRecipients} recipients`
     $("#preview-recipients").html(sample)
+    return
   }
+
+  var recipientsNumberList = []
+  for (var selectedGroup of groupsNameList){
+    var contactGroup = contactList.find(o => o.groupName === selectedGroup)
+    if (contactGroup){
+      for (var contact of contactGroup.contacts){
+        var found = recipientsNumberList.find(o => o === contact.phoneNumber)
+        if (found)
+          continue
+        recipientsNumberList.push(contact.phoneNumber)
+        recipients += contact.phoneNumber + "\n"
+      }
+    }
+  }
+  recipients = recipientsNumberList.join("\n")
+  $("#recipients").val(recipients)
+  totalRecipients = recipientsNumberList.length
+  var sample = `${totalRecipients} recipients`
+  $("#preview-recipients").html(sample)
+  updateEstimateCost()
+}
+
+function updateEstimateCost(){
+  calculateEstimatedCost()
 }
 
 function resetCampaignInput(){
@@ -287,7 +355,7 @@ function nextView(direction){
     return
 
   var view = `block_${newBlock}`
-  //_alert(view)
+
   switch (view) {
     case 'block_1':
 
@@ -295,9 +363,6 @@ function nextView(direction){
       $("#prevBtn").hide() //css("display", "none")
       $("#nextBtn").show() //css("display", "inline")
       $("#submit").hide()
-      // don't hide when come back
-      //if($("#submit").is(":visible"))
-      //  $("#submit").hide()
       break;
     case 'block_2':
       if (checkCampainNameField() == false){
@@ -353,33 +418,9 @@ function nextView(direction){
   $(`#${view}`).show()
 }
 
-function showAutoReplyFields(elm){
-  if (elm.checked){
-    $(`#reply-1`).show()
-    $(`#reply-2`).show()
-    $(`#reply-3`).show()
-    $(`#reply-1`).focus()
-  }else{
-    $(`#reply-1`).hide()
-    $(`#reply-2`).hide()
-    $(`#reply-3`).hide()
-  }
-  updatePreview("reply")
-}
-
-function showAutoReply(elm, index){
-  if (elm.checked){
-    $(`#reply-${index}`).show()
-    $(`#reply-${index}`).focus()
-  }else{
-    $(`#reply-${index}`).val("")
-    $(`#reply-${index}`).hide()
-  }
-  updatePreview("reply")
-}
-
 function enableExpectingResponse(elm){
-  if (elm.checked){
+  //if (elm.checked){
+  if ($(elm).is(":checked")){
     $("#recipient-response-block").show()
     $("#survey-cost").show()
   }else{
@@ -570,7 +611,6 @@ function addOptoutInstruction(elm){
   $("#message").val(msg)
   $("#message").focus()
   updateSampleMessage()
-
 }
 
 function updateSampleMessage(){
@@ -689,38 +729,7 @@ function qaTextMessage(msg){
 function disableSubmitBtn(flag){
   $("#submit").prop('disabled', flag);
 }
-/*
-function isAllReady() {
-  var ready = true
-  if (checkCampainNameField() == false){
-    return false
-  }
-  if (checkFromField() == false){
-    return false
-  }
-  if ($("#enable-manual-input").is(":checked")){
-    if (!checkAttachmentField()){
-      return false
-    }
-    if (checkToField() != ""){
-      return false
-    }
-  }else{
-    if (checkToNumberField() != "")
-      return false
-  }
 
-  if (!checkMessageField()){
-    return false
-  }
-  if ($("#expect-response").is(":checked")){
-    if (!checkCommandFields()){
-      return false
-    }
-  }
-  return true
-}
-*/
 // submit form using ajax seems not enforce required inputs
 function checkFromField(){
   if ($("#from-number").val() == ""){
@@ -1046,4 +1055,461 @@ function showEstimateCostClaimer(index){
     "Estimates are based on the assumption that every recipient would respond to the survey and including auto-reply message if it's set."
   ]
   _alert(text[index], "Information")
+}
+
+
+var templateList = []
+var signatureList = []
+
+function savedTemplates(){
+  var msg = $("#message").val()
+  if (msg.length == 0){
+    return _alert("Message is empty!")
+  }
+  openCreateTemplateForm(msg)
+}
+
+function showSavedSignatures(){
+  if (signatureList.length > 0){
+    loadSignature()
+  }else{
+    var r = confirm("You don't have any saved signature. Do you want to create a signature?");
+    if (r == true) {
+      createSignature()
+    }
+  }
+}
+
+function setSignatureMessage(elm){
+  var name = $(elm).val()
+  var signature = signatureList.find(o => o.name == name)
+  $("#saved-signature-message").val(unescape(signature.message));
+}
+
+function loadSignature(){
+  var message = $('#load-signature-form');
+
+  var signatures = ""
+  for (var signature of signatureList){
+    signatures += `<option value="${signature.name}">${signature.name}</option>`
+  }
+  $("#my-signatures").html(signatures)
+  $('#my-signatures').selectpicker('refresh');
+  $("#saved-signature-message").val("")
+
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;">My Signatures</div>`,
+      message: message,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-load-signature').append(message);
+      },
+      buttons: [
+      {
+        label: 'New',
+        cssClass: 'rc-oval-btn btn-left',
+        action: function(dialog) {
+          createSignature()
+          dialog.close()
+        }
+      },{
+        label: 'Delete',
+        cssClass: 'rc-oval-btn btn-left',
+        action: function(dialog) {
+          deleteSignature()
+        }
+      },{
+        label: 'Cancel',
+        action: function(dialog) {
+          dialog.close();
+        }
+      }, {
+        label: "Use Signature",
+        cssClass: 'btn btn-primary',
+        action: function(dialog) {
+          var msg = $("#message").val()
+          msg += `\n\n${$("#saved-signature-message").val()}`
+          $("#message").val(msg)
+          $("#message").focus()
+          updateSampleMessage()
+          dialog.close()
+        }
+      }]
+  });
+  return false;
+}
+
+function deleteSignature(){
+  var selectedName = $("#my-signatures").val()
+  var index = signatureList.findIndex(o => o.name === selectedName)
+  if (index >= 0){
+    signatureList.splice(index, 1)
+    var signatures = ""
+    for (var signature of signatureList){
+      signatures += `<option value="${signature.name}">${signature.name}</option>`
+    }
+    $("#my-signatures").html(signatures)
+    $('#my-signatures').selectpicker('refresh');
+    $("#saved-signature-message").val("")
+
+    var url = "delete-template"
+    var params = {
+      name: selectedName,
+      type: "signature"
+    }
+    var posting = $.post( url, params );
+    posting.done(function( res ) {
+      if (res.status == "ok"){
+        ;
+      }else if (res.status == "failed"){
+        _alert(res.message)
+      }else{
+        _alert(res.message)
+      }
+    });
+    posting.fail(function(response){
+      _alert(response.statusText);
+    });
+  }
+  return true
+}
+
+function setSignatureName(elm){
+  $("#new-signature-name").val($(elm).val());
+}
+
+function createSignature(){
+  var message = $('#create-signature-form');
+
+  if (signatureList.length > 0 ){
+    var signatures = ""
+    for (var signature of signatureList){
+      signatures += `<option value="${signature.name}">${signature.name}</option>`
+    }
+    $("#signatures-block").show()
+    $("#signatures-list").html(signatures)
+    $('#signatures-list').selectpicker('refresh');
+
+  }
+
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;">Create Signature</div>`,
+      message: message,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-create-signature').append(message);
+      },
+      buttons: [
+      {
+        label: 'Cancel',
+        action: function(dialog) {
+          dialog.close();
+        }
+      }, {
+        label: "Save",
+        cssClass: 'btn btn-primary',
+        action: function(dialog) {
+            var params = {
+              type: "signature",
+              name: $("#new-signature-name").val(),
+              message: $("#new-signature-message").val(),
+              requestResponse: '[]'
+            }
+
+            if (params.name == ""){
+              $("#new-signature-name").focus()
+              return _alert("Please enter a name!")
+            }
+            if (params.message == ""){
+              $("#new-signature-message").focus()
+              return _alert("Please enter signature message!")
+            }
+            signatureList.push(params)
+            var url = "save-template"
+            var posting = $.post( url, params );
+            posting.done(function( res ) {
+              if (res.status == "ok"){
+                alert("saved")
+                dialog.close();
+              }else if (res.status == "failed"){
+                _alert(res.message)
+                dialog.close();
+              }else{
+                _alert(res.message)
+                dialog.close();
+              }
+            });
+            posting.fail(function(response){
+              _alert(response.statusText);
+              dialog.close();
+            });
+        }
+      }]
+  });
+  return false;
+}
+
+function readTemplates(){
+  var url = "read-templates"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      if (res.templateList.length > 0){
+        for (var item of res.templateList){
+          if (item.type == "message")
+            templateList.push(item)
+          else
+            signatureList.push(item)
+        }
+      }
+      console.log(templateList)
+      console.log(signatureList)
+    }else if (res.status == "error"){
+      _alert(res.message)
+    }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
+}
+
+function openCreateTemplateForm(msg){
+  $("#templates-block").show()
+  if ($("#templates-list").val() == ""){
+    var templates = ""
+    for (var template of templateList){
+      templates += `<option value="${template.name}">${template.name}</option>`
+    }
+  }
+  $("#templates-list").html(templates)
+  $('#templates-list').selectpicker('refresh');
+  $("#new-template-message").val(msg);
+  if ($("#expect-response").is(":checked")){
+    $("#template-recipient-response-block").show()
+    for ( var i=1; i<4; i++){
+      var command = $(`#command_${i}`).val()
+      var reply = $(`#reply-${i}`).val()
+      if (command.length > 0)
+        $(`#template-command_${i}`).html(command)
+      if (reply.length > 0)
+        $(`#template-reply-${i}`).html(reply)
+    }
+  }
+
+  var message = $('#create-template-form');
+
+  $('#create-template-form').on('shown.bs.modal', function () {
+    $("#new-template-message").val($("#messsage").val());
+  })
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;">Save as template</div>`,
+      message: message,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-save-template').append(message);
+      },
+      buttons: [{
+        label: 'Cancel',
+        action: function(dialog) {
+          dialog.close();
+        }
+      }, {
+        label: 'Save',
+        cssClass: 'btn btn-primary',
+        action: function(dialog) {
+          var requestResponse = []
+          if ($("#expect-response").is(":checked")){
+            for ( var i=1; i<4; i++){
+              var item = {
+                command: $(`#command_${i}`).val(),
+                reply: $(`#reply-${i}`).val()
+              }
+              requestResponse.push(item)
+            }
+          }
+          var params = {
+            type: "message",
+            name: $("#new-template-name").val(),
+            message: $("#new-template-message").val(),
+            requestResponse:  JSON.stringify(requestResponse)
+          }
+
+          if (params.name == ""){
+            $("#new-template-name").focus()
+            return _alert("Please enter a template name!")
+          }
+          if (params.message == ""){
+            $("#new-template-message").focus()
+            return _alert("Please enter template message!")
+          }
+          templateList.push(params)
+          var url = "save-template"
+          var posting = $.post( url, params );
+          posting.done(function( res ) {
+            if (res.status == "ok"){
+              alert("saved")
+              dialog.close();
+            }else if (res.status == "failed"){
+              _alert(res.message)
+              dialog.close();
+            }else{
+              _alert(res.message)
+              dialog.close();
+            }
+          });
+          posting.fail(function(response){
+            _alert(response.statusText);
+            dialog.close();
+          });
+        }
+      }]
+  });
+  return false;
+}
+
+function setTemplateName(elm){
+  $("#new-template-name").val($(elm).val())
+}
+
+function deleteTempate(){
+  var selectedName = $("#my-templates").val()
+  var index = templateList.findIndex(o => o.name === selectedName)
+  if (index >= 0){
+    templateList.splice(index, 1)
+    var templates = ""
+    for (var template of templateList){
+      templates += `<option value="${template.name}">${template.name}</option>`
+    }
+    $("#my-templates").html(templates)
+    $('#my-templates').selectpicker('refresh');
+    $("#saved-template-message").val("")
+    for ( var i=1; i<4; i++){
+      $(`#saved-template-command_${i}`).html("")
+      $(`#saved-template-reply-${i}`).html("")
+    }
+    $("#saved-template-recipient-response-block").hide()
+    var url = "delete-template"
+    var params = {
+      name: selectedName,
+      type: "message"
+    }
+    var posting = $.post( url, params );
+    posting.done(function( res ) {
+      if (res.status == "ok"){
+        ;
+      }else if (res.status == "failed"){
+        _alert(res.message)
+      }else{
+        _alert(res.message)
+      }
+    });
+    posting.fail(function(response){
+      _alert(response.statusText);
+    });
+  }
+  return true
+}
+
+var selectedTemplate = undefined
+function displaySelectTemplate(elm){
+  var selectedName = $(elm).val()
+  selectedTemplate = templateList.find(o => o.name === selectedName)
+  if (selectedTemplate){
+    $("#saved-template-message").val(unescape(selectedTemplate.message))
+    if (selectedTemplate.requestResponse){
+      var requestResponse = JSON.parse(selectedTemplate.requestResponse)
+      if (requestResponse.length > 0){
+        $("#saved-template-recipient-response-block").show()
+        for ( var i=1; i<4; i++){
+          if (requestResponse[i-1].command.length > 0){
+            $(`#response-${i}`).show()
+            $(`#saved-template-command_${i}`).html(requestResponse[i-1].command)
+            $(`#saved-template-reply-${i}`).html(requestResponse[i-1].reply)
+          }else
+            $(`#response-${i}`).hide()
+        }
+      }else{
+        for ( var i=1; i<4; i++){
+          $(`#saved-template-command_${i}`).html("")
+          $(`#saved-template-reply-${i}`).html("")
+        }
+        $("#saved-template-recipient-response-block").hide()
+      }
+    }else{
+      for ( var i=1; i<4; i++){
+        $(`#saved-template-command_${i}`).html("")
+        $(`#saved-template-reply-${i}`).html("")
+      }
+      $("#saved-template-recipient-response-block").hide()
+    }
+  }
+}
+
+function showSavedTemplates(){
+  if (templateList.length == 0){
+    return
+  }else{
+    var templates = ""
+    for (var template of templateList){
+      templates += `<option value="${template.name}">${template.name}</option>`
+    }
+    $("#my-templates").html(templates)
+    $('#my-templates').selectpicker('refresh');
+  }
+  var message = $('#load-template-form');
+  BootstrapDialog.show({
+      title: `<div style="font-size:1.2em;font-weight:bold;">Load a template</div>`,
+      message: message,
+      draggable: true,
+      onhide : function(dialog) {
+        $('#hidden-div-load-template').append(message);
+      },
+      buttons: [
+      {
+        label: 'Cancel',
+        action: function(dialog) {
+          dialog.close();
+        }
+      }, {
+        label: 'Use Template',
+        cssClass: 'btn btn-primary',
+        action: function(dialog) {
+          if (selectedTemplate){
+            $("#message").val(unescape(selectedTemplate.message))
+            if (selectedTemplate.requestResponse){
+              var requestResponse = JSON.parse(selectedTemplate.requestResponse)
+              if (requestResponse.length > 0){
+                $('#expect-response').prop('checked', true)
+                enableExpectingResponse($('#expect-response'))
+                $("#recipient-response-block").show()
+                for ( var i=1; i<4; i++){
+                  $(`#command_${i}`).val(requestResponse[i-1].command)
+                  $(`#reply-${i}`).val(requestResponse[i-1].reply)
+                }
+              }else{
+                $('#expect-response').prop('checked', false)
+                enableExpectingResponse($('#expect-response'))
+              }
+            }else{
+              $('#expect-response').prop('checked', false)
+              enableExpectingResponse($('#expect-response'))
+            }
+            updatePreviewFromTemplate()
+          }
+          dialog.close();
+        }
+      },{
+        label: 'Delete Selected Template',
+        cssClass: 'rc-oval-btn btn-left',
+        action: function(dialog) {
+          deleteTempate()
+        }
+      }]
+  });
+  return false;
 }

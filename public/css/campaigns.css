@@ -146,13 +146,30 @@
   margin-left: 15px;
 }
 
-.auto-reply-option {
-  margin-left: 50px;
-}
 .no-border-input {
   background-color: transparent!important;
   border: none!important;
   border-bottom: 1px solid red!important;
+}
+
+.btn-left{
+  float: left;
+}
+
+.template-response {
+  margin-left: 20px;
+  border: none;
+  border-bottom: 1px solid grey;
+}
+
+.template-reply {
+  margin-left: 26px;
+  border: none;
+  border-bottom: 1px solid grey;
+}
+
+.dlg-block-space{
+  margin-bottom: 15px!important;
 }
 /*
 .campaign-input-col {

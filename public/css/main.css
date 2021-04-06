@@ -77,18 +77,54 @@ button:focus {
 .contact-list{
   height: 400px;
   overflow: scroll;
-  min-width: 300px;
-  max-width: 300px;
+  min-width: 420px;
+  max-width: 420px;
 }
 
-/*
-#groups_list {
-  display: none;
-  margin-top: 10px;
-  position: relative;
-  float: right;
+.contact-item {
+  color: inherit;
+  margin: auto;
+  padding: 10px;
+  margin-left: -34px;
+  /*margin-right: 14px;*/
+  min-width: 420px!important;
+  /*max-width: 390px!important;*/
+  background-color: #f5f6fb;
 }
-*/
+.contact-item.active {
+  color: #ffffff;
+  background-color: #2559e5;
+}
+.contact-item:hover {
+  background: #e5eafa;
+  color: #2559e5;
+}
+
+.opted-out-list{
+  height: 400px;
+  overflow: scroll;
+  min-width: 420px;
+  max-width: 420px;
+}
+
+.opted-out-item {
+  color: inherit;
+  margin: auto;
+  padding: 10px;
+  margin-left: 0px;
+  /*margin-right: 14px;*/
+  min-width: 420px!important;
+  /*max-width: 390px!important;*/
+  background-color: #f5f6fb;
+}
+.opted-out-item.active {
+  color: #ffffff;
+  background-color: #2559e5;
+}
+.opted-out-item:hover {
+  background: #e5eafa;
+  color: #2559e5;
+}
 
 .groups{
   margin-top: 5px;
@@ -418,6 +454,13 @@ button:focus {
   max-height: 100px!important;
 }
 
+.text-message{
+  min-height: 100px!important;
+  max-height: 100px!important;
+  min-width: 500px;
+  max-width: 500px;
+}
+
 #conversation {
   overflow-x: hidden;
   overflow-y: scroll;
@@ -432,7 +475,9 @@ button:focus {
 
 #send-text {
   width: 70%;
-  min-width: 500px;
+  min-width: 464px;
+  margin-top:4px;
+  margin-left: -15px;
 }
 .hasborder {
   border-top: 1px dotted purple;

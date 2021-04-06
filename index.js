@@ -396,14 +396,39 @@ app.post('/uploadcontact', upload.any(), function (req, res, next) {
   router.uploadContacts(req, res)
 })
 
+app.post('/delete-contacts', function (req, res) {
+  console.log("delete-contacts")
+  router.deleteContacts(req, res)
+})
+
 app.post('/setwebhook', function (req, res) {
   console.log("setwebhook")
   router.setWebhookAddress(req, res)
 })
 
+app.post('/save-template', function (req, res) {
+  console.log("save-template")
+  router.saveTemplate(req, res)
+})
+
+app.post('/delete-template', function (req, res) {
+  console.log("delete-template")
+  router.deleteTemplate(req, res)
+})
+
+app.post('/delete-signature', function (req, res) {
+  console.log("delete-signature")
+  router.deleteSignature(req, res)
+})
+
 app.get('/readwebhook', function (req, res) {
   console.log("readwebhook")
   router.readWebhookAddress(req, res)
+})
+
+app.get('/read-templates', function (req, res) {
+  console.log("read-templates")
+  router.readTemplates(req, res)
 })
 
 app.get('/deletewebhook', function (req, res) {
