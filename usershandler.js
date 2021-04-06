@@ -34,7 +34,7 @@ function User(id) {
   }
   */
   this.batchSummaryReport = {
-    live: false,
+    //live: false,
     campaignName: "",
     creationTime: 0,
     type: "",
@@ -322,7 +322,7 @@ var engine = User.prototype = {
         }
         var textMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
         this.batchSummaryReport = {
-          live: true,
+          //live: true,
           campaignName: body.campaign_name,
           type: "customized",
           serviceNumber: body.from_number,
@@ -430,7 +430,7 @@ var engine = User.prototype = {
       */
       var textMessage = (requestBody.text.length > 50) ? (requestBody.text.substring(0, 50) + "...") : requestBody.text
       this.batchSummaryReport = {
-        live: true,
+        //live: true,
         campaignName: body.campaign_name,
         type: "group",
         serviceNumber: requestBody.from,
@@ -487,7 +487,7 @@ var engine = User.prototype = {
     },
     readCampaign: function(res, batchId){
       this.batchSummaryReport = {
-        live: false,
+        //live: false,
         campaignName: "",
         type: "",
         serviceNumber: "",
@@ -564,7 +564,7 @@ var engine = User.prototype = {
                   }, 5000)
                 }else{
                   thisUser._updateCampaignDB((err, result) => {
-                    thisUser.batchSummaryReport.live = false
+                    //thisUser.batchSummaryReport.live = false
                     console.log("DONE SEND BATCH")
                   })
                   res.send({
@@ -661,7 +661,7 @@ var engine = User.prototype = {
                   //this.postResults()
                   // update local db
                   thisUser._updateCampaignDB((err, result) => {
-                    thisUser.batchSummaryReport.live = false
+                    //thisUser.batchSummaryReport.live = false
                     console.log("DONE SEND BATCH")
                   })
                 }
@@ -1212,7 +1212,7 @@ var engine = User.prototype = {
     createTable: function (callback) {
       console.log("CREATE TABLE")
       var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-      query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT)"
+      query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]')"
       pgdb.create_table(query, (err, res) => {
         if (err) {
           console.log(err, res)
@@ -1246,9 +1246,9 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [thisUser.batchSummaryReport]
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "", "", "", "", ""]
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "[]", "", "", "", "[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -1276,7 +1276,7 @@ var engine = User.prototype = {
             batch.sentCount = thisUser.batchSummaryReport.sentCount
             batch.unreachableCount = thisUser.batchSummaryReport.unreachableCount
             batch.totalCost = thisUser.batchSummaryReport.totalCost
-            batch.live = false
+            //batch.live = false
             var query = 'UPDATE a2p_sms_users SET '
             query += `batches='${JSON.stringify(batches)}'`
             query += ` WHERE user_id='${thisUser.extensionId}'`
@@ -1339,7 +1339,7 @@ var engine = User.prototype = {
     addTFBatchToDB: function(){
       var thisUser = this
       var newBatch = {
-        live: false,
+        //live: false,
         campaignName: "Campaign Name",
         type: "tollfree",
         serviceNumber: this.fromNumber,
@@ -1374,9 +1374,9 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [newBatch]
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "", "", "", "", ""]
+          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "[]", "", "", "", "[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
