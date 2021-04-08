@@ -390,27 +390,6 @@ button:focus {
   height: 40px;
 }
 
-.recipient-item {
-  position: relative;
-  color: inherit;
-  background-color: #f5f6fb;
-  margin: auto;
-  margin-left: 0px;
-  padding: 6px;
-  min-width: 400px!important;
-  max-width: 400px!important;
-}
-
-.recipient-item.active {
-  color: #ffffff;
-  background-color: #2559e5;
-}
-
-.recipient-item:hover {
-  background: #e5eafa;
-  color: #2559e5;
-}
-
 #control-block {
   overflow-x: hidden;
   overflow-y: scroll;
@@ -434,15 +413,61 @@ button:focus {
   min-width: 600px!important;
   max-width: 600px!important;
 }
-
+/*
 #recipient-list-col {
   min-width: 350px!important;
   max-width: 350px!important;
 }
+*/
+
+.conv-control-pane{
+  background-color: #f5f6fb;
+  min-width: 420px!important;
+  max-width: 420px!important;
+}
 
 .recipient-list {
-  min-width: 350px!important;
-  max-width: 350px!important;
+  min-width: 420px!important;
+  max-width: 420px!important;
+}
+
+.recipient-item {
+  position: relative;
+  color: inherit;
+  background-color: #f5f6fb;
+  margin: auto;
+  margin-left: 0px;
+  padding: 10px;
+  min-width: 420px!important;
+  max-width: 420px!important;
+  clear: both;
+}
+
+.recipient-item.active {
+  color: #ffffff;
+  background-color: #2559e5;
+}
+
+.recipient-item:hover {
+  background: #e5eafa;
+  color: #2559e5;
+}
+
+.message-count {
+  color: #ffffff;
+  font-size: 0.8em;
+  font-weight: bold;
+  padding: 5px;
+  margin-top: -2px;
+  margin-right: -8px;
+  background-color: #ff8800;
+  border-radius: 25px;
+  border: 1px solid #ff8800;
+  display: inline;
+  float: right;
+}
+.recipient-info {
+  display: inline;
 }
 
 .read-message-input-block{

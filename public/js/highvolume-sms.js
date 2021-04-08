@@ -295,22 +295,6 @@ function updateThisCampaign(campaign){
   checkPendingCampaign()
 }
 
-function checkPendingCampaign(){
-  var liveCampaign = isAnyLiveCampaign()
-  if (liveCampaign){ // keep polling a campaign with message(s) in queued status
-    pollingBatchReportTimer = window.setTimeout(function(){
-      readCampaignFromServer(liveCampaign)
-    }, 2000)
-  }else{
-    var pendingCampaign = isAllSentCampaign()
-    if (pendingCampaign){ // keep polling a campaign with message(s) in sent status
-      pollingBatchReportTimer = window.setTimeout(function(){
-        readCampaignFromServer(pendingCampaign)
-      }, 5000)
-    }
-  }
-}
-
 function readVoteResult(){
   var url = "/read-vote-reports"
   var getting = $.get( url );
@@ -509,6 +493,22 @@ function emailSurveyResult(results){
   var mailto = "mailto:?"
   var mail = mailto + subject + body
   window.location.href = mailto + subject + body
+}
+
+function checkPendingCampaign(){
+  var liveCampaign = isAnyLiveCampaign()
+  if (liveCampaign){ // keep polling a campaign with message(s) in queued status
+    pollingBatchReportTimer = window.setTimeout(function(){
+      readCampaignFromServer(liveCampaign)
+    }, 2000)
+  }else{
+    var pendingCampaign = isAllSentCampaign()
+    if (pendingCampaign){ // keep polling a campaign with message(s) in sent status
+      pollingBatchReportTimer = window.setTimeout(function(){
+        readCampaignFromServer(pendingCampaign)
+      }, 5000)
+    }
+  }
 }
 
 function isAnyActiveVote(){

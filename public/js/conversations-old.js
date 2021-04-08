@@ -63,7 +63,7 @@ function searchRecipientName(name){
     var fullName = `${contact.fname} ${contact.lname}`
     if (fullName.toLowerCase().indexOf(name.toLowerCase()) >= 0){
       //var number = contact.phoneNumber
-      var recipient = recipientPhoneNumbers.find(o => o.number == contact.phoneNumber)
+      var recipient = recipientPhoneNumbers.find(o => o == contact.phoneNumber)
       if (recipient){
         showConversation(contact.phoneNumber, ` - ${fullName}`, true)
         var id = parseInt(contact.phoneNumber)
@@ -95,14 +95,14 @@ function searchRecipientNumber(elm){
 
   //var index = 0
   for (var recipient of recipientPhoneNumbers){
-    if (recipient.number.indexOf(number) >= 0){
-      var contact = contactList.find(o => o.phoneNumber === recipient.number)
+    if (recipient.indexOf(number) >= 0){
+      var contact = contactList.find(o => o.phoneNumber === recipient)
       var name = ""
       if (contact)
         var name = ` - ${contact.fname} ${contact.lname}`
-      showConversation(recipient.number, name, true)
+      showConversation(recipient, name, true)
 
-      var id = parseInt(recipient.number)
+      var id = parseInt(recipient)
       var element = document.getElementById(`${id}`)
       var topPos = element.offsetTop;
       document.getElementById('recipient-list').scrollTop = topPos;
@@ -290,99 +290,42 @@ function readMessageStore(token){
     alert(response.statusText);
   });
 }
-/*
-function directionFilter(elm){
+function listByDirection(elm){
   var dir = $(elm).val()
-  var totalInbound = 0
-  var totalOutbound = 0
-  recipientPhoneNumbers = []
-  if (dir == "Outbound"){
-    for (var message of messageList){
-      if (message.direction == dir){
-        totalOutbound++
-        var recipient = recipientPhoneNumbers.find(o => o.number === message.to[0])
-        if (recipient == undefined){
-          if (message.messageStatus != "SendingFailed"){
-            var item = {
-              outbound: 1,
-              inbound: 0,
-              number: message.to[0]
-            }
-            recipientPhoneNumbers.push(item)
-          }
-        }else{
-          recipient.outbound++
-        }
-      }
-    }
-  }else if (dir == "Inbound"){
-    for (var message of messageList){
-      if (message.direction == dir){
-        totalInbound++
-        var recipient = recipientPhoneNumbers.find(o => o.number === message.from)
-        if (recipient == undefined){
-          var item = {
-                outbound: 0,
-                inbound: 1,
-                number: message.from
-          }
-          recipientPhoneNumbers.push(item)
-        }else{
-          recipient.inbound++
-        }
-      }
-    }
-  }
-    // check if the current selected number is still existed
-  var exist = recipientPhoneNumbers.find(o => o.number === currentSelectedItem)
-  if (exist == undefined)
-    currentSelectedItem = 0
-  createRecipientsList(recipientPhoneNumbers, totalOutbound, totalInbound)
+
 }
-*/
 
 function processResult(nextPage){
-  var totalInbound = 0
-  var totalOutbound = 0
   recipientPhoneNumbers = []
+  dateStr = ""
   for (var message of messageList){
     if (message.direction == "Outbound"){
-      totalOutbound++
-      var recipient = recipientPhoneNumbers.find(o => o.number === message.to[0])
-      if (recipient == undefined){
+      var number = recipientPhoneNumbers.find(n => n === message.to[0])
+      if (number == undefined){
         if (message.messageStatus != "SendingFailed"){
           var item = {
-            outbound: 1,
-            inbound: 0,
+            count: 0,
             number: message.to[0]
           }
-          recipientPhoneNumbers.push(item)
+          recipientPhoneNumbers.push(message.to[0])
         }
-      }else{
-        recipient.outbound++
       }
     }else{
-      totalInbound++
-      var recipient = recipientPhoneNumbers.find(o => o.number === message.from)
-      if (recipient == undefined){
-        var item = {
-          outbound: 0,
-          inbound: 1,
-          number: message.from
-        }
-        recipientPhoneNumbers.push(item)
-      }else{
-        recipient.inbound++
+      var number = recipientPhoneNumbers.find(n => n === message.from)
+      if (number == undefined){
+        recipientPhoneNumbers.push(message.from)
       }
     }
   }
-  var exist = recipientPhoneNumbers.find(o => o.number === currentSelectedItem)
+  // check if the current selected number is still existed
+  var exist = recipientPhoneNumbers.find(n => n === currentSelectedItem)
+  //alert(exist)
   if (exist == undefined)
-  currentSelectedItem = 0
+    currentSelectedItem = 0
   $("#left_pane").show()
   $("#downloads").show()
 
-  createRecipientsList(recipientPhoneNumbers, totalOutbound, totalInbound)
+  createRecipientsList(recipientPhoneNumbers)
 
   if (nextPage){
     var link = $("#next-block");
@@ -430,27 +373,23 @@ function processResult(nextPage){
   }
 }
 */
-function createRecipientsList(recipientPhoneNumbers, totalOutbound, totalInbound){
-  var html = `<div id='0' class='recipient-item' onclick='showConversation(0)'><div class="recipient-info">All conversations</div><div class="message-count">${totalInbound}/${totalOutbound}</div></div>`
+function createRecipientsList(recipientPhoneNumbers){
+  var html = `<div id='0' class='recipient-item' onclick='showConversation(0)'>All conversations</div>`
   for (var recipient of recipientPhoneNumbers){
-    var id = parseInt(recipient.number)
+    var id = parseInt(recipient)
     if (contactList.length > 0){
-      var contact = contactList.find(o => o.phoneNumber === recipient.number)
+      var contact = contactList.find(o => o.phoneNumber === recipient)
       if (contact){
         var name = ` - ${contact.fname} ${contact.lname}`
-        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient.number}", "${name}")'>`
-        html += `<span class="recipient-info">${formatPhoneNumber(recipient.number, true)}${name}</span><span class="message-count">${recipient.inbound}/${recipient.outbound}</span>`
-      }else{
-        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient.number}", "")'>`
-        html += `<span class="recipient-info">${formatPhoneNumber(recipient.number, true)}</span><span class="message-count">${recipient.inbound}/${recipient.outbound}</span>`
-      }
+        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "${name}")'>${formatPhoneNumber(recipient, true)}${name}</div>`
+      }else
+        html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient, true)}</div>`
     }else{
-      html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient.number}", "")'>`
-      html += `<span class="recipient-info">${formatPhoneNumber(recipient.number, true)}</span><span class="message-count"">${recipient.inbound}/${recipient.outbound}</span>`
+      html += `<div id='${id}' class='recipient-item' onclick='showConversation("${recipient}", "")'>${formatPhoneNumber(recipient, true)}</div>`
     }
-    html += "</div>"
   }
   $("#recipient-list").html(html)
+
   showConversation(currentSelectedItem, currentSelectedContact)
 }
 
@@ -464,14 +403,14 @@ function showConversation(recipient, name, fromSearch){
   if (messageList != undefined){
     var html = '<div class="chat-container"><ul class="chat-box chatContainerScroll">'
     dateStr = ""
-    //var totalMessage = 0
+    var totalMessage = 0
     if (recipient == 0){
       $("#message-input").hide()
       conversationHeight = 50
       setElementsHeight()
       $("#conversation-title").html(`All conversations`)
-      //totalMessage = messageList.length
-      var maxLen = messageList.length - 1
+      totalMessage = messageList.length
+      var maxLen = totalMessage - 1
       for (var i=maxLen; i>=0; i--){
         var msg = messageList[i]
         html += createConversationItem(msg, false)
@@ -495,7 +434,7 @@ function showConversation(recipient, name, fromSearch){
             if (number < 0)
               myNumbers.push(msg.to[0])
             html += createConversationItem(msg, true)
-            //totalMessage++
+            totalMessage++
           }
         }else if (msg.direction == "Outbound"){
           if (recipient == msg.to[0]){
@@ -503,12 +442,12 @@ function showConversation(recipient, name, fromSearch){
             if (number < 0)
               myNumbers.push(msg.from)
             html += createConversationItem(msg, true)
-            //totalMessage++
+            totalMessage++
           }
         }
       }
     }
-    //$("#total").html(`${totalMessage} messages`)
+    $("#total").html(`${totalMessage} messages`)
     html += "</ul></div>"
     $("#conversation").html(html)
     $("#conversation").animate({ scrollTop: $("#conversation")[0].scrollHeight}, 100);
