@@ -453,6 +453,11 @@ function readFileRecipients(elm){
     reader.readAsText(file);
     reader.onload = function(e) {
       recipientsFromFile = e.target.result.trim().split("\r\n")
+      if (!isValidCSVContent()){
+        _alert("Invalid .CSV format file!")
+        $(elm).val("")
+        return
+      }
       processCsvFileContent()
     };
   }else{
@@ -467,6 +472,21 @@ function readFileRecipients(elm){
     $("#csv-template-columns").hide()
     //$("#opted-out-block").hide()
   }
+}
+
+function isValidCSVContent(){
+  if (recipientsFromFile.length < 2){
+    return false
+  }else{
+    var header = recipientsFromFile[0]
+    var headerCols = header.trim().split(",")
+    var firstRow = recipientsFromFile[1]
+    var firstRowCols = firstRow.trim().split(",")
+    if (headerCols.length != firstRowCols.length){
+      return false
+    }
+  }
+  return true
 }
 
 function processCsvFileContent(){

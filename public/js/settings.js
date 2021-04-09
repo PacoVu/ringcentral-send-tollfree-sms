@@ -135,6 +135,11 @@ function loadContactsFile(elm){
     reader.readAsText(file);
     reader.onload = function(e) {
       var contactsFromFile = e.target.result.trim().split("\r\n")
+      if (!isValidCSVContent(contactsFromFile)){
+        _alert("Invalid .CSV format file!")
+        $(elm).val("")
+        return
+      }
       var header = contactsFromFile[0]
       var columns = header.trim().split(",")
       displayColumns(columns)
@@ -142,6 +147,21 @@ function loadContactsFile(elm){
   }else{
     resetContactForm()
   }
+}
+
+function isValidCSVContent(rows){
+  if (rows.length < 2){
+    return false
+  }else{
+    var header = rows[0]
+    var headerCols = header.trim().split(",")
+    var firstRow = rows[1]
+    var firstRowCols = firstRow.trim().split(",")
+    if (headerCols.length != firstRowCols.length){
+      return false
+    }
+  }
+  return true
 }
 
 function resetContactForm(){

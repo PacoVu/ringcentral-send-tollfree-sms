@@ -97,6 +97,7 @@ function getUserIndex(id){
   for (var i=0; i<users.length; i++){
     var user = users[i]
     if (user != null){
+      console.log(user.getUserId())
       if (id == user.getUserId()){
         return i
       }
@@ -115,13 +116,22 @@ function getUserIndexByExtensionId(extId){
   return -1
 }
 
+function makeId() {
+  var text = "";
+  var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (var i = 1; i < 65; i++){
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
 var router = module.exports = {
   getEngine: function(){
     return activeUsers
   },
   loadLogin: function(req, res){
     if (req.session.userId == 0 || req.session.extensionId == 0) {
-      var id = new Date().getTime()
+      var id = makeId() //new Date().getTime()
       req.session.userId = id;
       //var user = new User(id)
       var user = new (require('./usershandler.js'))(id);

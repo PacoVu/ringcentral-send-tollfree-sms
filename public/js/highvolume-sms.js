@@ -66,7 +66,7 @@ function readCampaigns(){
         createNewCampaign()
       else
         $("#history").show()
-      console.log(JSON.stringify(campaignList))
+      //console.log(JSON.stringify(campaignList))
       listAllCampaigns(undefined)
     }else if (res.status == "error"){
       _alert(res.message)
@@ -129,6 +129,7 @@ function listAllCampaigns(recentBatch){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
+    if (item.type == "tollfree") continue
     var date = new Date(item.creationTime)
     var timestamp = item.creationTime - timeOffset
     date = new Date (timestamp)
@@ -522,12 +523,14 @@ function isAnyActiveVote(){
 
 function isAnyLiveCampaign(){
   for (var campaign of campaignList){
-    if (campaign.queuedCount){
-      return campaign
-    }else{
-      var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
-      if (total == 0)
+    if (campaign.type != "tollfree"){
+      if (campaign.queuedCount){
         return campaign
+      }else{
+        var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
+        if (total == 0)
+          return campaign
+      }
     }
   }
   return null
