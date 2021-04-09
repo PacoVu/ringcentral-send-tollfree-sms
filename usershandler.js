@@ -2106,7 +2106,6 @@ var engine = User.prototype = {
                   to: [{'phoneNumber': recipient }],
                   text: thisUser.sendMessage
                 }
-                console.log(params)
                 var resp = await p.post('/restapi/v1.0/account/~/extension/~/sms', params)
                 var jsonObj = await resp.json()
                 var item = {
