@@ -226,7 +226,9 @@ var engine = User.prototype = {
                   })
                 }
               }else{ // should subscribe for notification and create eventEngine by default
+                console.log("check subscription")
                 this.subscribeForNotification((err, subscriptionId) => {
+                  console.log("check eventEngine")
                   thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
                   //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
                   // must push to router's activeUser list in order to receive routed subscription
