@@ -1038,7 +1038,7 @@ var engine = User.prototype = {
           this.batchResult['creationTime'] = jsonObj.creationTime
           this.batchResult['lastModifiedTime'] = jsonObj.lastModifiedTime
           //this.batchResult.rejectedNumbers = jsonObj.rejected
-          //console.log(jsonObj)
+          console.log(jsonObj)
           // implement for vote
           if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
             /*
@@ -2098,7 +2098,7 @@ var engine = User.prototype = {
 
             var timeLeft = formatEstimatedTimeLeft(unsentCount * (thisUser.delayInterval/1000))
 
-            var p = thisUser.rc_platform.getPlatform(this.extensionId)
+            var p = await thisUser.rc_platform.getPlatform(thisUser.extensionId)
             if (p){
               try {
                 var params = {
@@ -2106,6 +2106,7 @@ var engine = User.prototype = {
                   to: [{'phoneNumber': recipient }],
                   text: thisUser.sendMessage
                 }
+                console.log(params)
                 var resp = await p.post('/restapi/v1.0/account/~/extension/~/sms', params)
                 var jsonObj = await resp.json()
                 var item = {

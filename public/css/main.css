@@ -422,13 +422,13 @@ button:focus {
 
 .conv-control-pane{
   background-color: #f5f6fb;
-  min-width: 420px!important;
-  max-width: 420px!important;
+  min-width: 450px!important;
+  max-width: 450px!important;
 }
 
 .recipient-list {
-  min-width: 420px!important;
-  max-width: 420px!important;
+  min-width: 450px!important;
+  max-width: 450px!important;
 }
 
 .recipient-item {
@@ -438,8 +438,9 @@ button:focus {
   margin: auto;
   margin-left: 0px;
   padding: 10px;
-  min-width: 420px!important;
-  max-width: 420px!important;
+  padding-right: 20px;
+  min-width: 450px!important;
+  max-width: 450px!important;
   clear: both;
 }
 
