@@ -97,7 +97,6 @@ function getUserIndex(id){
   for (var i=0; i<users.length; i++){
     var user = users[i]
     if (user != null){
-      console.log(user.getUserId())
       if (id == user.getUserId()){
         return i
       }
