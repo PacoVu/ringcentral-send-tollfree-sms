@@ -1109,9 +1109,6 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          //console.log("READ BATCH")
-          //console.log(JSON.stringify(jsonObj))
-          //console.log("READ RETURN")
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
               case "Queued":
@@ -1141,8 +1138,10 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             this._updateCampaignDB(batchReport, (err, result) => {
-              if (batchReport.sentCount == 0)
+              if (batchReport.sentCount == 0){
+                console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
                 thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
+              }
               console.log("DONE READ BATCH REPORT")
             })
             res.send({
@@ -1237,8 +1236,9 @@ var engine = User.prototype = {
         console.log("platform issue")
       }
     },
-    readCampaignDetails: function(res, batchId, pageToken){
-      this.batchFullReport = []
+    readCampaignDetails: async function(res, batchId, pageToken){
+      // closed for testing
+      /*
       var batchReport = {
         //live: false,
         totalCount: 0,
@@ -1249,191 +1249,54 @@ var engine = User.prototype = {
         deliveryFailedCount: 0,
         totalCost: 0.0
       }
+      this.batchFullReport = []
       this._readCampaignDetailsFromServer(res, batchId, batchReport, "")
-      // new code. Read single page only
-      /*
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: batchId
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
-
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
-          var keepPolling = false
-          for (var message of jsonObj.records){
-            switch (message.messageStatus) {
-              case "Queued":
-                //batchReport.live = true
-                batchReport.queuedCount++
-                break;
-              case "Delivered":
-                batchReport.deliveredCount++
-                break;
-              case "Sent":
-                batchReport.sentCount++
-                break;
-              case "DeliveryFailed":
-                batchReport.deliveryFailedCount++
-                break;
-              case "SendingFailed":
-                batchReport.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            batchReport.totalCost += cost
-          }
-          //console.log(jsonObj.paging)
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("Read next page")
-            var thisUser = this
-            setTimeout(function(){
-              thisUser._readCampaignDetailsFromServer(res, batchId, batchReport, jsonObj.paging.nextPageToken)
-            }, 1200)
-          }else{
-            res.send({
-                status: "ok",
-                summaryReport: batchReport,
-                fullReport: this.batchFullReport
-              })
-            // reset class batchFullReport to release memory? User may want to download the report
-            // this.batchFullReport = []
-          }
-        } catch (e) {
-          console.log('ERR ' + e.message);
-          res.send({
-            status: "error",
-            message: e.message
-          })
-        }
-      }else{
-        res.send({
-          status: "failed",
-          message: "You have been logged out. Please login again."
-        })
-      }
       */
-    },
-    _readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
-      console.log("_readCampaignDetailsFromServer")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: batchId
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
+      // new code. Read single page only
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+        var params = {
+          batchId: batchId,
+          perPage: 1000
+        }
+        if (pageToken != "")
+          params['pageToken'] = pageToken
 
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
-          //var appendFile = (pageToken == "") ? true : false
-          //this.writeToFile(batchId, jsonObj.records, appendFile)
-          var keepPolling = false
-          for (var message of jsonObj.records){
-            switch (message.messageStatus) {
-              case "Queued":
-                //batchReport.live = true
-                batchReport.queuedCount++
-                break;
-              case "Delivered":
-                batchReport.deliveredCount++
-                break;
-              case "Sent":
-                batchReport.sentCount++
-                break;
-              case "DeliveryFailed":
-                batchReport.deliveryFailedCount++
-                break;
-              case "SendingFailed":
-                batchReport.sendingFailedCount++
-                break;
-              default:
-                break
+        var p = await this.rc_platform.getPlatform(this.extensionId)
+        if (p){
+          try {
+            var resp = await p.get(endpoint, params)
+            var jsonObj = await resp.json()
+
+            console.log(jsonObj.paging)
+            var nextPage = ""
+            var prevPage = ""
+            if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+              console.log("next page")
+              nextPage = jsonObj.paging.nextPageToken
             }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            batchReport.totalCost += cost
-          }
-          //console.log(jsonObj.paging)
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("Read next page")
-            var thisUser = this
-            setTimeout(function(){
-              thisUser._readCampaignDetailsFromServer(res, batchId, batchReport, jsonObj.paging.nextPageToken)
-            }, 1200)
-          }else{
+            if (jsonObj.paging.hasOwnProperty("previousPageToken")){
+              console.log("prev page")
+              prevPage = jsonObj.paging.previousPageToken
+            }
             res.send({
                 status: "ok",
-                summaryReport: batchReport,
-                fullReport: this.batchFullReport
-              })
-            // reset class batchFullReport to release memory? User may want to download the report
-            // this.batchFullReport = []
+                nextPage: nextPage,
+                prevPage: prevPage,
+                fullReport: jsonObj.records
+            })
+          } catch (e) {
+            console.log('ERR ' + e.message);
+            res.send({
+              status: "error",
+              message: e.message
+            })
           }
-        } catch (e) {
-          console.log('ERR ' + e.message);
+        }else{
           res.send({
-            status: "error",
-            message: e.message
+            status: "failed",
+            message: "You have been logged out. Please login again."
           })
         }
-      }else{
-        res.send({
-          status: "failed",
-          message: "You have been logged out. Please login again."
-        })
-      }
-    },
-    writeToFile: function(batchId, records, appendFile){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir + batchId
-      var fileContent = ""
-      fullNamePath += '-batch-report.csv'
-      fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
-      var timeOffset = parseInt(req.query.timeOffset)
-      let dateOptions = { weekday: 'short' }
-      for (var item of records){
-        var from = formatPhoneNumber(item.from)
-        var to = formatPhoneNumber(item.to[0])
-        var date = new Date(item.creationTime)
-        var timestamp = date.getTime() - timeOffset
-        var createdDate = new Date (timestamp)
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        date = new Date(item.lastModifiedTime)
-        var timestamp = date.getTime() - timeOffset
-        var updatedDate = new Date (timestamp)
-        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
-        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
-        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
-      }
-
-      try{
-        if (appendFile == false){
-          fs.writeFileSync('./'+ fullNamePath, fileContent)
-        }else{
-          fs.appendFileSync('./'+ fullNamePath, fileContent)
-        }
-      }catch(e){
-          console.log("cannot create report file")
-      }
-      downloadLink = "/downloads?filename=" + fullNamePath
-      //res.send({"status":"ok","message":link})
     },
     getVoteResult: function (res){
       //console.log("getVoteResult")
@@ -1750,7 +1613,7 @@ var engine = User.prototype = {
             fileContent += `,${voter.isReplied}`
             fileContent += `,${voter.isSent}`
           }
-          fullNamePath += `-${campaign.campaignName.replace(" ", "-")}-survey-result.csv`
+          fullNamePath += `-${campaign.campaignName.replace(/\s/g, "-")}-survey-result.csv`
           try{
             fs.writeFileSync('./'+ fullNamePath, fileContent)
             var link = "/downloads?filename=" + fullNamePath
@@ -1774,7 +1637,7 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(" ", "-")
+      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(/\s/g, "-")
       var fileContent = ""
       fullNamePath += '-invalid-numbers.csv'
       fileContent = "Index,Number,Error Code,Description"
@@ -1809,13 +1672,13 @@ var engine = User.prototype = {
         }
       })
     },
-    downloadBatchReport_new: function(req, res){
-      console.log("downloadLink: " + this.downloadLink)
-      res.send({"status":"ok","message": this.downloadLink})
-      /*
+    //_readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
+    _createReportFile: async function(query, pageToken, callback){
+      console.log("_createReportFile")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
-        batchId: batchId
+        batchId: query.batchId,
+        perPage: 1000
       }
       if (pageToken != "")
         params['pageToken'] = pageToken
@@ -1825,32 +1688,91 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
+          var appendFile = (pageToken == "") ? false : true
+          var link = this.writeToFile(query, jsonObj.records, appendFile)
 
-          //this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
-
+          //console.log(jsonObj.paging)
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("has nextPageToken")
+            console.log("Read next page")
+            var thisUser = this
             setTimeout(function(){
-              this.downloadBatchReport(req, res, jsonObj.paging.nextPageToken)
+              thisUser._createReportFile(query, jsonObj.paging.nextPageToken, callback)
             }, 1200)
           }else{
-            var thisUser = this
-
+            callback(null, link)
           }
         } catch (e) {
           console.log('ERR ' + e.message);
+          callback('error', "error")
         }
       }else{
-        console.log("platform issue")
+        callback("error", "failed")
       }
-      */
     },
-    downloadBatchReport: function(req, res){
+    writeToFile: function(query, records, appendFile){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(" ", "-")
+      var fullNamePath = dir + decodeURIComponent(query.campaignName).replace(/\s/g, "-")
+      var fileContent = ""
+      fullNamePath += '-campaign-report.csv'
+      if (appendFile == false)
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+      var timeOffset = parseInt(query.timeOffset)
+      let dateOptions = { weekday: 'short' }
+      for (var item of records){
+        var from = formatPhoneNumber(item.from)
+        var to = formatPhoneNumber(item.to[0])
+        var date = new Date(item.creationTime)
+        var timestamp = date.getTime() - timeOffset
+        var createdDate = new Date (timestamp)
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        date = new Date(item.lastModifiedTime)
+        var timestamp = date.getTime() - timeOffset
+        var updatedDate = new Date (timestamp)
+        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+      }
+
+      try{
+        if (appendFile == false){
+          fs.writeFileSync('./'+ fullNamePath, fileContent)
+        }else{
+          fs.appendFileSync('./'+ fullNamePath, fileContent)
+        }
+      }catch(e){
+          console.log("cannot create report file")
+      }
+      //downloadLink = "/downloads?filename=" + fullNamePath
+      return "/downloads?filename=" + fullNamePath
+    },
+    downloadBatchReport: function(req, res){
+      console.log("downloadBatchReport")
+      this._createReportFile(req.query, "", (err, link) => {
+        if (!err){
+          console.log("file is ready for download")
+          res.send({"status":"ok","message": link})
+        }else{
+          console.log("WTF")
+          res.send({
+            status: "error",
+            message: "Failed to read campaign report. Please retry!"
+          })
+        }
+      })
+    },
+    downloadBatchReport_old: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(/\s/g, "-")
       var fileContent = ""
       fullNamePath += '-batch-report.csv'
       fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
@@ -2016,6 +1938,21 @@ var engine = User.prototype = {
         // may need to clear tokens and destroy eventEngine etc.
         callback(null, "logged out")
       }
+    },
+    readBatchReportFromDB: function(batchId, callback){
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (!err && result.rows.length > 0){
+          var batch = undefined
+          if (result.rows[0].batches.length){
+            batches = JSON.parse(result.rows[0].batches)
+            batch = batches.find(o => o.batchId === batchId)
+          }
+          callback(null, batch)
+        }else{ // no history
+          callback(null, undefined)
+        }
+      })
     },
     readCampaignsLogFromDB: function(res){
       var thisUser = this

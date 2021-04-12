@@ -92,16 +92,18 @@ function listAllCampaigns(){
   var html = ""
   for (var item of campaignList) {
     if (item.type == "tollfree") continue
-    html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign(this, '${item.batchId}')">${item.campaignName}</div>`
+    html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign('${item.batchId}', '')">${item.campaignName}</div>`
   }
   $("#campaign-list").html(html)
-
+  console.log(campaignList[0])
   var batchId = campaignList[0].batchId
-  readCampaign($(`#${batchId}`), batchId)
+  //readCampaign($(`#${batchId}`), batchId, "")
+  readCampaign(batchId, "")
 }
 
 var currentSelectedItem = undefined
-function readCampaign(elm, batchId){
+function readCampaign(batchId, pageToken){
+  var elm = $(`#${batchId}`)
   var campaign = campaignList.find(o => o.batchId === batchId)
   if (currentSelectedItem != undefined){
     $(currentSelectedItem).removeClass("active");
@@ -113,12 +115,39 @@ function readCampaign(elm, batchId){
   var createdDate = new Date (timestamp)
   var createdDateStr = createdDate.toISOString()
   createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-  var url = `read-campaign-details?batchId=${batchId}`
-  var getting = $.get( url );
+  //var url = `read-campaign-details?batchId=${batchId}`
+  var url = `read-campaign-details`
+  var params = {
+    batchId: batchId,
+    pageToken: pageToken
+  }
+  var getting = $.get( url, params );
   getting.done(function( res ) {
     if (res.status == "ok"){
       createFullReport(res.fullReport)
-      var batchReport = res.summaryReport
+
+      var html = ""
+      if (res.prevPage != ""){
+        // create and show nextPage button
+        html = '<div class="right">'
+        html += `<a href="#" onclick="readCampaign('${batchId}', '${res.prevPage}')">Previous page</a>`
+      }
+      if (res.nextPage != ""){
+        // create and show nextPage button
+        if (html == ""){
+          html = '<div class="right">'
+        }else{
+          html += "&nbsp; | &nbsp;"
+        }
+        html += `<a href="#" onclick="readCampaign('${batchId}', '${res.nextPage}')">Next page</a>`
+      }
+      if (html != ""){
+        html += '</div>'
+        console.log(html)
+        $("#pages").show()
+        $("#pages").html(html)
+      }
+
       var timeOffset = new Date().getTimezoneOffset()*60000;
       var timestamp = campaign.creationTime - timeOffset
       var createdDate = new Date (timestamp)
@@ -127,8 +156,10 @@ function readCampaign(elm, batchId){
       //$("#campaign-title").html("Selected campaign: <p>" + campaign.campaignName + "</p>")
       //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
       var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
-      title += `<a href="#" onclick="downloadBatchReport('${campaign.campaignName}');return false;">Download report</a>&nbsp;&nbsp;|&nbsp;&nbsp;`
-      title += `<a href="#" onclick="deleteCampaignResult('${campaign.batchId}');return false;">Delete campaign</a></div>`
+      var download = `<button class="rc-oval-btn" onclick="downloadBatchReport('${campaign.batchId}', '${campaign.campaignName}');">Download report</button>&nbsp;&nbsp;`
+      var deleteBtn = `<button class="rc-oval-btn" onclick="deleteCampaignResult('${campaign.batchId}')">Delete campaign</button>`
+      $("#download").html(download)
+      $("#delete").html(deleteBtn)
       if (campaign.rejectedCount > 0)
         title += `&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#" onclick="downloadInvalidNumbers('${campaign.batchId}', '${campaign.campaignName}');return false;">Download invalid numbers</a></div>`
       $("#campaign-title").html( title )
@@ -138,7 +169,7 @@ function readCampaign(elm, batchId){
       report += `<div class="info-line"><img class="medium-icon" src="../img/recipient.png"></img> ${campaign.totalCount} recipients</div>`
       if (campaign.rejectedCount > 0)
         report += `<div class="info-line"><img class="medium-icon" src="../img/invalid-number.png"></img> ${campaign.rejectedCount} invalid phone number(s)</div>`
-      report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${batchReport.totalCost.toFixed(3)}</div>`
+      report += `<div class="info-line"><img class="medium-icon" src="../img/cost.png"></img> USD ${campaign.totalCost.toFixed(3)}</div>`
       var msg = (campaign.message.length > 50) ? campaign.message.substring(0, 50) : campaign.message
       report += `<p class="info-line"><img class="medium-icon" src="../img/message.png"></img> ${msg}</p>`
       report += "</div>"
@@ -147,15 +178,13 @@ function readCampaign(elm, batchId){
       var arr = ['Results', '#'];
       params.push(arr);
 
-      var item = ["Pending", batchReport.queuedCount];
+      var item = ["Pending", campaign.queuedCount];
       params.push(item);
-      item = ["Sent", batchReport.sentCount]
+      item = ["Sent", campaign.sentCount]
       params.push(item);
-      item = ["Delivered", batchReport.deliveredCount]
+      item = ["Delivered", campaign.deliveredCount]
       params.push(item);
-      item = ["Sending Failed", batchReport.sendingFailedCount]
-      params.push(item);
-      item = ["Delivery Failed", batchReport.deliveryFailedCount]
+      item = ["Failed", campaign.unreachableCount]
       params.push(item);
       plotBatchReport(params)
     }else if (res.status == "error"){
@@ -218,14 +247,22 @@ function createFullReport(fullReports){
   $("#report-content").html(html)
 }
 
-function downloadBatchReport(name){
+function downloadBatchReport(batchId, name){
+  $("#download-indicator").show()
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = `download-batch-report?campaign_name=${encodeURIComponent(name)}&timeOffset=${timeOffset}`
-  var getting = $.get( url );
+  var url = `download-batch-report`
+  var params = {
+    batchId: batchId,
+    campaignName: encodeURIComponent(name),
+    timeOffset: timeOffset
+  }
+  var getting = $.get( url, params );
   getting.done(function( res ) {
     if (res.status == "ok"){
+      $("#download-indicator").hide()
       window.location.href = res.message
     }else if (res.status == "error"){
+      $("#download-indicator").hide()
       _alert(res.message)
     }else{
       if (res.message)

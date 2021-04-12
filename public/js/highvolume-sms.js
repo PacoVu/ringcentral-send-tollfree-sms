@@ -585,19 +585,3 @@ function downloadSurveyResult(batchId){
     }
   });
 }
-/*
-
-function downloadReport(format){
-  var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = "downloadbatchreport?format=" + format + "&timeOffset=" + timeOffset
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok")
-      window.location.href = res.message
-    else{
-      console.log(res.message)
-      alert(res.message)
-    }
-  });
-}
-*/

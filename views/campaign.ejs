@@ -56,9 +56,21 @@
                 </tr>
               </table>
             </div>
+            <div class="col-lg-1 split"></div>
+            <div class="col-lg-5" style="display: block">
+              <div id="delete"></div><br/>
+              <div id="download" style="display: inline"></div>
+              <span id="download-indicator" style="display: none">Creating file, please wait! <img src='./img/loading.gif' style='width:30px;display: inline;'></img></span>
+            </div>
           </div>
         </div>
         <!--div id="report-content" class="row col-xs-12"></div-->
+        <div id="pages" class="row col-lg-12 report-content-header" style="display: none">
+          <div class="right">
+          <a href="#" onclick="loadNextPage()">Previous page</a>&nbsp; | &nbsp;
+          <a href="#" onclick="loadNextPage()">Next page</a>
+          </div>
+        </div>
         <div id="report-content-header" class="row col-lg-12 report-content-header">
         <div class="row col-lg-12 small_font header">
           <div class="col-lg-2">To</div>
