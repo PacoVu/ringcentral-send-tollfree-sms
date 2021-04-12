@@ -544,17 +544,22 @@ function createConversationItem(item, conversation){
     if (conversation){
       if (item.messageStatus == "Delivered"){
         line += `<div class="chat-text">${item.text}</div>`
-        line += `<div class="chat-avatar chat-name">${timeStr}</div>`
+      }else if (item.messageStatus == "Queued" || item.messageStatus == "Sent"){
+        line += `<div class="chat-avatar chat-hour">Pending&nbsp;</div>`
+        line += `<div class="chat-text warning">${item.text}</div>`
       }else{
-        line += `<div class="chat-avatar chat-hour">Failed&nbsp;&nbsp;</div>`
+        line += `<div class="chat-avatar chat-hour">Failed&nbsp;</div>`
         line += `<div class="chat-text error">${item.text}</div>`
-        line += `<div class="chat-avatar chat-name">${timeStr}</div>`
       }
+      line += `<div class="chat-avatar chat-name">${timeStr}</div>`
     }else{
       if (item.messageStatus == "Delivered"){
         line += `<div class="chat-text">${item.text}</div>`
+      }else if (item.messageStatus == "Queued" || item.messageStatus == "Sent"){
+        line += `<div class="chat-avatar chat-hour">Pending&nbsp;</div>`
+        line += `<div class="chat-text warning">${item.text}</div>`
       }else{
-        line += `<div class="chat-avatar chat-hour">Failed&nbsp;&nbsp;</div>`
+        line += `<div class="chat-avatar chat-hour">Failed&nbsp;</div>`
         line += `<div class="chat-text error">${item.text}</div>`
       }
       line += `<div class="chat-avatar chat-name">${timeStr}<br>To: ${getContactName(item.to[0])}</div>`

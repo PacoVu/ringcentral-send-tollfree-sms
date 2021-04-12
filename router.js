@@ -26,7 +26,7 @@ function autoStart(){
                 // create platform
                 if (user.access_tokens.length > 0){
                   var platform = new RCPlatform(user.user_id)
-                  var platform = new (require('./platform.js'))(user.user_id);
+                  //var platform = new (require('./platform.js'))(user.user_id);
                   //console.log(user.access_tokens)
                   platform.autoLogin(user.access_tokens, (err, res) => {
                     var aUser = new ActiveUser(user.user_id, user.subscription_id)
@@ -168,19 +168,6 @@ var router = module.exports = {
     users[index].login(req, res, function(err, extensionId){
       // result contain extensionId. Use it to check for orphan user and remove it
       if (!err){
-        /* remove
-        for (var i = 0; i < users.length; i++){
-          console.log("REMOVING")
-          var extId = users[i].getExtensionId()
-          var userId = users[i].getUserId()
-          if (extId == extensionId && userId != req.session.userId){
-            console.log("REMOVE USER: " )
-            users[i] = null
-            users.splice(i, 1);
-            break
-          }
-        }
-        */
         console.log("USERLENGTH: " + users.length)
         var shouldReplace = false
         var oldUser = null

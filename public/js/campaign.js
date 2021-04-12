@@ -91,6 +91,7 @@ function listAllCampaigns(){
   var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
   for (var item of campaignList) {
+    if (item.type == "tollfree") continue
     html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign(this, '${item.batchId}')">${item.campaignName}</div>`
   }
   $("#campaign-list").html(html)

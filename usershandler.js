@@ -50,7 +50,7 @@ function User(id) {
   }
 
   this.batchType = ""
-
+  this.downloadLink = ""
   this.batchFullReport = []
   this.smsBatchIds = []
   this.mainCompanyNumber = ""
@@ -206,8 +206,6 @@ var engine = User.prototype = {
             if (this.phoneHVNumbers.length){
               this.eventEngine = router.getEngine().find(o => o.extensionId.toString() === this.extensionId.toString())
               if (this.eventEngine){
-                // replace the one created by auto start
-                this.eventEngine.setPlatform(this.rc_platform)
                 this.subscriptionId = this.eventEngine.subscriptionId
                 if (this.eventEngine.subscriptionId == ""){
                   this.subscribeForNotification((err, subscriptionId) => {
@@ -226,11 +224,9 @@ var engine = User.prototype = {
                   })
                 }
               }else{ // should subscribe for notification and create eventEngine by default
-                console.log("check subscription")
                 this.subscribeForNotification((err, subscriptionId) => {
-                  console.log("check eventEngine")
-                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
-                  //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
+                  //thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
+                  thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
                   // must push to router's activeUser list in order to receive routed subscription
                   router.getEngine().push(thisUser.eventEngine)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
@@ -241,6 +237,62 @@ var engine = User.prototype = {
                 })
               }
             }
+            /*
+            this.eventEngine = router.getEngine().find(o => o.extensionId.toString() === this.extensionId.toString())
+            if (this.eventEngine){
+              // replace the one created by auto start
+              this.eventEngine.setPlatform(this.rc_platform)
+              if (this.phoneHVNumbers.length){
+                this.subscriptionId = this.eventEngine.subscriptionId
+                if (this.eventEngine.subscriptionId == ""){
+                  this.subscribeForNotification((err, subscriptionId) => {
+                    if (!err){
+                      thisUser.eventEngine.subscriptionId = subscriptionId
+                    }
+                    console.log("new subscriptionId: " + subscriptionId)
+                  })
+                }else{
+                  this.renewNotification((err, subscriptionId) => {
+                    if (!err){
+                      console.log("SUB ID: " + subscriptionId)
+                      thisUser.eventEngine.subscriptionId = subscriptionId
+                      thisUser.subscriptionId = subscriptionId
+                    }
+                  })
+                }
+              }
+            }else{ // should subscribe for notification and create eventEngine by default
+              if (this.phoneHVNumbers.length){
+                this.subscribeForNotification((err, subscriptionId) => {
+                  if (!err)
+                    console.log("subscriptionId: " + subscriptionId)
+                  console.log("check eventEngine")
+                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
+                    //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
+                    // must push to router's activeUser list in order to receive routed subscription
+                  router.getEngine().push(thisUser.eventEngine)
+                  thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
+                    if (err == null){
+                      console.log("eventEngine is set")
+                    }
+                  })
+                })
+              }
+              //
+              this.subscribeForNotification((err, subscriptionId) => {
+                //thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
+                thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
+                // must push to router's activeUser list in order to receive routed subscription
+                router.getEngine().push(thisUser.eventEngine)
+                thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
+                  if (err == null){
+                    console.log("eventEngine is set")
+                  }
+                })
+              })
+              //
+            }
+            */
           }else{
             console.log('login failed: no platform object')
             callback(null, extensionId)
@@ -1034,13 +1086,12 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint)
           var jsonObj = await resp.json()
-          //this.batchResult = jsonObj
           this.batchResult.processedCount = jsonObj.processedCount
           this.batchResult.status = jsonObj.status
           this.batchResult['creationTime'] = jsonObj.creationTime
           this.batchResult['lastModifiedTime'] = jsonObj.lastModifiedTime
           //this.batchResult.rejectedNumbers = jsonObj.rejected
-          console.log(jsonObj)
+          //console.log(jsonObj)
           // implement for vote
           if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
             /*
@@ -1170,6 +1221,8 @@ var engine = User.prototype = {
           var jsonObj = await resp.json()
 
           this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
+          var appendFile = (pageToken == "") ? true : false
+          this.writeToFile(batchId, jsonObj.records, appendFile)
 
           var keepPolling = false
           for (var message of jsonObj.records){
@@ -1228,14 +1281,49 @@ var engine = User.prototype = {
         console.log("platform issue")
       }
     },
-    readCampaignDetails: function(res, batchId){
-      console.log("readCampaignDetails")
-      /*
-      this.batchSummaryReport.queuedCount = 0
-      this.batchSummaryReport.deliveredCount = 0
-      this.batchSummaryReport.unreachableCount = 0
-      this.batchSummaryReport.totalCost = 0
-      */
+    writeToFile: function(batchId, records, appendFile){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + batchId
+      var fileContent = ""
+      fullNamePath += '-batch-report.csv'
+      fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+      var timeOffset = parseInt(req.query.timeOffset)
+      let dateOptions = { weekday: 'short' }
+      for (var item of records){
+        var from = formatPhoneNumber(item.from)
+        var to = formatPhoneNumber(item.to[0])
+        var date = new Date(item.creationTime)
+        var timestamp = date.getTime() - timeOffset
+        var createdDate = new Date (timestamp)
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        date = new Date(item.lastModifiedTime)
+        var timestamp = date.getTime() - timeOffset
+        var updatedDate = new Date (timestamp)
+        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+      }
+
+      try{
+        if (appendFile == false){
+          fs.writeFileSync('./'+ fullNamePath, fileContent)
+        }else{
+          fs.appendFileSync('./'+ fullNamePath, fileContent)
+        }
+      }catch(e){
+          console.log("cannot create report file")
+      }
+      downloadLink = "/downloads?filename=" + fullNamePath
+      //res.send({"status":"ok","message":link})
+    },
+    readCampaignDetails: function(res, batchId, pageToken){
       this.batchFullReport = []
       var batchReport = {
         //live: false,
@@ -1248,6 +1336,76 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       this._readCampaignDetailsFromServer(res, batchId, batchReport, "")
+      // new code. Read single page only
+      /*
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batchId
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
+          var keepPolling = false
+          for (var message of jsonObj.records){
+            switch (message.messageStatus) {
+              case "Queued":
+                //batchReport.live = true
+                batchReport.queuedCount++
+                break;
+              case "Delivered":
+                batchReport.deliveredCount++
+                break;
+              case "Sent":
+                batchReport.sentCount++
+                break;
+              case "DeliveryFailed":
+                batchReport.deliveryFailedCount++
+                break;
+              case "SendingFailed":
+                batchReport.sendingFailedCount++
+                break;
+              default:
+                break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            batchReport.totalCost += cost
+          }
+          //console.log(jsonObj.paging)
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            console.log("Read next page")
+            var thisUser = this
+            setTimeout(function(){
+              thisUser._readCampaignDetailsFromServer(res, batchId, batchReport, jsonObj.paging.nextPageToken)
+            }, 1200)
+          }else{
+            res.send({
+                status: "ok",
+                summaryReport: batchReport,
+                fullReport: this.batchFullReport
+              })
+            // reset class batchFullReport to release memory? User may want to download the report
+            // this.batchFullReport = []
+          }
+        } catch (e) {
+          console.log('ERR ' + e.message);
+          res.send({
+            status: "error",
+            message: e.message
+          })
+        }
+      }else{
+        res.send({
+          status: "failed",
+          message: "You have been logged out. Please login again."
+        })
+      }
+      */
     },
     _readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
       console.log("_readCampaignDetailsFromServer")
@@ -1693,6 +1851,42 @@ var engine = User.prototype = {
         }
       })
     },
+    downloadBatchReport_new: function(req, res){
+      console.log("downloadLink: " + this.downloadLink)
+      res.send({"status":"ok","message": this.downloadLink})
+      /*
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batchId
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+
+          //this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
+
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            console.log("has nextPageToken")
+            setTimeout(function(){
+              this.downloadBatchReport(req, res, jsonObj.paging.nextPageToken)
+            }, 1200)
+          }else{
+            var thisUser = this
+
+          }
+        } catch (e) {
+          console.log('ERR ' + e.message);
+        }
+      }else{
+        console.log("platform issue")
+      }
+      */
+    },
     downloadBatchReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -1908,8 +2102,6 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          //filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
-          //eventFilters.push(filter)
         }
         try {
           var resp = await p.post('/restapi/v1.0/subscription', {

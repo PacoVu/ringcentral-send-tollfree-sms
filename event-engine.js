@@ -123,6 +123,9 @@ var engine = ActiveUser.prototype = {
       callback("err", "")
     },
     setPlatform: function(p){
+      if (this.rc_platform){
+        console.log("REPLACE SDK PLATFORM")
+      }
       this.rc_platform = p
     },
     processNotification: function(jsonObj){
@@ -464,6 +467,7 @@ var engine = ActiveUser.prototype = {
     deleteAllRegisteredWebHookSubscriptions: async function() {
       if (this.rc_platform == undefined)
         return
+
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try{

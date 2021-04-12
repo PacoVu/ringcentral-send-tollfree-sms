@@ -3,19 +3,16 @@ const pgdb = require('./db')
 require('dotenv').load()
 
 function RCPlatform(userId) {
-
   this.extensionId = ""
-  var clientId = process.env.CLIENT_ID_PROD
-  var clientSecret = process.env.CLIENT_SECRET_PROD
-  var serverURL = RingCentral.server.production
-  var userId = `user_${userId}`
+  var cachePrefix = `user_${userId}`
+  console.log(cachePrefix)
   this.rcsdk = new RingCentral({
-  cachePrefix: userId,
-      server: serverURL,
-      clientId: clientId,
-      clientSecret:clientSecret,
+      cachePrefix: cachePrefix,
+      server: RingCentral.server.production,
+      clientId: process.env.CLIENT_ID_PROD,
+      clientSecret:process.env.CLIENT_SECRET_PROD,
       redirectUri: process.env.RC_APP_REDIRECT_URL,
-      })
+    })
 
   this.platform = this.rcsdk.platform()
   this.platform.on(this.platform.events.loginSuccess, this.loginSuccess)
@@ -57,7 +54,7 @@ RCPlatform.prototype = {
   getPlatform: async function(extId){
     var tokenObj = await this.platform.auth().data()
     if (extId  ==  tokenObj.owner_id)
-      console.log (`${extId}  ==  ${tokenObj.owner_id}`)
+      console.log (`requester: ${extId}  ==  owner: ${tokenObj.owner_id}`)
     if (extId != tokenObj.owner_id){
       console.log(tokenObj.owner_id)
       console.log(extId)
