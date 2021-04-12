@@ -157,7 +157,7 @@ function readCampaign(batchId, pageToken){
       //var label = (selectedBatchId == "") ? "Recent campaign " : "Selected campaign "
       var title = `<label class="label-input">Selected campaign: </label><span>${campaign.campaignName}</span>&nbsp;&nbsp;&nbsp;`
       var download = `<button class="rc-oval-btn" onclick="downloadBatchReport('${campaign.batchId}', '${campaign.campaignName}');">Download report</button>&nbsp;&nbsp;`
-      var deleteBtn = `<button class="rc-oval-btn" onclick="deleteCampaignResult('${campaign.batchId}')">Delete campaign</button>`
+      var deleteBtn = `<button class="rc-oval-btn" onclick="deleteWarning('${campaign.batchId}')">Delete campaign</button>`
       $("#download").html(download)
       $("#delete").html(deleteBtn)
       if (campaign.rejectedCount > 0)
@@ -274,6 +274,13 @@ function downloadBatchReport(batchId, name){
       },8000)
     }
   });
+}
+
+function deleteWarning(batchId){
+  var r = confirm("Do you really want to delete selected campaign?");
+    if (r == true) {
+      deleteCampaignResult(batchId)
+    }
 }
 
 function deleteCampaignResult(batchId){
