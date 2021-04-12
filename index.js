@@ -36,7 +36,7 @@ var server = require('http').createServer(app);
 server.listen(port);
 console.log("listen to port " + port)
 var router = require('./router');
-var aUsers = router.getEngine()
+var aUsers = router.getActiveUsers()
 
 app.get('/', function (req, res) {
   console.log('load index page /')

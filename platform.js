@@ -73,8 +73,9 @@ RCPlatform.prototype = {
     return this.platform
   },
   autoLogin: async function(data, callback){
-    var jsonObj = JSON.parse(data)
-    await this.platform.auth().setData(jsonObj)
+    var tokenObj = JSON.parse(data)
+    this.extensionId = tokenObj.owner_id
+    await this.platform.auth().setData(tokenObj)
     if (await this.platform.loggedIn()){
       console.log("Auto login ok")
       callback(null, "Auto login ok")

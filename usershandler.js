@@ -204,8 +204,24 @@ var engine = User.prototype = {
             res.send('login success');
             // only customers with A2P SMS would be able to subscribe for notification
             if (this.phoneHVNumbers.length){
-              this.eventEngine = router.getEngine().find(o => o.extensionId.toString() === this.extensionId.toString())
+              this.eventEngine = router.getActiveUsers().find(o => o.extensionId.toString() === this.extensionId.toString())
+              //console.log(this.eventEngine)
               if (this.eventEngine){
+                /*
+                users = router.getActiveUsers()
+                for (var u of users){
+                  console.log("+++===")
+                  console.log(u.rc_platform.extensionId)
+                }
+                */
+                this.eventEngine.setPlatform(this.rc_platform)
+                /*
+                users = router.getActiveUsers()
+                for (var u of users){
+                  console.log("+++===")
+                  console.log(u.rc_platform.extensionId)
+                }
+                */
                 this.subscriptionId = this.eventEngine.subscriptionId
                 if (this.eventEngine.subscriptionId == ""){
                   this.subscribeForNotification((err, subscriptionId) => {
@@ -225,52 +241,10 @@ var engine = User.prototype = {
                 }
               }else{ // should subscribe for notification and create eventEngine by default
                 this.subscribeForNotification((err, subscriptionId) => {
-                  //thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
-                  thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
-                  // must push to router's activeUser list in order to receive routed subscription
-                  router.getEngine().push(thisUser.eventEngine)
-                  thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
-                    if (err == null){
-                      console.log("eventEngine is set")
-                    }
-                  })
-                })
-              }
-            }
-            /*
-            this.eventEngine = router.getEngine().find(o => o.extensionId.toString() === this.extensionId.toString())
-            if (this.eventEngine){
-              // replace the one created by auto start
-              this.eventEngine.setPlatform(this.rc_platform)
-              if (this.phoneHVNumbers.length){
-                this.subscriptionId = this.eventEngine.subscriptionId
-                if (this.eventEngine.subscriptionId == ""){
-                  this.subscribeForNotification((err, subscriptionId) => {
-                    if (!err){
-                      thisUser.eventEngine.subscriptionId = subscriptionId
-                    }
-                    console.log("new subscriptionId: " + subscriptionId)
-                  })
-                }else{
-                  this.renewNotification((err, subscriptionId) => {
-                    if (!err){
-                      console.log("SUB ID: " + subscriptionId)
-                      thisUser.eventEngine.subscriptionId = subscriptionId
-                      thisUser.subscriptionId = subscriptionId
-                    }
-                  })
-                }
-              }
-            }else{ // should subscribe for notification and create eventEngine by default
-              if (this.phoneHVNumbers.length){
-                this.subscribeForNotification((err, subscriptionId) => {
-                  if (!err)
-                    console.log("subscriptionId: " + subscriptionId)
-                  console.log("check eventEngine")
                   thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
-                    //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
-                    // must push to router's activeUser list in order to receive routed subscription
-                  router.getEngine().push(thisUser.eventEngine)
+                  //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
+                  // must push to router's activeUser list in order to receive routed subscription
+                  router.getActiveUsers().push(thisUser.eventEngine)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
                     if (err == null){
                       console.log("eventEngine is set")
@@ -278,21 +252,7 @@ var engine = User.prototype = {
                   })
                 })
               }
-              //
-              this.subscribeForNotification((err, subscriptionId) => {
-                //thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
-                thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
-                // must push to router's activeUser list in order to receive routed subscription
-                router.getEngine().push(thisUser.eventEngine)
-                thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
-                  if (err == null){
-                    console.log("eventEngine is set")
-                  }
-                })
-              })
-              //
             }
-            */
           }else{
             console.log('login failed: no platform object')
             callback(null, extensionId)
@@ -1219,11 +1179,7 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-
-          this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
-          var appendFile = (pageToken == "") ? true : false
-          this.writeToFile(batchId, jsonObj.records, appendFile)
-
+          //this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
           var keepPolling = false
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
@@ -1262,7 +1218,7 @@ var engine = User.prototype = {
                 thisUser.batchSummaryReport.sentCount = 0
                 thisUser.batchSummaryReport.unreachableCount = 0
                 thisUser.batchSummaryReport.totalCost = 0.0
-                thisUser.batchFullReport = []
+                //thisUser.batchFullReport = []
                 thisUser._getBatchReport(batchId, "")
               }, 5000)
             }else{
@@ -1280,48 +1236,6 @@ var engine = User.prototype = {
       }else{
         console.log("platform issue")
       }
-    },
-    writeToFile: function(batchId, records, appendFile){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir + batchId
-      var fileContent = ""
-      fullNamePath += '-batch-report.csv'
-      fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
-      var timeOffset = parseInt(req.query.timeOffset)
-      let dateOptions = { weekday: 'short' }
-      for (var item of records){
-        var from = formatPhoneNumber(item.from)
-        var to = formatPhoneNumber(item.to[0])
-        var date = new Date(item.creationTime)
-        var timestamp = date.getTime() - timeOffset
-        var createdDate = new Date (timestamp)
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        date = new Date(item.lastModifiedTime)
-        var timestamp = date.getTime() - timeOffset
-        var updatedDate = new Date (timestamp)
-        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
-        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
-        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
-      }
-
-      try{
-        if (appendFile == false){
-          fs.writeFileSync('./'+ fullNamePath, fileContent)
-        }else{
-          fs.appendFileSync('./'+ fullNamePath, fileContent)
-        }
-      }catch(e){
-          console.log("cannot create report file")
-      }
-      downloadLink = "/downloads?filename=" + fullNamePath
-      //res.send({"status":"ok","message":link})
     },
     readCampaignDetails: function(res, batchId, pageToken){
       this.batchFullReport = []
@@ -1422,6 +1336,8 @@ var engine = User.prototype = {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
           this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
+          //var appendFile = (pageToken == "") ? true : false
+          //this.writeToFile(batchId, jsonObj.records, appendFile)
           var keepPolling = false
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
@@ -1476,6 +1392,48 @@ var engine = User.prototype = {
           message: "You have been logged out. Please login again."
         })
       }
+    },
+    writeToFile: function(batchId, records, appendFile){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir + batchId
+      var fileContent = ""
+      fullNamePath += '-batch-report.csv'
+      fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+      var timeOffset = parseInt(req.query.timeOffset)
+      let dateOptions = { weekday: 'short' }
+      for (var item of records){
+        var from = formatPhoneNumber(item.from)
+        var to = formatPhoneNumber(item.to[0])
+        var date = new Date(item.creationTime)
+        var timestamp = date.getTime() - timeOffset
+        var createdDate = new Date (timestamp)
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        date = new Date(item.lastModifiedTime)
+        var timestamp = date.getTime() - timeOffset
+        var updatedDate = new Date (timestamp)
+        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
+        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+      }
+
+      try{
+        if (appendFile == false){
+          fs.writeFileSync('./'+ fullNamePath, fileContent)
+        }else{
+          fs.appendFileSync('./'+ fullNamePath, fileContent)
+        }
+      }catch(e){
+          console.log("cannot create report file")
+      }
+      downloadLink = "/downloads?filename=" + fullNamePath
+      //res.send({"status":"ok","message":link})
     },
     getVoteResult: function (res){
       //console.log("getVoteResult")
@@ -1564,7 +1522,7 @@ var engine = User.prototype = {
                   thisUser.batchSummaryReport.sentCount = 0
                   thisUser.batchSummaryReport.unreachableCount = 0
                   thisUser.batchSummaryReport.totalCost = 0.0
-                  thisUser.batchFullReport = []
+                  //thisUser.batchFullReport = []
                   thisUser._getVoteReport(batchId, "")
                 }, 5000)
               }else{

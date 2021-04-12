@@ -5,7 +5,7 @@ const async = require('async')
 require('dotenv').load()
 var users = []
 
-const activeUsers = []
+var activeUsers = []
 //exports.activeUsers = activeUsers
 autoStart()
 function autoStart(){
@@ -33,6 +33,7 @@ function autoStart(){
                     if (!err){
                       console.log("Has platform")
                       aUser.setup(platform, (err, result) => {
+                        console.log("setup: " + result)
                         if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)
@@ -125,7 +126,7 @@ function makeId() {
 }
 
 var router = module.exports = {
-  getEngine: function(){
+  getActiveUsers: function(){
     return activeUsers
   },
   loadLogin: function(req, res){
