@@ -277,7 +277,7 @@ function downloadBatchReport(batchId, name){
 }
 
 function deleteWarning(batchId){
-  var r = confirm("Do you really want to delete selected campaign?");
+  var r = confirm("Do you really want to delete the selected campaign?");
     if (r == true) {
       deleteCampaignResult(batchId)
     }

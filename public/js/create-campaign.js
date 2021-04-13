@@ -37,7 +37,8 @@ function enableManualInput(elm){
     $("#manual-input").hide()
   }
 }
-function updatePreviewFromTemplate(){
+
+function updateMsgPreviewAndEstimatedCost(){
   updateSampleMessage()
   var text = ""
   var id = ""
@@ -64,7 +65,6 @@ function updatePreviewFromTemplate(){
     if (text != "")
     break
   }
-  //var text = $('#reply-1').val()
   if (text == ""){
     $("#reply-sample").hide()
     updateSurveyEstimatedCost(1)
@@ -114,12 +114,11 @@ function updatePreview(field){
     $("#reply-sample").html("")
     var text = ""
     var i = 1
-    for (i=1; i<4; i++){
+    for (i; i<4; i++){
       text = $(`#reply-${i}`).val()
       if (text != "")
         break
     }
-    //var text = $('#reply-1').val()
     if (text == ""){
       $("#reply-sample").hide()
       updateSurveyEstimatedCost(1)
@@ -133,7 +132,6 @@ function updatePreview(field){
         $("#response-sample").html(response)
     }
     $("#reply-sample").html(text)
-    //_alert($("#response-sample").html())
   }
 }
 
@@ -276,6 +274,7 @@ function setRecipientFromContacts(){
     totalRecipients = 0 //contactGroup.contacts.length
     var sample = `${totalRecipients} recipients`
     $("#preview-recipients").html(sample)
+    updateMsgPreviewAndEstimatedCost()
     return
   }
 
@@ -297,11 +296,7 @@ function setRecipientFromContacts(){
   totalRecipients = recipientsNumberList.length
   var sample = `${totalRecipients} recipients`
   $("#preview-recipients").html(sample)
-  updateEstimateCost()
-}
-
-function updateEstimateCost(){
-  calculateEstimatedCost()
+  updateMsgPreviewAndEstimatedCost()
 }
 
 function resetCampaignInput(){
@@ -355,13 +350,11 @@ function nextView(direction){
     return
 
   var view = `block_${newBlock}`
-
   switch (view) {
     case 'block_1':
-
       $('#block_2').hide()
-      $("#prevBtn").hide() //css("display", "none")
-      $("#nextBtn").show() //css("display", "inline")
+      $("#prevBtn").hide()
+      $("#nextBtn").show()
       $("#submit").hide()
       break;
     case 'block_2':
@@ -378,7 +371,6 @@ function nextView(direction){
         return
       }
       var check = $("#enable-manual-input").is(":checked")
-
       if (!check){
         if (!checkAttachmentField()){
           var pop = $('#attachment')
@@ -401,11 +393,9 @@ function nextView(direction){
           return
         }
       }
-
       $('#block_1').hide()
-      $("#prevBtn").css("display", "inline")
-
       $("#nextBtn").hide()
+      $("#prevBtn").show()
       $("#submit").show()
       setTimeout(function() {
         $('#message').focus();
@@ -419,7 +409,6 @@ function nextView(direction){
 }
 
 function enableExpectingResponse(elm){
-  //if (elm.checked){
   if ($(elm).is(":checked")){
     $("#recipient-response-block").show()
     $("#survey-cost").show()
@@ -443,10 +432,10 @@ function readFieldRecipients(elm){
   var dN = $(elm).val().trim()
   totalRecipients = dN.split("\n").length
   $("#preview-recipients").html(totalRecipients + " recipients")
-  calculateEstimatedCost()
+  updateMsgPreviewAndEstimatedCost()
 }
 // template file input
-function readFileRecipients(elm){
+function readCSVFile(elm){
   var file = elm.files[0]
   if (file) {
     var reader = new FileReader();
@@ -464,7 +453,7 @@ function readFileRecipients(elm){
     totalRecipients = 0
     $("#preview-recipients").html(totalRecipients + " recipient")
     totalMessageSegments = 0
-    calculateEstimatedCost()
+    updateMsgPreviewAndEstimatedCost()
     $("#columns").html("-")
     $("#template-columns").html("-")
     $("#columns").hide()
@@ -508,13 +497,13 @@ function processCsvFileContent(){
   displayColumns(columns)
   $("#recipient-phone-number").show()
   $("#csv-template-columns").show()
+  updateMsgPreviewAndEstimatedCost()
   //$("#opted-out-block").show()
 }
 
 // cost estimation
 function calculateEstimatedCost(){
   var estimatedCost = totalMessageSegments * SMS_COST
-  //var msg = `Send a total of ${totalMessageSegments} messages to ${totalRecipients} recipients. Your estimated cost will be $${estimatedCost.toFixed(3)} USD *.`
   if (estimatedCost < 1.00)
     estimatedCost = estimatedCost.toFixed(3)
   else if (estimatedCost < 10.00)
@@ -548,14 +537,13 @@ function detectAndHandleCommas(row){
   }
   return row
 }
-/// cost estimation ends
+
 function displayColumns(columns){
   $("#columns").show()
   var html = "|&nbsp;"
   var recipientCol = "|&nbsp;"
   var filled = false
   for (var col of columns){
-    //html += `<a href="javascript:addToMessage('${col}')">${col}</a>&nbsp;|&nbsp;`
     var value = sampleRow[csvColumnIndex[`${col}`]]
     if (!isNaN(value) && value.length >= 9){
       recipientCol += `<a href="#" onclick="addToRecipient('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
@@ -564,6 +552,7 @@ function displayColumns(columns){
         updateSampleRecipient(col)
       }
     }//else{
+      // closed "else" to display number columns for selecting option to compose text message.
       html += `<a href="#" onclick="addToMessage('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
     //}
   }
@@ -618,7 +607,7 @@ function addToMessage(template){
   $("#message").val(msg)
   $("#message").focus()
   $("#message").val(msg + ' ')
-  updateSampleMessage()
+  updateMsgPreviewAndEstimatedCost()
 }
 
 function addOptoutInstruction(elm){
@@ -630,15 +619,15 @@ function addOptoutInstruction(elm){
   }
   $("#message").val(msg)
   $("#message").focus()
-  updateSampleMessage()
+  updateMsgPreviewAndEstimatedCost()
 }
 
 function updateSampleMessage(){
   var msg = $("#message").val()
   if (msg.length > 0){
-    disableSubmitBtn(false)
+    $("#submit").prop('disabled', false);
   }else{
-    disableSubmitBtn(true)
+    $("#submit").prop('disabled', true);
   }
   let re = new RegExp('/\{([^}]+)\}/g');
   var arr = msg.match(/{([^}]*)}/g)
@@ -654,7 +643,6 @@ function updateSampleMessage(){
       }
     }
   }
-
   var sample = msg.replace(/\r?\n/g, "<br>")
   sample = qaTextMessage(sample)
   if (sample.length){
@@ -670,15 +658,16 @@ function updateSampleMessage(){
   if (msg.length > SMS_MAX_LEN){
     totalMessageSegments = msg.length / SMS_SEGMENT_LEN
     totalMessageSegments = Math.ceil(totalMessageSegments)
-  }
+  }else if (msg.length == 0)
+    totalMessageSegments = 0
   totalMessageSegments *= totalRecipients
   calculateEstimatedCost()
 }
+
 function isUpperCase(str) {
   return str === str.toUpperCase();
 }
 function qaTextMessage(msg){
-  //var sample = ""
   if (isUpperCase(msg) && isNaN(msg)){
     msg = `<span class='caplock_warning'>${msg}</span>`
     $("#caplock_warning").show()
@@ -722,34 +711,18 @@ function qaTextMessage(msg){
       var unsafeLink = msg.substr(index, endIndex)
       msg = msg.replace(unsafeLink, `<span class='unsafe_link_warning'>${unsafeLink}</span>`, "g")
       $("#unsafe_link_warning").show()
-      //hasShortenLink = true
       break
     }else{
       $("#unsafe_link_warning").hide()
     }
   }
-
-/*
-  var index = tempMsg.indexOf("https://bit.ly/")
-  if (index >= 0){
-    var temp = tempMsg.substring(index, tempMsg.length-1)
-    var endIndex = temp.indexOf(" ")
-    var unsafeLink = msg.substr(index, endIndex)
-    //var re = new RegExp(unsafeLink, 'g');
-    console.log(unsafeLink)
-    msg = msg.replace(unsafeLink, `<span class='unsafe_link_warning'>${unsafeLink}</span>`, "g")
-    $("#unsafe_link_warning").show()
-  }else{
-    $("#unsafe_link_warning").hide()
-  }
-*/
-  //console.log(msg)
   return msg
 }
+/*
 function disableSubmitBtn(flag){
   $("#submit").prop('disabled', flag);
 }
-
+*/
 // submit form using ajax seems not enforce required inputs
 function checkFromField(){
   if ($("#from-number").val() == ""){
@@ -900,7 +873,6 @@ function sendBatchMessage(e) {
 function canSendMessages() {
   if (checkCampainNameField() == false){
     return _alert("Please provide a campaign name!")
-
   }
   if ($("#enable-manual-input").is(":checked")){
     if (checkFromField() == false){
@@ -909,7 +881,6 @@ function canSendMessages() {
   }else{
     if (checkToField() != ""){
       return
-      //return _alert(`Cannot find the "${$("#to-number-column").val()}" column from this .csv file.`)
     }
     if (!checkAttachmentField()){
       return _alert("Please select a .csv file!")
@@ -957,7 +928,7 @@ function canSendMessages() {
 function pollResult(){
   if (currentBatchId == "")
     return
-  var url = "getbatchresult?batchId=" + currentBatchId
+  var url = "get-batch-result?batchId=" + currentBatchId
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
@@ -1151,7 +1122,7 @@ function loadSignature(){
           msg += `\n\n${$("#saved-signature-message").val()}`
           $("#message").val(msg)
           $("#message").focus()
-          updateSampleMessage()
+          updateMsgPreviewAndEstimatedCost()
           dialog.close()
         }
       }]
@@ -1519,7 +1490,7 @@ function showSavedTemplates(){
               $('#expect-response').prop('checked', false)
               enableExpectingResponse($('#expect-response'))
             }
-            updatePreviewFromTemplate()
+            updateMsgPreviewAndEstimatedCost()
           }
           dialog.close();
         }

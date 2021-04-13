@@ -441,7 +441,7 @@ function createVoteReport(voteReport, archived){
       report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey result will be deleted in 24 hours!</p>`
     }
     report += `<div class="info-line"><a href="#" onclick="downloadSurveyResult('${voteReport.batchId}');return false;">Download Detailed Result</a> | `
-    report += `<a href="#" onclick="deleteSurveyResult('${voteReport.batchId}');return false;">Delete Detailed Result</a></div>`
+    report += `<a href="#" onclick="deleteWarning('${voteReport.batchId}');return false;">Delete Detailed Result</a></div>`
   }else{
     report += `<p><img class="medium-icon" src="../img/stop.png"></img> This survey detailed result was deleted!</p>`
   }
@@ -543,6 +543,13 @@ function isAllSentCampaign(){
     }
   }
   return null
+}
+
+function deleteWarning(batchId){
+  var r = confirm("Do you really want to delete detailed result of the selected survey?");
+    if (r == true) {
+      deleteSurveyResult(batchId)
+    }
 }
 
 function deleteSurveyResult(batchId){

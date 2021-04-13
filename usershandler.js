@@ -1298,6 +1298,7 @@ var engine = User.prototype = {
           })
         }
     },
+    /*
     getVoteResult: function (res){
       //console.log("getVoteResult")
       if (this.eventEngine){
@@ -1313,6 +1314,7 @@ var engine = User.prototype = {
           })
       }
     },
+    */
     _getVoteReport: async function (batchId, pageToken){
       console.log("_getVoteReport")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1531,7 +1533,7 @@ var engine = User.prototype = {
         })
       }
     },
-    downloadMessageStore: function(req, res){
+    downloadHVMessageStore: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
@@ -1637,7 +1639,8 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(/\s/g, "-")
+      var name = decodeURIComponent(req.query.campaign_name).replace(/#/g, "")
+      var fullNamePath = dir + name.replace(/\s/g, "-")
       var fileContent = ""
       fullNamePath += '-invalid-numbers.csv'
       fileContent = "Index,Number,Error Code,Description"
@@ -1714,7 +1717,8 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir + decodeURIComponent(query.campaignName).replace(/\s/g, "-")
+      var name = decodeURIComponent(query.campaignName).replace(/#/g, "")
+      var fullNamePath = dir + name.replace(/\s/g, "-")
       var fileContent = ""
       fullNamePath += '-campaign-report.csv'
       if (appendFile == false)
@@ -1766,46 +1770,6 @@ var engine = User.prototype = {
           })
         }
       })
-    },
-    downloadBatchReport_old: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir + decodeURIComponent(req.query.campaign_name).replace(/\s/g, "-")
-      var fileContent = ""
-      fullNamePath += '-batch-report.csv'
-      fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
-      var timeOffset = parseInt(req.query.timeOffset)
-      let dateOptions = { weekday: 'short' }
-      for (var item of this.batchFullReport){
-        var from = formatPhoneNumber(item.from)
-        var to = formatPhoneNumber(item.to[0])
-        //var date = new Date(item.createdAt)
-        var date = new Date(item.creationTime)
-        var timestamp = date.getTime() - timeOffset
-        var createdDate = new Date (timestamp)
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        //date = new Date(item.lastUpdatedAt)
-        date = new Date(item.lastModifiedTime)
-        var timestamp = date.getTime() - timeOffset
-        var updatedDate = new Date (timestamp)
-        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
-        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
-        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
-      }
-      try{
-        fs.writeFileSync('./'+ fullNamePath, fileContent)
-        var link = "/downloads?filename=" + fullNamePath
-        res.send({"status":"ok","message":link})
-      }catch (e){
-        console.log("cannot create report file")
-        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
-      }
     },
     deleteCampaignResult: function(req, res){
       var thisUser = this
@@ -1895,7 +1859,7 @@ var engine = User.prototype = {
         })
     },
     */
-    downloadSendSMSResult: function(req, res){
+    downloadStandardSMSReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
@@ -2307,7 +2271,7 @@ var engine = User.prototype = {
       }
       res.send({"status":"ok", "message":"cancel timer"})
     },
-    getSendSMSResult: function(req, res){
+    getStandardSMSResult: function(req, res){
       if (this.recipientArr.length == 0){
         this.sendReport = {
           sendInProgress: false,

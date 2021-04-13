@@ -40,13 +40,6 @@ var aUsers = router.getActiveUsers()
 
 app.get('/', function (req, res) {
   console.log('load index page /')
-  /*
-  if (req.session.extensionId != 0)
-    router.logout(req, res)
-  else{
-    res.redirect('index')
-  }
-  */
   res.redirect('index')
 })
 
@@ -118,7 +111,7 @@ app.get ('/conversations', function (req, res) {
   }
 })
 
-app.get("/pollnewmessages", function (req, res) {
+app.get("/poll-new-messages", function (req, res) {
   if (req.session.extensionId != 0)
     router.pollNewMessages(req, res)
   else{
@@ -217,14 +210,14 @@ app.get('/settings', function (req, res) {
   }
 })
 
-app.get('/getresult', function (req, res) {
+app.get('/get-standard-sms-result', function (req, res) {
   if (req.session.extensionId != 0)
-    router.getSendSMSResult(req, res)
+    router.getStandardSMSResult(req, res)
   else{
     res.render('index')
   }
 })
-
+/*
 app.get('/getvoteresult', function (req, res) {
   if (req.session.extensionId != 0)
     router.getVoteResult(req, res)
@@ -232,7 +225,8 @@ app.get('/getvoteresult', function (req, res) {
     res.render('index')
   }
 })
-
+*/
+/*
 app.get('/getbatchreport', function (req, res) {
   if (req.session.extensionId != 0)
     router.getBatchReport(req, res)
@@ -240,8 +234,8 @@ app.get('/getbatchreport', function (req, res) {
     res.render('index')
   }
 })
-
-app.get('/getbatchresult', function (req, res) {
+*/
+app.get('/get-batch-result', function (req, res) {
   if (req.session.extensionId != 0)
     router.getBatchResult(req, res)
   else{
@@ -298,17 +292,17 @@ app.get('/downloadvotereport', function (req, res) {
   }
 })
 */
-app.get('/downloadmessagestore', function (req, res) {
+app.get('/download-hv-message-store', function (req, res) {
   if (req.session.extensionId != 0)
-    router.downloadMessageStore(req, res)
+    router.downloadHVMessageStore(req, res)
   else{
     res.render('index')
   }
 })
 
-app.get('/downloadreport', function (req, res) {
+app.get('/download-standard-message-report', function (req, res) {
   if (req.session.extensionId != 0)
-    router.downloadSendSMSResult(req, res)
+    router.downloadStandardSMSReport(req, res)
   else{
     res.render('index')
   }
@@ -401,8 +395,8 @@ app.post('/delete-contacts', function (req, res) {
   router.deleteContacts(req, res)
 })
 
-app.post('/setwebhook', function (req, res) {
-  console.log("setwebhook")
+app.post('/set-webhook', function (req, res) {
+  console.log("set-webhook")
   router.setWebhookAddress(req, res)
 })
 
@@ -421,8 +415,8 @@ app.post('/delete-signature', function (req, res) {
   router.deleteSignature(req, res)
 })
 
-app.get('/readwebhook', function (req, res) {
-  console.log("readwebhook")
+app.get('/read-webhook', function (req, res) {
+  console.log("read-webhook")
   router.readWebhookAddress(req, res)
 })
 
@@ -431,8 +425,8 @@ app.get('/read-templates', function (req, res) {
   router.readTemplates(req, res)
 })
 
-app.get('/deletewebhook', function (req, res) {
-  console.log("deletewebhook")
+app.get('/delete-webhook', function (req, res) {
+  console.log("delete-webhook")
   router.deleteWebhookAddress(req, res)
 })
 

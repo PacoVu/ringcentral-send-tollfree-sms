@@ -177,7 +177,7 @@ function sendTextMessage(message){
 }
 
 function pollNewMessages(){
-  var url = "pollnewmessages"
+  var url = "poll-new-messages"
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
@@ -579,7 +579,7 @@ function getContactName(number){
 
 function downloadMessageStore(format){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = "downloadmessagestore?format=" + format + "&timeOffset=" + timeOffset
+  var url = "download-hv-message-store?format=" + format + "&timeOffset=" + timeOffset
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")

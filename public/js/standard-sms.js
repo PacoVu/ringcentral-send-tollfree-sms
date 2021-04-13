@@ -13,7 +13,7 @@ function init(){
 }
 
 function pollResult(){
-  var url = "getresult"
+  var url = "get-standard-sms-result"
   var getting = $.get( url );
   canPoll = true
   getting.done(function( res ) {
@@ -127,7 +127,7 @@ function cancelMessageSending(){
 }
 
 function downloadReport(format){
-  var url = "downloadreport?format="+format
+  var url = "download-standard-message-report?format="+format
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")

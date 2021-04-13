@@ -54,7 +54,7 @@ function showView(view){
 }
 
 function readWebhookAddress(view){
-  var url = "/readwebhook"
+  var url = "/read-webhook"
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
@@ -96,7 +96,7 @@ function readWebhookAddress(view){
 }
 
 function deleteWebhookAddress(){
-  var url = "/deletewebhook"
+  var url = "/delete-webhook"
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok"){
@@ -402,7 +402,7 @@ function setWebhookAddress(){
   if ($("#webhook-address").val() == ""){
     return $("#webhook-address").focus()
   }
-  var url = "setwebhook"
+  var url = "set-webhook"
   var params = {
     address: $("#webhook-address").val(),
     header_name: $("#header-name").val(),

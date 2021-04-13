@@ -221,12 +221,14 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].pollNewMessages(res)
   },
+  /*
   getVoteResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].getVoteResult(res)
   },
+  */
   getContacts: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -251,11 +253,11 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].getBatchResult(req, res)
   },
-  getSendSMSResult: function(req, res){
+  getStandardSMSResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getSendSMSResult(req, res)
+    users[index].getStandardSMSResult(req, res)
   },
   readMessageList: function(req, res){
     var index = getUserIndex(req.session.userId)
@@ -319,17 +321,17 @@ var router = module.exports = {
     users[index].downloadVoteReport(req, res)
   },
   */
-  downloadMessageStore: function(req, res){
+  downloadHVMessageStore: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].downloadMessageStore(req, res)
+    users[index].downloadHVMessageStore(req, res)
   },
-  downloadSendSMSResult: function(req, res){
+  downloadStandardSMSReport: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].downloadSendSMSResult(req, res)
+    users[index].downloadStandardSMSReport(req, res)
   },
   sendSMSMessage: function(req, res){
     var index = getUserIndex(req.session.userId)
