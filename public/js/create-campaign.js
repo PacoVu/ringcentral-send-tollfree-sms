@@ -951,7 +951,8 @@ function parseResultResponse(resp){
   var batchResult = resp.result
   currentBatchId = batchResult.id
   $("#status").html("Status: " + batchResult.status)
-  if (batchResult.status == "Processing"){
+  //if (batchResult.status == "Processing"){
+  if (batchResult.processedCount == 0){
     pendingBatch = true
     // show the time since batch request was submited
     $("#time").html("Duration: " + resp.time)
@@ -969,7 +970,8 @@ function parseResultResponse(resp){
     pollTimer = window.setTimeout(function(){
       pollResult()
     }, 1000)
-  }else if (batchResult.status == "Completed" || batchResult.status == "Sent"){
+  //}else if (batchResult.status == "Completed" || batchResult.status == "Sent"){
+  }else{
     pendingBatch = false
     startPollingResult(false)
     var createdAt = new Date(batchResult.creationTime).getTime()

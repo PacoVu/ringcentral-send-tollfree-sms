@@ -52,7 +52,7 @@ function User(id) {
   this.batchType = ""
   this.downloadLink = ""
   this.batchFullReport = []
-  this.processingBatchIds = []
+  this.processingBatches = []
   this.mainCompanyNumber = ""
   this.downloadFileName = ""
 
@@ -131,7 +131,8 @@ var engine = User.prototype = {
       })
     },
     loadMessageStorePage: function(res){
-      this.eventEngine.logNewMessage = true
+      if (this.eventEngine)
+        this.eventEngine.logNewMessage = true
       this.updateNotification(true, (err, result) => {
         console.log("Start getting outbound/inbound notification")
       })
@@ -640,14 +641,16 @@ var engine = User.prototype = {
       //console.log(JSON.stringify(requestBody))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch"
         try {
-          var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
+          var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
           res.send({
               status:"ok",
               message: body.message
           })
         } catch (e) {
+          console.log("Endpoint POST: " + endpoint)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -965,15 +968,13 @@ var engine = User.prototype = {
       this.sendBatchMessage(res, requestBody, sendMode, null)
     },
     sendBatchMessage: async function(res, requestBody, type, voteInfo){
-      var thisUser = this
-      //console.log(JSON.stringify(requestBody))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch"
         try {
-          var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
+          var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
           this.StartTimestamp = Date.now()
-          this.processingBatchIds.push(jsonObj.id)
           this.batchResult = {
             id: jsonObj.id,
             batchSize: jsonObj.batchSize,
@@ -981,7 +982,9 @@ var engine = User.prototype = {
             rejectedCount: jsonObj.rejected.length,
             rejectedNumbers: jsonObj.rejected,
             status: jsonObj.status,
+            batchType: type
           }
+          this.processingBatches.push(this.batchResult)
           if (jsonObj.rejected.length){
             this.batchSummaryReport.rejectedCount = jsonObj.rejected.length
             this.batchSummaryReport.totalCount -= jsonObj.rejected.length
@@ -991,28 +994,26 @@ var engine = User.prototype = {
             this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
           }
           this.batchType = type
-
           this.batchFullReport = []
           this.batchSummaryReport.batchId = jsonObj.id
 
           if (type == "vote"){
             voteInfo.batchId = jsonObj.id
-            // compare time
-            //console.log(new Date(voteInfo.startDateTime).toISOString())
-            //console.log("compare time ")
-            //console.log(jsonObj.creationTime)
-
             this.eventEngine.setVoteInfo(voteInfo)
-
           }
           this.addBatchDataToDB()
-          this._getBatchResult(jsonObj.id)
+          //this._getBatchResult(jsonObj.id)
+          var thisUser = this
+          setTimeout(function() {
+            thisUser._getBatchResult(jsonObj.id)
+          },2000)
           res.send({
               status:"ok",
               time: formatSendingTime(0),
               result: this.batchResult
           })
         } catch (e) {
+          console.log("Endpoint POST: " + endpoint)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -1040,30 +1041,35 @@ var engine = User.prototype = {
     _handleProcessingBatches: function(){
       var thisUser = this
       if (this.processingBatchIds.length > 0){
-        async.forEachLimit(this.processingBatchIds, 1, function(batchId, checkBatchStatus){
+        async.forEachLimit(this.processingBatches, 1, function(batch, checkBatchStatus){
             async.waterfall([
               function checkBatchStatus(done) {
-                console.log("getBatchResult")
-                var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
-                var p = await this.rc_platform.getPlatform(this.extensionId)
+                console.log("checkBatchStatus")
+                var endpoint = `/restapi/v1.0/account/~/a2p-sms/batch/${batch.id}`
+                var p = await thisUser.rc_platform.getPlatform(thisUser.extensionId)
                 if (p){
                   try {
                     var resp = await p.get(endpoint)
                     var jsonObj = await resp.json()
-                    this.batchResult.processedCount = jsonObj.processedCount
-                    this.batchResult.status = jsonObj.status
-                    this.batchResult['creationTime'] = jsonObj.creationTime
-                    this.batchResult['lastModifiedTime'] = jsonObj.lastModifiedTime
+                    batch.processedCount = jsonObj.processedCount
+                    batch.status = jsonObj.status
+                    batch['creationTime'] = jsonObj.creationTime
+                    batch['lastModifiedTime'] = jsonObj.lastModifiedTime
                     // implement for vote
                     if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
-                      if (this.batchType == "vote"){
+                      if (batch.batchType == "vote"){
                         console.log("Done Batch Result, call _getVoteReport")
-                        this._getVoteReport(jsonObj.id, "")
+                        thisUser._getVoteReport(jsonObj.id, "")
                       }else{
                         console.log("Done Batch Result, call _getBatchReport")
                         console.log("CALL _getBatchReport FROM getBatchResult()")
-                        this._getBatchReport(jsonObj.id, "")
+                        thisUser._getBatchReport(jsonObj.id, "")
                       }
+                      // remove this batch from the processingBatches list!
+                      var index = thisUser.processingBatches.find(o => o.id == batch.id)
+                      if (index >=0)
+                        thisUser.processingBatches.splice(index, 1)
+                      done()
                     }else{
                       var thisUser = this
                       setTimeout(function() {
@@ -1072,9 +1078,11 @@ var engine = User.prototype = {
                     }
                   } catch (e) {
                     console.log('ERR ' + e.message);
+                    done()
                   }
                 }else{
                   console.log('ERR ');
+                  done()
                 }
               }
             ], function (error, success) {
@@ -1085,6 +1093,7 @@ var engine = User.prototype = {
             });
           }, function(err){
             console.log("no more pendingBatch")
+
           });
       }
     },
@@ -1128,10 +1137,11 @@ var engine = User.prototype = {
             },2000)
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
           console.log('ERR ' + e.message);
         }
       }else{
-        console.log('ERR ');
+        console.log('ERR NO PLATFORM');
       }
     },
     readCampaignSummary: function(res, batchId){
@@ -1203,6 +1213,7 @@ var engine = User.prototype = {
             })
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
           console.log('ERR ' + e.message);
           res.send({
             status: "failed",
@@ -1286,6 +1297,8 @@ var engine = User.prototype = {
             }
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + params)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1326,6 +1339,8 @@ var engine = User.prototype = {
             fullReport: jsonObj.records
           })
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + params)
           console.log('ERR ' + e.message);
           res.send({
             status: "error",
@@ -1441,6 +1456,8 @@ var engine = User.prototype = {
               }
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + params)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1481,6 +1498,7 @@ var engine = User.prototype = {
               result: optedOutNumbers,
           })
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
@@ -1498,7 +1516,8 @@ var engine = User.prototype = {
       console.log("readMessageList")
       this.batchFullReport = []
       // reset incoming messages via webhook
-      this.eventEngine.newMessageArr = []
+      if (this.eventEngine)
+        this.eventEngine.newMessageArr = []
       this.downloadFileName = `${req.body.dateFrom.substring(0, 10)}_${req.body.dateTo.substring(0, 10)}`
       var readParams = {
         view: "Detailed",//req.body.view,
@@ -1531,7 +1550,7 @@ var engine = User.prototype = {
               // return messages list with nextPageToken
               res.send({
                   status: "ok",
-                  result: thisUser.batchFullReport,
+                  result: this.batchFullReport,
                   pageTokens: {
                     nextPage: jsonObj.paging.nextPageToken,
                     //previousPage: jsonObj.paging.previousPageToken
@@ -1558,6 +1577,8 @@ var engine = User.prototype = {
             //thisUser.batchFullReport = []
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + readParams)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
@@ -1647,8 +1668,12 @@ var engine = User.prototype = {
             var commands = campaign.voteCommands.join("|")
             fileContent += `,${commands}`
             fileContent += `,"${voter.repliedMessage}"`
-            date = new Date(voter.repliedTime - timeOffset)
-            dateStr = date.toISOString()
+            if (vote.repliedTime > 0){
+              date = new Date(voter.repliedTime - timeOffset)
+              dateStr = date.toISOString()
+            }else{
+              dateStr = "--"
+            }
             fileContent += `,"${dateStr}"`
             fileContent += `,${voter.isReplied}`
             fileContent += `,${voter.isSent}`
@@ -1743,6 +1768,8 @@ var engine = User.prototype = {
             callback(null, link)
           }
         } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + params)
           console.log('ERR ' + e.message);
           callback('error', "error")
         }
@@ -2001,6 +2028,7 @@ var engine = User.prototype = {
     subscribeForNotification: async function(callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
+        var endpoint = '/restapi/v1.0/subscription'
         var eventFilters = []
         for (var item of this.phoneHVNumbers){
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
@@ -2024,6 +2052,7 @@ var engine = User.prototype = {
           this.updateActiveUserSubscription()
           callback(null, jsonObj.id)
         } catch (e) {
+          console.log('Endpoint: POST ' + endpoint)
           console.log('ERR ' + e.message);
           callback(e.message, "failed")
         }
@@ -2034,8 +2063,9 @@ var engine = User.prototype = {
     renewNotification: async function(callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
+        var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
         try {
-          var resp = await p.get(`/restapi/v1.0/subscription/${this.subscriptionId}`)
+          var resp = await p.get(endpoint)
           var jsonObj = await resp.json()
           if (jsonObj.status != "Active"){
             console.log("RENEW subscription")
@@ -2053,7 +2083,8 @@ var engine = User.prototype = {
             callback(null, jsonObj.id)
           }
         } catch (e) {
-          console.log('ERR ' + e.message)
+          console.log('Endpoint: POST ' + endpoint)
+          console.log('ERR: ' + e.message)
           this.subscribeForNotification((err, res) => {
             callback(err, res)
           })
@@ -2075,8 +2106,9 @@ var engine = User.prototype = {
             eventFilters.push(filter)
           }
         }
+        var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
         try {
-          var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
+          var resp = await p.put(endpoint, {
             eventFilters: eventFilters,
             deliveryMode: {
               transportType: 'WebHook',
@@ -2090,6 +2122,7 @@ var engine = User.prototype = {
           console.log(this.subscriptionId)
           callback(null, jsonObj.id)
         } catch (e) {
+          console.log('Endpoint: PUT ' + endpoint)
           console.log('ERR ' + e.message);
           callback(e.message, "failed")
         }
@@ -2100,6 +2133,7 @@ var engine = User.prototype = {
     },
     /// Clean up WebHook subscriptions
     deleteAllRegisteredWebHookSubscriptions: async function() {
+      console.log("deleteAllRegisteredWebHookSubscriptions")
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try{
@@ -2120,7 +2154,8 @@ var engine = User.prototype = {
             console.log("No subscription to delete")
           }
         }catch(e){
-            console.log(e.message)
+          console.log("Cannot delete notification subscription")
+          console.log(e.message)
         }
       }else{
         console.log("Cannot get platform => Delete all subscriptions error")
