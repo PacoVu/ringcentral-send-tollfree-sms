@@ -1096,7 +1096,7 @@ var engine = User.prototype = {
       this._readCampaignSummary(res, batchId, batchReport, "")
     },
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
-      console.log("_getBatchReport")
+      console.log("_readCampaignSummary")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
         batchId: batchId
@@ -1722,7 +1722,8 @@ var engine = User.prototype = {
       var fileContent = ""
       fullNamePath += '-campaign-report.csv'
       if (appendFile == false)
-        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Cost,Segment"
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Cost,Segment"
+        //fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Error Code,Cost,Segment"
       var timeOffset = parseInt(query.timeOffset)
       let dateOptions = { weekday: 'short' }
       for (var item of records){
@@ -1740,10 +1741,15 @@ var engine = User.prototype = {
         var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
         updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
         updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        fileContent += "\n" + item.id + "," + from + "," + to + "," + createdDateStr + "," + updatedDateStr
-        fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+        var errorCode = ""
+        if (item.hasOwnProperty('errorCode')){
+          errorCode = item.errorCode
+        }
+        var cost = (item.cost) ? item.cost : 0.00
+        var segmentCount = (item.segmentCount) ? item.segmentCount : 0
+        fileContent += `\n${item.id},${from},${to},${createdDateStr},${updatedDateStr}`
+        fileContent +=  `,${item.messageStatus},${errorCode},${cost},${segmentCount}`
       }
-
       try{
         if (appendFile == false){
           fs.writeFileSync('./'+ fullNamePath, fileContent)
@@ -1993,7 +1999,6 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(`/restapi/v1.0/subscription/${this.subscriptionId}`)
           var jsonObj = await resp.json()
-          console.log(JSON.stringify(jsonObj))
           if (jsonObj.status != "Active"){
             console.log("RENEW subscription")
             try {
@@ -2025,7 +2030,6 @@ var engine = User.prototype = {
       if (p){
         var eventFilters = []
         for (var item of this.phoneHVNumbers){
-          //var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
           if (outbound){
