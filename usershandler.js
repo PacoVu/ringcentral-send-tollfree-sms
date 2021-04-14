@@ -52,7 +52,7 @@ function User(id) {
   this.batchType = ""
   this.downloadLink = ""
   this.batchFullReport = []
-  this.smsBatchIds = []
+  this.processingBatchIds = []
   this.mainCompanyNumber = ""
   this.downloadFileName = ""
 
@@ -290,7 +290,7 @@ var engine = User.prototype = {
         res.render('highvolume-sms', {
           userName: this.userName,
           phoneNumbers: this.phoneHVNumbers,
-          smsBatchIds: this.smsBatchIds,
+          //smsBatchIds: this.smsBatchIds,
           batchResult: this.batchResult
         })
       }else if (this.phoneTFNumbers.length > 0){
@@ -973,7 +973,7 @@ var engine = User.prototype = {
           var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
           var jsonObj = await resp.json()
           this.StartTimestamp = Date.now()
-          this.smsBatchIds.push(jsonObj.id)
+          this.processingBatchIds.push(jsonObj.id)
           this.batchResult = {
             id: jsonObj.id,
             batchSize: jsonObj.batchSize,
@@ -985,11 +985,9 @@ var engine = User.prototype = {
           if (jsonObj.rejected.length){
             this.batchSummaryReport.rejectedCount = jsonObj.rejected.length
             this.batchSummaryReport.totalCount -= jsonObj.rejected.length
-            console.log("check here")
             if (this.batchSummaryReport.type == "vote")
               voteInfo.voteCounts.Total -= jsonObj.rejected.length
-            // add this array to a temp db?
-            console.log("call addRejectedNumberToDB")
+            // add rejected numbers to a temp db
             this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
           }
           this.batchType = type
@@ -1038,6 +1036,59 @@ var engine = User.prototype = {
           type: this.batchType
         })
     },
+    /*
+    _handleProcessingBatches: function(){
+      var thisUser = this
+      if (this.processingBatchIds.length > 0){
+        async.forEachLimit(this.processingBatchIds, 1, function(batchId, checkBatchStatus){
+            async.waterfall([
+              function checkBatchStatus(done) {
+                console.log("getBatchResult")
+                var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
+                var p = await this.rc_platform.getPlatform(this.extensionId)
+                if (p){
+                  try {
+                    var resp = await p.get(endpoint)
+                    var jsonObj = await resp.json()
+                    this.batchResult.processedCount = jsonObj.processedCount
+                    this.batchResult.status = jsonObj.status
+                    this.batchResult['creationTime'] = jsonObj.creationTime
+                    this.batchResult['lastModifiedTime'] = jsonObj.lastModifiedTime
+                    // implement for vote
+                    if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
+                      if (this.batchType == "vote"){
+                        console.log("Done Batch Result, call _getVoteReport")
+                        this._getVoteReport(jsonObj.id, "")
+                      }else{
+                        console.log("Done Batch Result, call _getBatchReport")
+                        console.log("CALL _getBatchReport FROM getBatchResult()")
+                        this._getBatchReport(jsonObj.id, "")
+                      }
+                    }else{
+                      var thisUser = this
+                      setTimeout(function() {
+                        thisUser._getBatchResult(batchId)
+                      },2000)
+                    }
+                  } catch (e) {
+                    console.log('ERR ' + e.message);
+                  }
+                }else{
+                  console.log('ERR ');
+                }
+              }
+            ], function (error, success) {
+              if (error) {
+                console.log('Some error!');
+              }
+              checkBatchStatus()
+            });
+          }, function(err){
+            console.log("no more pendingBatch")
+          });
+      }
+    },
+    */
     _getBatchResult: async function(batchId){
       console.log("getBatchResult")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
@@ -1204,13 +1255,13 @@ var engine = User.prototype = {
             var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
             this.batchSummaryReport.totalCost += cost
           }
+          var thisUser = this
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("has nextPageToken")
             setTimeout(function(){
-              this._getBatchReport(batchId, jsonObj.paging.nextPageToken)
+              thisUser._getBatchReport(batchId, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
-            var thisUser = this
             if (keepPolling){
               setTimeout(function(){
                 console.log("call getBatchResult again from polling")
@@ -1364,7 +1415,6 @@ var engine = User.prototype = {
               thisUser._getVoteReport(batchId, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
-              var thisUser = this
               if (keepPolling){
                 setTimeout(function(){
                   console.log("call getBatchResult again from polling")
@@ -1468,10 +1518,7 @@ var engine = User.prototype = {
     },
     _readMessageList: async function (res, readParams){
       //console.log("_readMessageList")
-      var thisUser = this
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      //console.log(endpoint)
-      //console.log(readParams)
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
@@ -1480,7 +1527,7 @@ var engine = User.prototype = {
           this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             // limits to 4000 messages
-            if (thisUser.batchFullReport.length >= 4000){
+            if (this.batchFullReport.length >= 4000){
               // return messages list with nextPageToken
               res.send({
                   status: "ok",
@@ -1492,6 +1539,7 @@ var engine = User.prototype = {
               })
               return
             }else{ // continue reading next page
+              var thisUser = this
               setTimeout(function(){
                 readParams['pageToken'] = jsonObj.paging.nextPageToken
                 thisUser._readMessageList(res, readParams)
@@ -1500,7 +1548,7 @@ var engine = User.prototype = {
           }else{
             res.send({
                 status: "ok",
-                result: thisUser.batchFullReport,
+                result: this.batchFullReport,
                 pageTokens: {
                   nextPage: undefined,//jsonObj.paging.nextPageToken,
                   //previousPage: undefined//jsonObj.paging.previousPageToken
