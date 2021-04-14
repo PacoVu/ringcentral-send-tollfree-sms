@@ -1127,9 +1127,10 @@ var engine = User.prototype = {
               default:
                 break
             }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            var cost = (message.hasOwnProperty('cost')) ? parseFloat(message.cost) : 0.0
             batchReport.totalCost += cost
           }
+          //console.log(batchReport.totalCost)
           var thisUser = this
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("has nextPageToken")
@@ -1138,9 +1139,10 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             this._updateCampaignDB(batchReport, (err, result) => {
-              if (batchReport.sentCount == 0){
+              if (batchReport.sentCount == 0 && batchReport.queuedCount == 0){
                 console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
-                thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
+                console.log(result)
+                thisUser.eventEngine.postResults(result)
               }
               console.log("DONE READ BATCH REPORT")
             })
@@ -1217,15 +1219,18 @@ var engine = User.prototype = {
                 thisUser.batchSummaryReport.sentCount = 0
                 thisUser.batchSummaryReport.unreachableCount = 0
                 thisUser.batchSummaryReport.totalCost = 0.0
-                //thisUser.batchFullReport = []
                 thisUser._getBatchReport(batchId, "")
               }, 5000)
             }else{
               // update local db
               this._updateCampaignDB(null, (err, result) => {
                 //thisUser.batchSummaryReport.live = false
-                thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
-                console.log("DONE SEND BATCH")
+                //thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
+                //console.log("DONE SEND BATCH")
+                if (thisUser.batchSummaryReport.sentCount == 0 && thisUser.batchSummaryReport.queuedCount == 0){
+                  console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
+                  thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
+                }
               })
             }
           }
@@ -1237,66 +1242,51 @@ var engine = User.prototype = {
       }
     },
     readCampaignDetails: async function(res, batchId, pageToken){
-      // closed for testing
-      /*
-      var batchReport = {
-        //live: false,
-        totalCount: 0,
-        queuedCount: 0,
-        deliveredCount: 0,
-        sentCount: 0,
-        sendingFailedCount: 0,
-        deliveryFailedCount: 0,
-        totalCost: 0.0
+      // Read single page only
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batchId,
+        perPage: 1000
       }
-      this.batchFullReport = []
-      this._readCampaignDetailsFromServer(res, batchId, batchReport, "")
-      */
-      // new code. Read single page only
-        var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-        var params = {
-          batchId: batchId,
-          perPage: 1000
-        }
-        if (pageToken != "")
-          params['pageToken'] = pageToken
+      if (pageToken != "")
+      params['pageToken'] = pageToken
 
-        var p = await this.rc_platform.getPlatform(this.extensionId)
-        if (p){
-          try {
-            var resp = await p.get(endpoint, params)
-            var jsonObj = await resp.json()
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
 
-            console.log(jsonObj.paging)
-            var nextPage = ""
-            var prevPage = ""
-            if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-              console.log("next page")
-              nextPage = jsonObj.paging.nextPageToken
-            }
-            if (jsonObj.paging.hasOwnProperty("previousPageToken")){
-              console.log("prev page")
-              prevPage = jsonObj.paging.previousPageToken
-            }
-            res.send({
-                status: "ok",
-                nextPage: nextPage,
-                prevPage: prevPage,
-                fullReport: jsonObj.records
-            })
-          } catch (e) {
-            console.log('ERR ' + e.message);
-            res.send({
-              status: "error",
-              message: e.message
-            })
+          console.log(jsonObj.paging)
+          var nextPage = ""
+          var prevPage = ""
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            console.log("next page")
+            nextPage = jsonObj.paging.nextPageToken
           }
-        }else{
+          if (jsonObj.paging.hasOwnProperty("previousPageToken")){
+            console.log("prev page")
+            prevPage = jsonObj.paging.previousPageToken
+          }
           res.send({
-            status: "failed",
-            message: "You have been logged out. Please login again."
+            status: "ok",
+            nextPage: nextPage,
+            prevPage: prevPage,
+            fullReport: jsonObj.records
+          })
+        } catch (e) {
+          console.log('ERR ' + e.message);
+          res.send({
+            status: "error",
+            message: e.message
           })
         }
+      }else{
+        res.send({
+          status: "failed",
+          message: "You have been logged out. Please login again."
+        })
+      }
     },
     /*
     getVoteResult: function (res){
@@ -2334,6 +2324,7 @@ var engine = User.prototype = {
       pgdb.read(query, (err, result) => {
         if (err){
           console.error(err.message);
+          return callback(err.message, "Cannot read batches")
         }
         if (!err && result.rows.length > 0){
           // attach to array then update db
@@ -2358,7 +2349,7 @@ var engine = User.prototype = {
                 console.error(err.message);
               }
               console.log("updated batch data")
-              callback(null, "ok")
+              callback(null, batch)
             })
           }
         }
