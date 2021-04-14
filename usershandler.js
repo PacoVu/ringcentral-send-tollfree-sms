@@ -1668,7 +1668,7 @@ var engine = User.prototype = {
             var commands = campaign.voteCommands.join("|")
             fileContent += `,${commands}`
             fileContent += `,"${voter.repliedMessage}"`
-            if (vote.repliedTime > 0){
+            if (voter.repliedTime > 0){
               date = new Date(voter.repliedTime - timeOffset)
               dateStr = date.toISOString()
             }else{
