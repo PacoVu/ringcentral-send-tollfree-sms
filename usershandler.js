@@ -1489,11 +1489,12 @@ var engine = User.prototype = {
         var campaign = this.eventEngine.getCampaignByBatchId(req.query.batchId)
         if (campaign){
           var timeOffset = parseInt(req.query.timeOffset)
-          fullNamePath += `-${campaign.campaignName.replace(/\s/g, "-")}-survey-result.csv`
+          var name = campaign.campaignName.replace(/#/g, "")
+          fullNamePath += `${name.replace(/\s/g, "-")}-survey-result.csv`
           let dateOptions = { weekday: 'short' }
           var index = 0
           var appendFile = false
-          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
+          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered,Auto-Reply Message"
           try{
             async.forEachLimit(campaign.voterList, 1, function(voter, readNextVoter){
               async.waterfall([
@@ -1518,6 +1519,8 @@ var engine = User.prototype = {
                   fileContent += `,"${dateStr}"`
                   fileContent += `,${voter.isReplied}`
                   fileContent += `,${voter.isSent}`
+                  var autoReplyMessage = (campaign.autoReplyMessages[`${voter.repliedMessage}`]) ? campaign.autoReplyMessages[`${voter.repliedMessage}`] : ""
+                  fileContent += `,${autoReplyMessage}`// COME HERE
                   index++
                   if (index > 500){
                     index = 0
@@ -1561,61 +1564,6 @@ var engine = User.prototype = {
         res.send({status:"error",message:"Unknown error!"})
       }
     },
-    /*
-    downloadSurveyResult: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir
-      if (this.eventEngine){
-        var campaign = this.eventEngine.getCampaignByBatchId(req.query.batchId)
-        if (campaign){
-          var timeOffset = parseInt(req.query.timeOffset)
-          fullNamePath += `-${campaign.campaignName.replace(/\s/g, "-")}-survey-result.csv`
-          let dateOptions = { weekday: 'short' }
-          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
-          try{
-            for (var voter of campaign.voterList){
-              fileContent += `\n${campaign.campaignName}`
-              fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
-              fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
-              var date = new Date(campaign.startDateTime - timeOffset)
-              var dateStr = date.toISOString()
-              fileContent += `,${dateStr}`
-              fileContent += `,${campaign.status}`
-              fileContent += `,"${voter.sentMessage}"`
-              var commands = campaign.voteCommands.join("|")
-              fileContent += `,${commands}`
-              fileContent += `,"${voter.repliedMessage}"`
-              if (voter.repliedTime > 0){
-                date = new Date(voter.repliedTime - timeOffset)
-                dateStr = date.toISOString()
-              }else{
-                dateStr = "--"
-              }
-              fileContent += `,"${dateStr}"`
-              fileContent += `,${voter.isReplied}`
-              fileContent += `,${voter.isSent}`
-            }
-
-            fs.writeFileSync('./'+ fullNamePath, fileContent)
-            var link = "/downloads?filename=" + fullNamePath
-            res.send({
-              status:"ok",
-              message:link
-            })
-          }catch (e){
-            console.log("cannot create report file")
-            res.send({status:"error",message:"Cannot create a report file! Please try again"})
-          }
-        }else{
-          res.send({status:"error",message:"This servey has been deleted."})
-        }
-      }else{
-        res.send({status:"error",message:"Unknown error!"})
-      }
-    },*/
     downloadInvalidNumbers: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
