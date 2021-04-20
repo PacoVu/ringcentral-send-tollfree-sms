@@ -386,6 +386,7 @@ var engine = User.prototype = {
           })
           return
         }
+
         var data = {
           type: req.body.type,
           name: req.body.name,
@@ -404,7 +405,9 @@ var engine = User.prototype = {
         if (!replace){
           templates.push(data)
         }
-        query += `templates='${JSON.stringify(templates)}' WHERE user_id='${this.extensionId}'`
+        var templatesStr = JSON.stringify(templates)
+        templatesStr = templatesStr.replace(/'/g, "''")
+        query += `templates='${templatesStr}' WHERE user_id='${this.extensionId}'`
         pgdb.update(query, (err, result) =>  {
           if (err){
             console.error(err.message);
@@ -430,13 +433,15 @@ var engine = User.prototype = {
           var item = templates[i]
           if (item.type == req.body.type && item.name == req.body.name) {
             templates.splice(i, 1)
-            query += `templates='${JSON.stringify(templates)}' WHERE user_id='${this.extensionId}'`
+            var templatesStr = JSON.stringify(templates)
+            templatesStr = templatesStr.replace(/'/g, "''")
+            query += `templates='${templatesStr}' WHERE user_id='${this.extensionId}'`
             pgdb.update(query, (err, result) =>  {
               if (err){
                 console.error(err.message);
               }
             })
-
+            break
           }
         }
         res.send({
@@ -964,7 +969,7 @@ var engine = User.prototype = {
       }
 
       //console.log(JSON.stringify(requestBody))
-      //console.log(this.batchSummaryReport)
+      console.log(this.batchSummaryReport)
       this.sendBatchMessage(res, requestBody, sendMode, null)
     },
     sendBatchMessage: async function(res, requestBody, type, voteInfo){
@@ -1199,6 +1204,7 @@ var engine = User.prototype = {
               thisUser._getBatchReport(res, batchId, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
+            /*
             this._updateCampaignDB(batchReport, (err, result) => {
               if (batchReport.sentCount == 0 && batchReport.queuedCount == 0){
                 console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
@@ -1207,6 +1213,7 @@ var engine = User.prototype = {
               }
               console.log("DONE READ BATCH REPORT")
             })
+            */
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1852,9 +1859,9 @@ var engine = User.prototype = {
           if (campaignIndex >= 0){
             batches.splice(campaignIndex, 1)
           }
-          var query = 'UPDATE a2p_sms_users SET '
-          query += `batches='${JSON.stringify(batches)}'`
-          query += ` WHERE user_id='${thisUser.extensionId}'`
+          var batchesStr = JSON.stringify(batches)
+          batchesStr = batchesStr.replace(/'/g, "''")
+          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2376,10 +2383,10 @@ var engine = User.prototype = {
           if (result.rows[0].batches.length)
             batches = JSON.parse(result.rows[0].batches)
           batches.push(thisUser.batchSummaryReport)
-          var query = 'UPDATE a2p_sms_users SET '
-          query += `batches='${JSON.stringify(batches)}'`
+          var batchesStr = JSON.stringify(batches)
+          batchesStr = batchesStr.replace(/'/g, "''")
+          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
 
-          query += ` WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2388,10 +2395,11 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [thisUser.batchSummaryReport]
-
+          var batchesStr = JSON.stringify(batches)
+          batchesStr = batchesStr.replace(/'/g, "''")
           var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches),"[]","[]","","","","[]"]
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2424,8 +2432,11 @@ var engine = User.prototype = {
             batch.unreachableCount = batchReport.unreachableCount
             batch.totalCost = batchReport.totalCost
             //batch.live = false
+            //console.log(JSON.stringify(batches))
+            var batchesStr = JSON.stringify(batches)
+            batchesStr = batchesStr.replace(/'/g, "''")
             var query = 'UPDATE a2p_sms_users SET '
-            query += `batches='${JSON.stringify(batches)}'`
+            query += `batches='${batchesStr}'`
             query += ` WHERE user_id='${thisUser.extensionId}'`
             pgdb.update(query, (err, result) =>  {
               if (err){
@@ -2528,8 +2539,9 @@ var engine = User.prototype = {
           if (result.rows[0].batches.length)
             batches = JSON.parse(result.rows[0].batches)
           batches.push(newBatch)
-          var query = 'UPDATE a2p_sms_users SET '
-          query += "batches='" + JSON.stringify(batches) + "' WHERE user_id='" + thisUser.extensionId + "'"
+          var batchesStr = JSON.stringify(batches)
+          batchesStr = batchesStr.replace(/'/g, "''")
+          var query = `UPDATE a2p_sms_users SET batches='  ${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2540,7 +2552,9 @@ var engine = User.prototype = {
           var batches = [newBatch]
           var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, JSON.stringify(batches), "[]", "[]", "", "", "[]"]
+          var batchesStr = JSON.stringify(batches)
+          batchesStr = batchesStr.replace(/'/g, "''")
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr, "[]", "[]", "", "", "[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
