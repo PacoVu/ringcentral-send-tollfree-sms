@@ -399,6 +399,7 @@ var engine = ActiveUser.prototype = {
       })
     },
     updateVoteDataInDB: function(callback){
+      /*
       var query = 'UPDATE a2p_sms_users_tempdata SET '
       query += "active_survey='" + JSON.stringify(this.voteCampaignArr) + "' WHERE user_id='" + this.extensionId + "'"
       //console.log(query)
@@ -408,10 +409,11 @@ var engine = ActiveUser.prototype = {
         }
         callback(null, "updated vote campaign data")
       })
-
+      */
       var query = "INSERT INTO a2p_sms_users_tempdata (user_id, active_survey, rejected_numbers)"
       query += " VALUES ($1,$2,$3)"
       var activeServeys = JSON.stringify(this.voteCampaignArr)
+      activeServeys = activeServeys.replace(/'/g, "''")
       var values = [this.extensionId, activeServeys, '[]']
       query += ` ON CONFLICT (user_id) DO UPDATE SET active_survey='${activeServeys}'`
       pgdb.insert(query, values, (err, result) =>  {
@@ -441,7 +443,9 @@ var engine = ActiveUser.prototype = {
             }
           }
           // write back to database
-          var query = `UPDATE a2p_sms_users SET batches='${JSON.stringify(allCampaigns)}' WHERE user_id='${thisUser.extensionId}'`
+          var batchesStr = JSON.stringify(allCampaigns)
+          batchesStr = batchesStr.replace(/'/g, "''")
+          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
           //console.log(query)
           pgdb.update(query, (err, result) => {
             if (err){
