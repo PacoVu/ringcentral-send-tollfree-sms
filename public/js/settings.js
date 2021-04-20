@@ -538,13 +538,18 @@ function copyHeaderValue(){
 }
 
 function showSampleCode(key, value){
-  var url = $("#webhook-address").val().replace("https://", "")
+  var address = $("#webhook-address").val()
+  var url = ""
+  if (address.indexOf("https://") >= 0)
+    url = address.replace("https://", "")
+  else
+    url = address.replace("http://", "")
   var arr = url.split("/")
   var codeStr = `<label>Express Node JS sample code:</label> \
 <xmp>\
 var app = require('express')();
 var server = require('http').createServer(app);
-server.listen(8000);
+server.listen("YOUR-PORT");
 
 app.post('/${arr[1]}', function(req, res) {\n\
     if(req.headers.hasOwnProperty('${key}')) {\n\

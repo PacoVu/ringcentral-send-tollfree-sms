@@ -1,5 +1,5 @@
 var currentBatchId = ""
-var pendingBatch = false
+//var pendingBatch = false
 var isPolling = false
 const SMS_COST = 0.007
 const SMS_SEGMENT_LEN = 153
@@ -855,12 +855,11 @@ function checkCommandFields(){
 
 function sendBatchMessage(e) {
   e.preventDefault();
+  canSendMessages()
+  /*
   if (pendingBatch){
     var r = confirm("You have a pending batch. Do you want to send a new batch before the previous batch completed?");
     if (r == true) {
-      // cancel polling
-      //if (isPolling)
-      //  switchPollResult()
       startPollingResult(false)
       pendingBatch = false
       canSendMessages()
@@ -868,6 +867,7 @@ function sendBatchMessage(e) {
   }else{
     canSendMessages()
   }
+  */
 }
 
 function canSendMessages() {
@@ -904,7 +904,7 @@ function canSendMessages() {
       data: formData,
       success: function (res) {
           if (res.status == "ok"){
-            pendingBatch = true
+            //pendingBatch = true
             showBlock("result")
             parseResultResponse(res)
           }else if (res.status == "error"){
@@ -924,7 +924,7 @@ function canSendMessages() {
       processData: false
   });
 }
-
+/*
 function pollResult(){
   if (currentBatchId == "")
     return
@@ -946,47 +946,27 @@ function pollResult(){
     }
   });
 }
-
+*/
 function parseResultResponse(resp){
   var batchResult = resp.result
   currentBatchId = batchResult.id
-  $("#status").html("Status: " + batchResult.status)
-  //if (batchResult.status == "Processing"){
-  if (batchResult.processedCount == 0){
-    pendingBatch = true
-    // show the time since batch request was submited
-    $("#time").html("Duration: " + resp.time)
-    var text = `<div>Sending ${batchResult.processedCount} out of ${batchResult.batchSize} messages.</div>`
-    if (batchResult.rejectedNumbers.length){
-      text += `<div class="error">Rejected: ${batchResult.rejectedNumbers.length} recipients.</div>`
-      var rejectNumberList = "<h3>Invalid phone numbers</h3><div class='invalid-number-list'"
-      for (var number of batchResult.rejectedNumbers){
-        rejectNumberList += `<div>Index: ${number.index} - Number: ${number.to[0]} - Reason: ${number.description}`
-      }
-      $("#rejected-list-block").show()
-      $("#rejected-list-block").html(rejectNumberList)
+  startPollingResult(false)
+
+  if (batchResult.rejectedCount){
+    var text = `<div>Processing: ${batchResult.batchSize} recipients.</div>`
+    text += `<div class="error">Rejected: ${batchResult.rejectedCount} recipients.</div>`
+    var rejectNumberList = "<h3>Invalid phone numbers</h3><div class='invalid-number-list'"
+    for (var number of batchResult.rejectedNumbers){
+      rejectNumberList += `<div>Index: ${number.index} - Number: ${number.to[0]} - Reason: ${number.description}`
     }
+    $("#rejected-list-block").show()
+    $("#rejected-list-block").html(rejectNumberList)
+    $("#download-reject-number").show()
     $("#result").html(text)
-    pollTimer = window.setTimeout(function(){
-      pollResult()
-    }, 1000)
-  //}else if (batchResult.status == "Completed" || batchResult.status == "Sent"){
   }else{
-    pendingBatch = false
-    startPollingResult(false)
-    var createdAt = new Date(batchResult.creationTime).getTime()
-    var lastUpdatedAt = new Date(batchResult.lastModifiedTime).getTime()
-    var processingTime = (lastUpdatedAt - createdAt) / 1000
-    $("#time").html("Duration : " + formatSendingTime(processingTime))
-    var text = `<div>Sent: ${batchResult.processedCount} out of ${batchResult.batchSize} recipients.</div>`
-    if (batchResult.rejectedCount){
-      $("#download-reject-number").show()
-    }else{
-      showBlock("history")
-      selectedBatchId = "" // force to display latest campaign
-      readCampaigns()
-    }
-    $("#result").html(text)
+    showBlock("history")
+    selectedBatchId = "" // force to display latest campaign
+    readCampaigns()
   }
 }
 
@@ -996,9 +976,6 @@ function startPollingResult(poll){
     $("#polling-tips").css('display', 'inline');
     pollResult()
   }else{
-    if (pollTimer)
-      window.clearTimeout(pollTimer)
-    pollTimer = null
     $("#sendingAni").css('display', 'none');
     $("#polling-tips").css('display', 'none');
   }

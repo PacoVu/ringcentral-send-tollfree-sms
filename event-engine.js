@@ -28,27 +28,43 @@ var engine = ActiveUser.prototype = {
             this.updateStatusTimer = setInterval(function(){
               thisUser.detectExpiredVoteCampaign()
             }, this.updateInterval)
+
+            thisUser.readWebhookInfoFromDB( async (err, res) => {
+              await thisUser.deleteExtraWebHookSubscriptions()
+              callback(null, result)
+            })
+          }else{
+            //await thisUser.deleteExtraWebHookSubscriptions()
+            callback(null, result)
           }
+        }else{
+          callback(err, result)
         }
-        thisUser.readWebhookInfoFromDB( async (err, res) => {
-          await thisUser.deleteAllRegisteredWebHookSubscriptions()
-          callback(null, result)
-        })
       })
+      //thisUser.readWebhookInfoFromDB( async (err, res) => {})
     },
     setVoteInfo: function (voteInfo){
       this.voteCampaignArr.push(voteInfo)
       var thisUser = this
-      this.autoDeleteTimer = setInterval(function(){
-        thisUser.autoDeleteVoteCampaign()
-      }, this.deleteInterval)
-      this.updateStatusTimer = setInterval(function(){
-        thisUser.detectExpiredVoteCampaign()
-      }, this.updateInterval)
+      if (!this.autoDeleteTimer)
+        this.autoDeleteTimer = setInterval(function(){
+          thisUser.autoDeleteVoteCampaign()
+        }, this.deleteInterval)
+
+      if (!this.updateStatusTimer)
+        this.updateStatusTimer = setInterval(function(){
+          thisUser.detectExpiredVoteCampaign()
+        }, this.updateInterval)
 
       this.updateVoteDataInDB((err, res) => {
         console.log(res)
       })
+      if (!this.webhooks){
+        this.readWebhookInfoFromDB((err, res) => {
+          console.log("readWebhookInfoFromDB")
+          console.log(res)
+        })
+      }
       //console.log(JSON.stringify(this.voteCampaignArr))
     },
     getCopyVoteCampaignsInfo: function(){
@@ -169,9 +185,13 @@ var engine = ActiveUser.prototype = {
         if (now > campaign.endDateTime){
           console.log("vote has been closed")
           if (campaign.status == "Active"){
+            // close now
             campaign.status = "Closed"
-            // close for now
-            this.postResults(campaign)
+            var postData = {
+              dataType: "Survey_Result",
+              result: campaign
+            }
+            this.postResults(postData)
             this.updateVoteDataInDB((err, res) => {
               console.log(res)
             })
@@ -199,6 +219,7 @@ var engine = ActiveUser.prototype = {
                       text: repliedMsg,
                       messages: [{to:[body.from]}]
                   }
+                  campaign.voteCounts.Cost += 0.007
                   this.sendMessage(requestBody)
                 }
               }
@@ -252,7 +273,11 @@ var engine = ActiveUser.prototype = {
         if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
           campaign.status = "Completed"
           needUpdateDd = true
-          this.postResults(campaign)
+          var postData = {
+            dataType: "Survey_Result",
+            result: campaign
+          }
+          this.postResults(postData)
         }
         if (needUpdateDd)
           this.updateVoteDataInDB((err, res) => {
@@ -338,7 +363,11 @@ var engine = ActiveUser.prototype = {
           if (now > campaign.endDateTime){
             campaign.status = "Closed"
             changed = true
-            this.postResults(campaign)
+            var postData = {
+              dataType: "Survey_Result",
+              result: campaign
+            }
+            this.postResults(postData)
           }
         }
       }
@@ -426,9 +455,16 @@ var engine = ActiveUser.prototype = {
     postResults: function (data){
       if (this.webhooks == undefined || this.webhooks.url == "")
         return
-      var https = require('https');
+      var https = undefined;
+      var url = ""
+      if (this.webhooks.url.indexOf("https://") >= 0){
+        https = require('https');
+        url = this.webhooks.url.replace("https://", "")
+      }else{
+        var https = require('http');
+        url = this.webhooks.url.replace("http://", "")
+      }
       var content = JSON.stringify(data)
-      var url = this.webhooks.url.replace("https://", "")
       var arr = url.split("/")
       var domain = arr[0]
       var path = `/${arr[1]}`
@@ -459,12 +495,12 @@ var engine = ActiveUser.prototype = {
         post_req.write(content);
         post_req.end();
       }catch(e){
-        console.log("CRASHED PORT RESULT")
+        console.log("CRASHED POST RESULT")
         console.log(e.message)
       }
     },
     /// Clean up WebHook subscriptions
-    deleteAllRegisteredWebHookSubscriptions: async function() {
+    deleteExtraWebHookSubscriptions: async function() {
       if (this.rc_platform == undefined)
         return
 
@@ -475,20 +511,27 @@ var engine = ActiveUser.prototype = {
           var jsonObj = await resp.json()
           if (jsonObj.records.length > 0){
             for (var record of jsonObj.records) {
-              //console.log(JSON.stringify(record))
+              //console.log(JSON.stringify(record.eventFilters))
               if (record.deliveryMode.transportType == "WebHook"){
                 if (record.id != this.subscriptionId){
-                  var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
-                    console.log("Deleted")
+                  for (var ev of record.eventFilters){
+                    if (ev.indexOf("/a2p-sms/") >= 0){
+                      var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
+                      console.log(`Deleted id: ${record.id}`)
+                      break
+                    }
+                  }
                 }else{
-                  console.log("my only subscription")
-                  this.updateNotification((err, res) => {
+                  console.log(`my only subscription ${this.subscriptionId}`)
+                  /*
+                  this.updateNotification(record.eventFilters, (err, res) => {
                     console.log("update")
                   })
+                  */
                 }
               }
             }
-            console.log("Deleted all")
+            console.log("Done deleting extra subsscriptions")
           }else{
             console.log("No subscription to delete")
           }
@@ -499,11 +542,11 @@ var engine = ActiveUser.prototype = {
         console.log("Cannot get platform => Delete all subscriptions error")
       }
     },
-    updateNotification: async function(callback){
+    updateNotification: async function(eventFilters, callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
-        var eventFilters = [`/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`]
-
+        //var eventFilters = [`/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`]
+        console.log(eventFilters)
         try {
           var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
             eventFilters: eventFilters,
@@ -526,6 +569,16 @@ var engine = ActiveUser.prototype = {
         console.log("err: updateNotification");
         callback("err", "failed")
       }
+    },
+    updateActiveUserSubscription: function() {
+      console.log("updateActiveUserSubscription")
+      var query = `UPDATE a2p_sms_users SET subscription_id='${this.subscriptionId}' WHERE user_id='${this.extensionId}'`
+      pgdb.update(query, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+        }
+        console.log("updated TF batch data")
+      })
     }
 };
 

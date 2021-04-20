@@ -491,5 +491,11 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].cancelMessageSending(req, res)
+  },
+  processBatchEventNotication: function(eventObj){
+    var index = getUserIndexByExtensionId(eventObj.ownerId)
+    if (index < 0)
+      return console.log("not found this user")
+    users[index].processBatchEventNotication(eventObj)
   }
 }

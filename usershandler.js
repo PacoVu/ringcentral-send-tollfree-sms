@@ -47,9 +47,9 @@ function User(id) {
     rejectedCount: 0,
     rejectedNumbers: [],
     status:"Completed",
+    batchType: "group"
   }
 
-  this.batchType = ""
   this.downloadLink = ""
   this.batchFullReport = []
   this.processingBatches = []
@@ -170,7 +170,7 @@ var engine = User.prototype = {
         userName: this.getUserName(),
         phoneNumbers: this.phoneHVNumbers,
         //smsBatchIds: this.smsBatchIds,
-        batchResult: this.batchResult,
+        //batchResult: this.batchResult,
         lowVolume: lowVolume
       })
     },
@@ -206,25 +206,11 @@ var engine = User.prototype = {
             // only customers with A2P SMS would be able to subscribe for notification
             if (this.phoneHVNumbers.length){
               this.eventEngine = router.getActiveUsers().find(o => o.extensionId.toString() === this.extensionId.toString())
-              //console.log(this.eventEngine)
               if (this.eventEngine){
-                /*
-                users = router.getActiveUsers()
-                for (var u of users){
-                  console.log("+++===")
-                  console.log(u.rc_platform.extensionId)
-                }
-                */
                 this.eventEngine.setPlatform(this.rc_platform)
-                /*
-                users = router.getActiveUsers()
-                for (var u of users){
-                  console.log("+++===")
-                  console.log(u.rc_platform.extensionId)
-                }
-                */
                 this.subscriptionId = this.eventEngine.subscriptionId
-                if (this.eventEngine.subscriptionId == ""){
+                if (this.subscriptionId == ""){
+                  console.log(`user ${this.extensionId} has no subscription => create a new one`)
                   this.subscribeForNotification((err, subscriptionId) => {
                     if (!err){
                       thisUser.eventEngine.subscriptionId = subscriptionId
@@ -232,6 +218,7 @@ var engine = User.prototype = {
                     console.log("new subscriptionId: " + subscriptionId)
                   })
                 }else{
+                  console.log(`user ${this.extensionId} has existing subscription => check to renew it`)
                   this.renewNotification((err, subscriptionId) => {
                     if (!err){
                       console.log("SUB ID: " + subscriptionId)
@@ -241,9 +228,9 @@ var engine = User.prototype = {
                   })
                 }
               }else{ // should subscribe for notification and create eventEngine by default
+                console.log(`user ${this.extensionId} was not in the active user list => create a object`)
                 this.subscribeForNotification((err, subscriptionId) => {
                   thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
-                  //thisUser.eventEngine = new (require('./event-engine.js'))(thisUser.extensionId, subscriptionId);
                   // must push to router's activeUser list in order to receive routed subscription
                   router.getActiveUsers().push(thisUser.eventEngine)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
@@ -270,20 +257,20 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: async function(req, res){
       // decide what page to load
+      if (this.phoneHVNumbers.length > 0 && this.subscriptionId != ""){
+        console.log("temp solution")
+        this.updateNotification(false, (err, result) => {
+          console.log("Stop getting outbound notification")
+        })
+      }
+
       if (this.phoneHVNumbers.length > 0 && this.phoneTFNumbers.length > 0){
         // launch option page
-        /*
-        res.render('main', {
-          userName: this.userName,
-          lowVolume: true,
-          highVolume: true
-        })
-        */
         res.render('highvolume-sms', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneHVNumbers,
           //smsBatchIds: this.smsBatchIds,
-          batchResult: this.batchResult,
+          //batchResult: this.batchResult,
           lowVolume: true
         })
       }else if (this.phoneHVNumbers.length > 0){
@@ -292,7 +279,7 @@ var engine = User.prototype = {
           userName: this.userName,
           phoneNumbers: this.phoneHVNumbers,
           //smsBatchIds: this.smsBatchIds,
-          batchResult: this.batchResult
+          //batchResult: this.batchResult
         })
       }else if (this.phoneTFNumbers.length > 0){
         res.render('main', {
@@ -436,7 +423,7 @@ var engine = User.prototype = {
                 console.error(err.message);
               }
             })
-
+            break
           }
         }
         res.send({
@@ -857,7 +844,7 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       //this.eventEngine.setPlatform(this.rc_platform)
-      this.sendBatchMessage(res, requestBody, "vote", voteInfo)
+      this.sendBatchMessage(res, requestBody, voteInfo)
     },
     _sendTailoredMessage: function(req, res){
       console.log("_sendTailoredMessage")
@@ -965,9 +952,9 @@ var engine = User.prototype = {
 
       //console.log(JSON.stringify(requestBody))
       //console.log(this.batchSummaryReport)
-      this.sendBatchMessage(res, requestBody, sendMode, null)
+      this.sendBatchMessage(res, requestBody, null)
     },
-    sendBatchMessage: async function(res, requestBody, type, voteInfo){
+    sendBatchMessage: async function(res, requestBody, voteInfo){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch"
@@ -975,6 +962,7 @@ var engine = User.prototype = {
           var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
           this.StartTimestamp = Date.now()
+          /*
           this.batchResult = {
             id: jsonObj.id,
             batchSize: jsonObj.batchSize,
@@ -982,35 +970,42 @@ var engine = User.prototype = {
             rejectedCount: jsonObj.rejected.length,
             rejectedNumbers: jsonObj.rejected,
             status: jsonObj.status,
-            batchType: type
+            batchType: this.batchSummaryReport.type
           }
-          this.processingBatches.push(this.batchResult)
+          */
+          var batchResult = {
+            id: jsonObj.id,
+            batchSize: jsonObj.batchSize,
+            processedCount: jsonObj.processedCount,
+            rejectedCount: jsonObj.rejected.length,
+            rejectedNumbers: jsonObj.rejected,
+            status: jsonObj.status,
+            batchType: this.batchSummaryReport.type
+          }
+
           if (jsonObj.rejected.length){
             this.batchSummaryReport.rejectedCount = jsonObj.rejected.length
             this.batchSummaryReport.totalCount -= jsonObj.rejected.length
-            if (this.batchSummaryReport.type == "vote")
+            if (voteInfo)
               voteInfo.voteCounts.Total -= jsonObj.rejected.length
             // add rejected numbers to a temp db
             this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
           }
-          this.batchType = type
-          this.batchFullReport = []
+
           this.batchSummaryReport.batchId = jsonObj.id
 
-          if (type == "vote"){
+          if (voteInfo){
             voteInfo.batchId = jsonObj.id
             this.eventEngine.setVoteInfo(voteInfo)
           }
-          this.addBatchDataToDB()
-          //this._getBatchResult(jsonObj.id)
-          var thisUser = this
-          setTimeout(function() {
-            thisUser._getBatchResult(jsonObj.id)
-          },2000)
-          res.send({
-              status:"ok",
-              time: formatSendingTime(0),
-              result: this.batchResult
+          this.addBatchDataToDB((err, result) => {
+            console.log(result)
+            console.log(batchResult)
+            res.send({
+                status:"ok",
+                //time: formatSendingTime(0),
+                result: batchResult // this.processingBatches //
+            })
           })
         } catch (e) {
           console.log("Endpoint POST: " + endpoint)
@@ -1027,121 +1022,132 @@ var engine = User.prototype = {
         })
       }
     },
+    // no more polling batch result
+    /*
     getBatchResult: async function(req, res){
       console.log("getBatchResult")
       var processingTime = (Date.now() - this.StartTimestamp) / 1000
+      //var batchResult = this.batchResult
+      //if (this.processingBatches.length > 0)
+      //  batchResult = this.processingBatches[0].batchResult
+      console.log(this.processingBatches)
       res.send({
           status:"ok",
           time: formatSendingTime(processingTime),
-          result: this.batchResult,
-          type: this.batchType
+          result: this.batchResult //.batchResult
+          //result: this.processingBatches
         })
     },
-    /*
-    _handleProcessingBatches: function(){
-      var thisUser = this
-      if (this.processingBatchIds.length > 0){
-        async.forEachLimit(this.processingBatches, 1, function(batch, checkBatchStatus){
-            async.waterfall([
-              function checkBatchStatus(done) {
-                console.log("checkBatchStatus")
-                var endpoint = `/restapi/v1.0/account/~/a2p-sms/batch/${batch.id}`
-                var p = await thisUser.rc_platform.getPlatform(thisUser.extensionId)
-                if (p){
-                  try {
-                    var resp = await p.get(endpoint)
-                    var jsonObj = await resp.json()
-                    batch.processedCount = jsonObj.processedCount
-                    batch.status = jsonObj.status
-                    batch['creationTime'] = jsonObj.creationTime
-                    batch['lastModifiedTime'] = jsonObj.lastModifiedTime
-                    // implement for vote
-                    if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
-                      if (batch.batchType == "vote"){
-                        console.log("Done Batch Result, call _getVoteReport")
-                        thisUser._getVoteReport(jsonObj.id, "")
-                      }else{
-                        console.log("Done Batch Result, call _getBatchReport")
-                        console.log("CALL _getBatchReport FROM getBatchResult()")
-                        thisUser._getBatchReport(jsonObj.id, "")
-                      }
-                      // remove this batch from the processingBatches list!
-                      var index = thisUser.processingBatches.find(o => o.id == batch.id)
-                      if (index >=0)
-                        thisUser.processingBatches.splice(index, 1)
-                      done()
-                    }else{
-                      var thisUser = this
-                      setTimeout(function() {
-                        thisUser._getBatchResult(batchId)
-                      },2000)
-                    }
-                  } catch (e) {
-                    console.log('ERR ' + e.message);
-                    done()
-                  }
-                }else{
-                  console.log('ERR ');
-                  done()
-                }
-              }
-            ], function (error, success) {
-              if (error) {
-                console.log('Some error!');
-              }
-              checkBatchStatus()
-            });
-          }, function(err){
-            console.log("no more pendingBatch")
-
-          });
-      }
-    },
     */
-    _getBatchResult: async function(batchId){
-      console.log("getBatchResult")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
+    processBatchEventNotication: function(eventObj){
+      console.log("Batch completed")
+      console.log(eventObj)
+      // find the batch
+      this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
+        if (batch){
+          console.log("found batch")
+          console.log(batch)
+          if (eventObj.body.status == "Completed")
+            this._postBatchReport(batch, 1, "")
+          // check status to deal with the future when deletion is supported
+        }
+      })
+    },
+    _postBatchReport: async function(batch, page, pageToken){
+      console.log("_postBatchReport")
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batch.batchId
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var vote = undefined
+      if (batch.type == "vote")
+       vote = this.eventEngine.getCampaignByBatchId(batch.batchId)
+
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
-          var resp = await p.get(endpoint)
+          var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          this.batchResult.processedCount = jsonObj.processedCount
-          this.batchResult.status = jsonObj.status
-          this.batchResult['creationTime'] = jsonObj.creationTime
-          this.batchResult['lastModifiedTime'] = jsonObj.lastModifiedTime
-          //this.batchResult.rejectedNumbers = jsonObj.rejected
-          //console.log(jsonObj)
-          // implement for vote
-          if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
-            /*
-            don't need for now
-            this.batchSummaryReport.pending = false
-            // update DB
-            this._updateCampaignDB(null, (err, result) => {
-              console.log("Batch sending completed")
-            })
-            */
-            if (this.batchType == "vote"){
-              console.log("Done Batch Result, call _getVoteReport")
-              this._getVoteReport(jsonObj.id, "")
-            }else{
-              console.log("Done Batch Result, call _getBatchReport")
-              console.log("CALL _getBatchReport FROM getBatchResult()")
-              this._getBatchReport(jsonObj.id, "")
+          for (var message of jsonObj.records){
+            switch (message.messageStatus) {
+              case "Queued":
+                batch.queuedCount++
+                break;
+              case "Delivered":
+                batch.deliveredCount++
+                if (vote){
+                  var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
+                  if (voter && voter.isSent == false){
+                    vote.voteCounts.Delivered++
+                    voter.id = message.id
+                    voter.isSent = true
+                  }
+                }
+                break
+              case "Sent":
+                batch.sentCount++
+                if (vote){
+                  var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
+                  if (voter && voter.isSent == false){
+                    vote.voteCounts.Delivered++
+                    voter.id = message.id
+                    voter.isSent = true
+                  }
+                }
+                break;
+              case "DeliveryFailed":
+              case "SendingFailed":
+                batch.unreachableCount++
+                if (vote)
+                  vote.voteCounts.Unreachable++
+                break;
+              default:
+                break
             }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            batch.totalCost += cost
+          }
+          var postData = {
+            dataType: "Campaign_Details",
+            campaignName: batch.campaignName,
+            pageNumber: page,
+            records: jsonObj.records
+          }
+          console.log(postData)
+          this.eventEngine.postResults(postData)
+
+          var thisUser = this
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            console.log("has nextPageToken, get it after 1.2 secs")
+            page++
+            setTimeout(function(){
+              thisUser._postBatchReport(batch, page, jsonObj.paging.nextPageToken)
+            }, 1200)
           }else{
-            var thisUser = this
-            setTimeout(function() {
-              thisUser._getBatchResult(batchId)
-            },2000)
+            if (vote)
+              this.eventEngine.setCampainByBatchId(batch.batchId, vote)
+            // update local db
+            this._updateCampaignDB(batch, (err, result) => {
+              console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
+              var postData = {
+                dataType: "Campaign_Summary",
+                report: result
+              }
+              console.log(postData)
+              // post batch data to webhook address
+              thisUser.eventEngine.postResults(postData)
+            })
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + params)
           console.log('ERR ' + e.message);
         }
       }else{
-        console.log('ERR NO PLATFORM');
+        console.log("platform issue")
       }
     },
     readCampaignSummary: function(res, batchId){
@@ -1155,6 +1161,28 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       this._readCampaignSummary(res, batchId, batchReport, "")
+
+      //this._readCampaignSummary_v2(batchId)
+    },
+    _readCampaignSummary_v2: async function(batchId){
+      console.log("_readCampaignSummary_v2")
+      var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
+      var params = {
+        batchId: batchId
+      }
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          console.log(jsonObj)
+        } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('ERR ' + e.message);
+        }
+      }else{
+        console.log("platform issue")
+      }
     },
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
       console.log("_readCampaignSummary")
@@ -1196,17 +1224,15 @@ var engine = User.prototype = {
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("has nextPageToken")
             setTimeout(function(){
-              thisUser._getBatchReport(res, batchId, batchReport, jsonObj.paging.nextPageToken)
+              thisUser._readCampaignSummary(res, batchId, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
+            // don't update db. Taken care by notification path
+            /*
             this._updateCampaignDB(batchReport, (err, result) => {
-              if (batchReport.sentCount == 0 && batchReport.queuedCount == 0){
-                console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
-                console.log(result)
-                thisUser.eventEngine.postResults(result)
-              }
               console.log("DONE READ BATCH REPORT")
             })
+            */
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1224,85 +1250,8 @@ var engine = User.prototype = {
         console.log("platform issue")
         res.send({
           status: "error",
-          message: "platform issue"
+          message: "Platform error."
         })
-      }
-    },
-    _getBatchReport: async function(batchId, pageToken){
-      console.log("_getBatchReport")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: batchId
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
-
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          //this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
-          var keepPolling = false
-          for (var message of jsonObj.records){
-            switch (message.messageStatus) {
-              case "Queued":
-                keepPolling = true
-                this.batchSummaryReport.queuedCount++
-                break;
-              case "Delivered":
-                this.batchSummaryReport.deliveredCount++
-                break
-              case "Sent":
-                this.batchSummaryReport.sentCount++
-                break;
-              case "DeliveryFailed":
-              case "SendingFailed":
-                this.batchSummaryReport.unreachableCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            this.batchSummaryReport.totalCost += cost
-          }
-          var thisUser = this
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("has nextPageToken")
-            setTimeout(function(){
-              thisUser._getBatchReport(batchId, jsonObj.paging.nextPageToken)
-            }, 1200)
-          }else{
-            if (keepPolling){
-              setTimeout(function(){
-                console.log("call getBatchResult again from polling")
-                thisUser.batchSummaryReport.queuedCount = 0
-                thisUser.batchSummaryReport.deliveredCount = 0
-                thisUser.batchSummaryReport.sentCount = 0
-                thisUser.batchSummaryReport.unreachableCount = 0
-                thisUser.batchSummaryReport.totalCost = 0.0
-                thisUser._getBatchReport(batchId, "")
-              }, 5000)
-            }else{
-              // update local db
-              this._updateCampaignDB(null, (err, result) => {
-                //thisUser.batchSummaryReport.live = false
-                //thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
-                //console.log("DONE SEND BATCH")
-                if (thisUser.batchSummaryReport.sentCount == 0 && thisUser.batchSummaryReport.queuedCount == 0){
-                  console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
-                  thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
-                }
-              })
-            }
-          }
-        } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
-          console.log('ERR ' + e.message);
-        }
-      }else{
-        console.log("platform issue")
       }
     },
     readCampaignDetails: async function(res, batchId, pageToken){
@@ -1320,8 +1269,6 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-
-          console.log(jsonObj.paging)
           var nextPage = ""
           var prevPage = ""
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
@@ -1350,118 +1297,8 @@ var engine = User.prototype = {
       }else{
         res.send({
           status: "failed",
-          message: "You have been logged out. Please login again."
+          message: "Platform error."
         })
-      }
-    },
-    /*
-    getVoteResult: function (res){
-      //console.log("getVoteResult")
-      if (this.eventEngine){
-        console.log(this.eventEngine.voteCampaignArr)
-        res.send({
-            status: "ok",
-            voteCampaignArr: this.eventEngine.voteCampaignArr
-          })
-      }else{
-        res.send({
-            status: "ok",
-            voteCampaignArr: []
-          })
-      }
-    },
-    */
-    _getVoteReport: async function (batchId, pageToken){
-      console.log("_getVoteReport")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: batchId
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
-
-      var vote = this.eventEngine.getCampaignByBatchId(batchId)
-      console.log("Set vote campaign info")
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          var keepPolling = false
-          for (var message of jsonObj.records){
-            switch (message.messageStatus) {
-              case "Queued":
-                keepPolling = true
-                this.batchSummaryReport.queuedCount++
-                break;
-              case "Sent":
-              var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
-              if (voter && voter.isSent == false){
-                vote.voteCounts.Delivered++
-                this.batchSummaryReport.sentCount++
-                voter.id = message.id
-                voter.isSent = true
-              }
-              break;
-              case "Delivered":
-                var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
-                if (voter && voter.isSent == false){
-                  vote.voteCounts.Delivered++
-                  this.batchSummaryReport.deliveredCount++
-                  voter.id = message.id
-                  voter.isSent = true
-                }
-                break;
-              case "DeliveryFailed":
-              case "SendingFailed":
-                this.batchSummaryReport.unreachableCount++
-                vote.voteCounts.Unreachable++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            this.batchSummaryReport.totalCost += cost
-            //vote.voteCounts.Cost += cost
-          }
-          var thisUser = this
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            setTimeout(function(){
-              thisUser._getVoteReport(batchId, jsonObj.paging.nextPageToken)
-            }, 1200)
-          }else{
-              if (keepPolling){
-                setTimeout(function(){
-                  console.log("call getBatchResult again from polling")
-                  vote.voteCounts.Cost = 0
-                  vote.voteCounts.Delivered = 0
-                  vote.voteCounts.Unreachable = 0
-
-                  thisUser.batchSummaryReport.queuedCount = 0
-                  thisUser.batchSummaryReport.deliveredCount = 0
-                  thisUser.batchSummaryReport.sentCount = 0
-                  thisUser.batchSummaryReport.unreachableCount = 0
-                  thisUser.batchSummaryReport.totalCost = 0.0
-                  //thisUser.batchFullReport = []
-                  thisUser._getVoteReport(batchId, "")
-                }, 5000)
-              }else{
-                // update local db
-                this.eventEngine.setCampainByBatchId(batchId, vote)
-                this._updateCampaignDB(null, (err, result) => {
-                  //thisUser.batchSummaryReport.live = false
-                  thisUser.eventEngine.postResults(this.batchSummaryReport)
-                  console.log("DONE SEND SURVEY BATCH")
-                })
-              }
-          }
-        } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
-          console.log('ERR ' + e.message);
-        }
-      }else{
-        console.log("platform issue")
       }
     },
     pollNewMessages: function(res){
@@ -1508,7 +1345,7 @@ var engine = User.prototype = {
       }else{
         res.send({
           status: "failed",
-          message: "You have been logged out. Please login again."
+          message: "Platform error."
         })
       }
     },
@@ -1588,7 +1425,7 @@ var engine = User.prototype = {
       }else{
         res.send({
           status: "failed",
-          message: "You have been logged out. Please login again."
+          message: "Platform error."
         })
       }
     },
@@ -1625,7 +1462,7 @@ var engine = User.prototype = {
       }catch (e){
         console.log("cannot create report file")
         res.send({
-          status:"failed",
+          status:"error",
           message:"Cannot create a report file! Please try gain"
         })
       }
@@ -1634,7 +1471,7 @@ var engine = User.prototype = {
       if (this.eventEngine){
         this.eventEngine.deleteCampaignByBatchId(req.query.batchId, (err, result) => {
           if (err)
-            res.send({status:"failed",message:"Cannot deleted"})
+            res.send({status:"error",message:"Cannot deleted"})
           else
             res.send({status:"ok",message:"deleted"})
         })
@@ -1645,41 +1482,121 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var extId = this.getExtensionId()
-      var fullNamePath = dir
-      var fileContent = ""
-
+      var fullNamePath = './' + dir
       if (this.eventEngine){
         var campaign = this.eventEngine.getCampaignByBatchId(req.query.batchId)
         if (campaign){
           var timeOffset = parseInt(req.query.timeOffset)
-          fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
-
-          let dateOptions = { weekday: 'short' }
-          for (var voter of campaign.voterList){
-            fileContent += `\n${campaign.campaignName}`
-            fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
-            fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
-            var date = new Date(campaign.startDateTime - timeOffset)
-            var dateStr = date.toISOString()
-            fileContent += `,${dateStr}`
-            fileContent += `,${campaign.status}`
-            fileContent += `,"${voter.sentMessage}"`
-            var commands = campaign.voteCommands.join("|")
-            fileContent += `,${commands}`
-            fileContent += `,"${voter.repliedMessage}"`
-            if (voter.repliedTime > 0){
-              date = new Date(voter.repliedTime - timeOffset)
-              dateStr = date.toISOString()
-            }else{
-              dateStr = "--"
-            }
-            fileContent += `,"${dateStr}"`
-            fileContent += `,${voter.isReplied}`
-            fileContent += `,${voter.isSent}`
-          }
           fullNamePath += `-${campaign.campaignName.replace(/\s/g, "-")}-survey-result.csv`
+          let dateOptions = { weekday: 'short' }
+          var index = 0
+          var appendFile = false
+          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
           try{
+            async.forEachLimit(campaign.voterList, 1, function(voter, readNextVoter){
+              async.waterfall([
+                function readNextVoter(done) {
+                  fileContent += `\n${campaign.campaignName}`
+                  fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
+                  fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
+                  var date = new Date(campaign.startDateTime - timeOffset)
+                  var dateStr = date.toISOString()
+                  fileContent += `,${dateStr}`
+                  fileContent += `,${campaign.status}`
+                  fileContent += `,"${voter.sentMessage}"`
+                  var commands = campaign.voteCommands.join("|")
+                  fileContent += `,${commands}`
+                  fileContent += `,"${voter.repliedMessage}"`
+                  if (voter.repliedTime > 0){
+                    date = new Date(voter.repliedTime - timeOffset)
+                    dateStr = date.toISOString()
+                  }else{
+                    dateStr = "--"
+                  }
+                  fileContent += `,"${dateStr}"`
+                  fileContent += `,${voter.isReplied}`
+                  fileContent += `,${voter.isSent}`
+                  index++
+                  if (index > 500){
+                    index = 0
+                    if (appendFile == false){
+                      appendFile = true
+                      fs.writeFile(fullNamePath, fileContent, function (err) {
+                        fileContent = ""
+                        done()
+                      });
+                    }else{
+                      fs.appendFile(fullNamePath, fileContent, function (err) {
+                        fileContent = ""
+                        done()
+                      });
+                    }
+                  }else{
+                    done()
+                  }
+                }
+              ], function (error, success) {
+                readNextVoter()
+              });
+            }, function(err){
+              if (index > 0)
+                fs.writeFileSync(fullNamePath, fileContent)
+              console.log("Done write file")
+              var link = "/downloads?filename=" + fullNamePath
+              res.send({
+                status:"ok",
+                message:link
+              })
+            });
+          }catch (e){
+            console.log("cannot create report file")
+            res.send({status:"error",message:"Cannot create a report file! Please try again"})
+          }
+        }else{
+          res.send({status:"error",message:"This servey has been deleted."})
+        }
+      }else{
+        res.send({status:"error",message:"Unknown error!"})
+      }
+    },
+    /*
+    downloadSurveyResult: function(req, res){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var fullNamePath = dir
+      if (this.eventEngine){
+        var campaign = this.eventEngine.getCampaignByBatchId(req.query.batchId)
+        if (campaign){
+          var timeOffset = parseInt(req.query.timeOffset)
+          fullNamePath += `-${campaign.campaignName.replace(/\s/g, "-")}-survey-result.csv`
+          let dateOptions = { weekday: 'short' }
+          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
+          try{
+            for (var voter of campaign.voterList){
+              fileContent += `\n${campaign.campaignName}`
+              fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
+              fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
+              var date = new Date(campaign.startDateTime - timeOffset)
+              var dateStr = date.toISOString()
+              fileContent += `,${dateStr}`
+              fileContent += `,${campaign.status}`
+              fileContent += `,"${voter.sentMessage}"`
+              var commands = campaign.voteCommands.join("|")
+              fileContent += `,${commands}`
+              fileContent += `,"${voter.repliedMessage}"`
+              if (voter.repliedTime > 0){
+                date = new Date(voter.repliedTime - timeOffset)
+                dateStr = date.toISOString()
+              }else{
+                dateStr = "--"
+              }
+              fileContent += `,"${dateStr}"`
+              fileContent += `,${voter.isReplied}`
+              fileContent += `,${voter.isSent}`
+            }
+
             fs.writeFileSync('./'+ fullNamePath, fileContent)
             var link = "/downloads?filename=" + fullNamePath
             res.send({
@@ -1688,15 +1605,15 @@ var engine = User.prototype = {
             })
           }catch (e){
             console.log("cannot create report file")
-            res.send({status:"failed",message:"Cannot create a report file! Please try gain"})
+            res.send({status:"error",message:"Cannot create a report file! Please try again"})
           }
         }else{
-          res.send({status:"failed",message:"This servey has been deleted."})
+          res.send({status:"error",message:"This servey has been deleted."})
         }
       }else{
-        res.send({status:"failed",message:"Cannot create a campaign result file! Please try gain"})
+        res.send({status:"error",message:"Unknown error!"})
       }
-    },
+    },*/
     downloadInvalidNumbers: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -1727,7 +1644,7 @@ var engine = User.prototype = {
           }catch (e){
             console.log("cannot create download file")
             res.send({
-              status:"failed",
+              status:"error",
               message:"Cannot create download file! Please try gain"})
           }
         }else{ // no history
@@ -1738,7 +1655,6 @@ var engine = User.prototype = {
         }
       })
     },
-    //_readCampaignDetailsFromServer: async function(res, batchId, batchReport, pageToken){
     _createReportFile: async function(query, pageToken, callback){
       console.log("_createReportFile")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1757,7 +1673,6 @@ var engine = User.prototype = {
           var appendFile = (pageToken == "") ? false : true
           var link = this.writeToFile(query, jsonObj.records, appendFile)
 
-          //console.log(jsonObj.paging)
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("Read next page")
             var thisUser = this
@@ -1774,7 +1689,7 @@ var engine = User.prototype = {
           callback('error', "error")
         }
       }else{
-        callback("error", "failed")
+        callback("failed", "failed")
       }
     },
     writeToFile: function(query, records, appendFile){
@@ -1834,11 +1749,16 @@ var engine = User.prototype = {
           console.log("file is ready for download")
           res.send({"status":"ok","message": link})
         }else{
-          console.log("WTF")
-          res.send({
-            status: "error",
-            message: "Failed to read campaign report. Please retry!"
-          })
+          if (err == "error")
+            res.send({
+              status: "error",
+              message: "Failed to read campaign report. Please retry!"
+            })
+          else
+            res.send({
+              status: "failed",
+              message: "You have been logged out. Please login again."
+            })
         }
       })
     },
@@ -2030,8 +1950,11 @@ var engine = User.prototype = {
       if (p){
         var endpoint = '/restapi/v1.0/subscription'
         var eventFilters = []
+        var filter = ""
         for (var item of this.phoneHVNumbers){
-          var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+          eventFilters.push(filter)
+          filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
           eventFilters.push(filter)
         }
         try {
@@ -2054,10 +1977,10 @@ var engine = User.prototype = {
         } catch (e) {
           console.log('Endpoint: POST ' + endpoint)
           console.log('ERR ' + e.message);
-          callback(e.message, "failed")
+          callback(e.message, "")
         }
       }else{
-        callback(err, "failed")
+        callback("failed", "")
       }
     },
     renewNotification: async function(callback){
@@ -2094,6 +2017,42 @@ var engine = User.prototype = {
         callback("err", "failed")
       }
     },
+    updateBatchNotification: async function( batchId, callback){
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        var eventFilters = []
+        var filter = ""
+        for (var item of this.phoneHVNumbers){
+          filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+          eventFilters.push(filter)
+          filter = `/restapi/v1.0/account/~/a2p-sms/batch/${batchId}`
+          eventFilters.push(filter)
+        }
+
+        var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
+        try {
+          var resp = await p.put(endpoint, {
+            eventFilters: eventFilters,
+            deliveryMode: {
+              transportType: 'WebHook',
+              address: process.env.DELIVERY_MODE_ADDRESS
+            },
+            expiresIn: process.env.WEBHOOK_EXPIRES_IN
+          })
+          var jsonObj = await resp.json()
+          this.subscriptionId = jsonObj.id
+          console.log("Subscription updated")
+          callback(null, jsonObj.id)
+        } catch (e) {
+          console.log('Endpoint: PUT ' + endpoint)
+          console.log('ERR ' + e.message);
+          callback(e.message, "failed")
+        }
+      }else{
+        console.log("err: updateNotification");
+        callback("err", "failed")
+      }
+    },
     updateNotification: async function( outbound, callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
@@ -2101,11 +2060,16 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
+
           if (outbound){
             filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
             eventFilters.push(filter)
+          }else{
+            filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
+            eventFilters.push(filter)
           }
         }
+
         var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
         try {
           var resp = await p.put(endpoint, {
@@ -2363,7 +2327,7 @@ var engine = User.prototype = {
     postFeedbackToGlip: function(req){
       post_message_to_group(req.body, this.mainCompanyNumber, this.accountId, this.userEmail)
     },
-    addBatchDataToDB: function(){
+    addBatchDataToDB: function(callback){
       var thisUser = this
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -2384,7 +2348,8 @@ var engine = User.prototype = {
             if (err){
               console.error(err.message);
             }
-            console.log("add new batch data")
+            callback(null, "added new batch data")
+            console.log("added new batch data")
           })
         }else{ // add new to db
           var batches = [thisUser.batchSummaryReport]
@@ -2396,6 +2361,7 @@ var engine = User.prototype = {
             if (err){
               console.error(err.message);
             }
+            callback(null, "stored batch in to db")
             console.log("stored batch in to db")
           })
         }

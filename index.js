@@ -36,7 +36,7 @@ var server = require('http').createServer(app);
 server.listen(port);
 console.log("listen to port " + port)
 var router = require('./router');
-var aUsers = router.getActiveUsers()
+//var aUsers = router.getActiveUsers()
 
 app.get('/', function (req, res) {
   console.log('load index page /')
@@ -443,16 +443,24 @@ app.post('/webhookcallback', function(req, res) {
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
-            if (aUsers.length){
-              var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
-              if (eventEngine){
-                eventEngine.processNotification(jsonObj)
-              }else{
-                console.log("Not my notification!!!")
-                //console.log(jsonObj)
-              }
+            //"event":"/restapi/v1.0/account/129304023/a2p-sms/batch?from=+12342002153"
+            //"event":"/restapi/v1.0/account/129304023/a2p-sms/messages?direction=Inbound&to=+12342002153"
+            if (jsonObj.event.indexOf("/a2p-sms/batch?") >= 0){
+              router.processBatchEventNotication(jsonObj)
             }else{
-              console.log("Not ready. Still loading users")
+              var aUsers = router.getActiveUsers()
+              if (aUsers.length){
+                //var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
+                var eventEngine = aUsers.find(o => o.extensionId === jsonObj.ownerId)
+                if (eventEngine){
+                  eventEngine.processNotification(jsonObj)
+                }else{
+                  console.log("Not my notification!!!")
+                  //console.log(jsonObj)
+                }
+              }else{
+                console.log("Not ready. Still loading users")
+              }
             }
             res.statusCode = 200;
             res.end();
