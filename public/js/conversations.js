@@ -530,37 +530,38 @@ function createConversationItem(item, conversation){
     // create date separation
     line += `<li class="separator"><div class="date-line">----- ${dateStr} -----</div></li>`
   }
+  var msg = item.text.replace(/\r?\n/g, "<br>")
   if (item.direction == "Inbound"){
     line += '<li class="chat-left">'
     if (conversation){
       line += `<div class="chat-avatar chat-name">${timeStr}</div>`
-      line += `<div class="chat-text">${item.text}</div>`
+      line += `<div class="chat-text">${msg}</div>`
     }else{
       line += `<div class="chat-avatar chat-name"><a class="reply" href="#" onclick="openReplyForm('${item.from}', '${item.to[0]}');return false;">${getContactName(item.from)}</a><br>${timeStr}</div>`
-      line += `<div class="chat-text">${item.text}</div>`
+      line += `<div class="chat-text">${msg}</div>`
     }
   }else{ // Outbound
     line += '<li class="chat-right">'
     if (conversation){
       if (item.messageStatus == "Delivered"){
-        line += `<div class="chat-text">${item.text}</div>`
+        line += `<div class="chat-text">${msg}</div>`
       }else if (item.messageStatus == "Queued" || item.messageStatus == "Sent"){
         line += `<div class="chat-avatar chat-hour">Pending&nbsp;</div>`
-        line += `<div class="chat-text warning">${item.text}</div>`
+        line += `<div class="chat-text warning">${msg}</div>`
       }else{
         line += `<div class="chat-avatar chat-hour">Failed&nbsp;</div>`
-        line += `<div class="chat-text error">${item.text}</div>`
+        line += `<div class="chat-text error">${msg}</div>`
       }
       line += `<div class="chat-avatar chat-name">${timeStr}</div>`
     }else{
       if (item.messageStatus == "Delivered"){
-        line += `<div class="chat-text">${item.text}</div>`
+        line += `<div class="chat-text">${msg}</div>`
       }else if (item.messageStatus == "Queued" || item.messageStatus == "Sent"){
         line += `<div class="chat-avatar chat-hour">Pending&nbsp;</div>`
-        line += `<div class="chat-text warning">${item.text}</div>`
+        line += `<div class="chat-text warning">${msg}</div>`
       }else{
         line += `<div class="chat-avatar chat-hour">Failed&nbsp;</div>`
-        line += `<div class="chat-text error">${item.text}</div>`
+        line += `<div class="chat-text error">${msg}</div>`
       }
       line += `<div class="chat-avatar chat-name">${timeStr}<br>To: ${getContactName(item.to[0])}</div>`
     }

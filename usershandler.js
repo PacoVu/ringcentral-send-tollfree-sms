@@ -1473,6 +1473,7 @@ var engine = User.prototype = {
     },
     pollNewMessages: function(res){
       if (this.eventEngine){
+        console.log(`${this.accountId} / ${this.eventEngine.newMessageArr.length}`)
         res.send({
           status: "ok",
           newMessages: this.eventEngine.newMessageArr

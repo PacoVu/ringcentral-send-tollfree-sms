@@ -2,6 +2,7 @@ var contactList = []
 var optedOutNumbers = []
 var selectedContactGroup = ""
 var webhook = undefined
+const MASK = "#!#"
 function init(){
   window.onresize = function() {
     setElementsHeight()
@@ -156,12 +157,36 @@ function isValidCSVContent(rows){
     var header = rows[0]
     var headerCols = header.trim().split(",")
     var firstRow = rows[1]
-    var firstRowCols = firstRow.trim().split(",")
+    var firstRow = recipientsFromFile[1]
+    var row = detectAndHandleCommas(firstRow)
+    var firstRowCols = row.trim().split(",")
     if (headerCols.length != firstRowCols.length){
       return false
     }
   }
   return true
+}
+
+function detectAndHandleCommas(row){
+  var startPos = 0
+  var endPos = 0
+  while (startPos >= 0){
+    startPos = row.indexOf('"', endPos)
+    if (startPos > 0){
+      endPos = row.indexOf('"', startPos+1)
+      if (endPos >= 0){
+        var colText = row.substring(startPos, endPos+1)
+        var count = colText.split(",").length - 1
+        var maskedText = colText.replace(/,/g, MASK);
+        endPos = endPos + (2 * count)
+        row = row.replace(colText, maskedText)
+      }
+      endPos = endPos+2
+      if (endPos >= row.length)
+        startPos = -1
+    }
+  }
+  return row
 }
 
 function resetContactForm(){

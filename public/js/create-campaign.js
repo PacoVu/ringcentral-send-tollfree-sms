@@ -464,13 +464,14 @@ function readCSVFile(elm){
 }
 
 function isValidCSVContent(){
-  if (recipientsFromFile.length < 2){
+  if (recipientsFromFile.length < 1){
     return false
   }else{
     var header = recipientsFromFile[0]
     var headerCols = header.trim().split(",")
     var firstRow = recipientsFromFile[1]
-    var firstRowCols = firstRow.trim().split(",")
+    var row = detectAndHandleCommas(firstRow)
+    var firstRowCols = row.trim().split(",")
     if (headerCols.length != firstRowCols.length){
       return false
     }
