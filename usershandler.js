@@ -656,6 +656,7 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log("Endpoint POST: " + endpoint)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -1019,6 +1020,7 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log("Endpoint POST: " + endpoint)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -1042,67 +1044,6 @@ var engine = User.prototype = {
           type: this.batchType
         })
     },
-    /*
-    _handleProcessingBatches: function(){
-      var thisUser = this
-      if (this.processingBatchIds.length > 0){
-        async.forEachLimit(this.processingBatches, 1, function(batch, checkBatchStatus){
-            async.waterfall([
-              function checkBatchStatus(done) {
-                console.log("checkBatchStatus")
-                var endpoint = `/restapi/v1.0/account/~/a2p-sms/batch/${batch.id}`
-                var p = await thisUser.rc_platform.getPlatform(thisUser.extensionId)
-                if (p){
-                  try {
-                    var resp = await p.get(endpoint)
-                    var jsonObj = await resp.json()
-                    batch.processedCount = jsonObj.processedCount
-                    batch.status = jsonObj.status
-                    batch['creationTime'] = jsonObj.creationTime
-                    batch['lastModifiedTime'] = jsonObj.lastModifiedTime
-                    // implement for vote
-                    if (jsonObj.status == "Completed" || jsonObj.status == "Sent"){
-                      if (batch.batchType == "vote"){
-                        console.log("Done Batch Result, call _getVoteReport")
-                        thisUser._getVoteReport(jsonObj.id, "")
-                      }else{
-                        console.log("Done Batch Result, call _getBatchReport")
-                        console.log("CALL _getBatchReport FROM getBatchResult()")
-                        thisUser._getBatchReport(jsonObj.id, "")
-                      }
-                      // remove this batch from the processingBatches list!
-                      var index = thisUser.processingBatches.find(o => o.id == batch.id)
-                      if (index >=0)
-                        thisUser.processingBatches.splice(index, 1)
-                      done()
-                    }else{
-                      var thisUser = this
-                      setTimeout(function() {
-                        thisUser._getBatchResult(batchId)
-                      },2000)
-                    }
-                  } catch (e) {
-                    console.log('ERR ' + e.message);
-                    done()
-                  }
-                }else{
-                  console.log('ERR ');
-                  done()
-                }
-              }
-            ], function (error, success) {
-              if (error) {
-                console.log('Some error!');
-              }
-              checkBatchStatus()
-            });
-          }, function(err){
-            console.log("no more pendingBatch")
-
-          });
-      }
-    },
-    */
     _getBatchResult: async function(batchId){
       console.log("getBatchResult")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch/" + batchId
@@ -1143,6 +1084,7 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1204,16 +1146,9 @@ var engine = User.prototype = {
               thisUser._getBatchReport(res, batchId, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
-            /*
             this._updateCampaignDB(batchReport, (err, result) => {
-              if (batchReport.sentCount == 0 && batchReport.queuedCount == 0){
-                console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
-                console.log(result)
-                thisUser.eventEngine.postResults(result)
-              }
-              console.log("DONE READ BATCH REPORT")
+              console.log(result)
             })
-            */
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1221,6 +1156,8 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
             status: "failed",
@@ -1305,7 +1242,8 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1347,7 +1285,8 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
             status: "error",
@@ -1465,6 +1404,7 @@ var engine = User.prototype = {
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
           console.log('Params: ' + params)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1507,6 +1447,8 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
@@ -1587,6 +1529,7 @@ var engine = User.prototype = {
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
           console.log('Params: ' + readParams)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
