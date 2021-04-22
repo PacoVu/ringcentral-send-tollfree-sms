@@ -131,6 +131,9 @@ var engine = ActiveUser.prototype = {
     processNotification: function(jsonObj){
       //console.log(jsonObj)
       var body = jsonObj.body
+      if (!body.hasOwnProperty('to')){
+        return console.log(JSON.stringify(jsonObj))
+      }
       var notFound = true
       // seach for the "from" number within those campaigns
       for (var campaign of this.voteCampaignArr){
