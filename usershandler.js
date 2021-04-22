@@ -640,6 +640,7 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log("Endpoint POST: " + endpoint)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -1011,6 +1012,7 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log("Endpoint POST: " + endpoint)
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status:"error",
@@ -1118,7 +1120,7 @@ var engine = User.prototype = {
             pageNumber: page,
             records: jsonObj.records
           }
-          console.log(postData)
+          //console.log(postData)
           this.eventEngine.postResults(postData)
 
           var thisUser = this
@@ -1138,14 +1140,15 @@ var engine = User.prototype = {
                 dataType: "Campaign_Summary",
                 report: result
               }
-              console.log(postData)
+              //console.log(postData)
               // post batch data to webhook address
               thisUser.eventEngine.postResults(postData)
             })
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
         }
       }else{
@@ -1242,6 +1245,8 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
             status: "failed",
@@ -1289,7 +1294,8 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
             status: "error",
@@ -1338,6 +1344,8 @@ var engine = User.prototype = {
           })
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
@@ -1417,7 +1425,8 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + readParams)
+          console.log('Params: ' + JSON.stringify(readParams))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           res.send({
               status: "error",
@@ -1634,7 +1643,8 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + params)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           callback('error', "error")
         }
@@ -1744,62 +1754,6 @@ var engine = User.prototype = {
         }
       })
     },
-    /*
-    downloadVoteReport: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var extId = this.getExtensionId()
-      var fullNamePath = dir + extId
-      var fileContent = ""
-      fullNamePath += '_vote-result.csv'
-      //var query = `SELECT votes FROM a2p_sms_users WHERE user_id='${extId}'`
-      var query = `SELECT active_survey FROM a2p_sms_users_tempdata WHERE user_id='${extId}'`
-      pgdb.read(query, (err, result) => {
-          if (err){
-            console.error(err.message);
-          }
-          var timeOffset = parseInt(req.query.timeOffset)
-          fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered"
-          if (!err && result.rows.length > 0){
-            let dateOptions = { weekday: 'short' }
-            //var allCampaigns = JSON.parse(result.rows[0].votes)
-            var allCampaigns = JSON.parse(result.rows[0].active_survey)
-            for (var voteCampaign of allCampaigns){
-              for (var campaign of voteCampaign.campaigns){
-                for (var voter of campaign.voterList){
-                  fileContent += `\n${campaign.campaignName}`
-                  fileContent += `,${formatPhoneNumber(voteCampaign.serviceNumber)}`
-                  fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
-                  var date = new Date(campaign.startDateTime - timeOffset)
-                  var dateStr = date.toISOString()
-                  fileContent += `,${dateStr}`
-                  fileContent += `,${campaign.status}`
-                  fileContent += `,"${voter.sentMessage}"`
-                  var commands = campaign.voteCommands.join("|")
-                  fileContent += `,${commands}`
-                  fileContent += `,"${voter.repliedMessage}"`
-                  date = new Date(voter.repliedTime - timeOffset)
-                  dateStr = date.toISOString()
-                  fileContent += `,"${dateStr}"`
-                  fileContent += `,${voter.isReplied}`
-                  fileContent += `,${voter.isSent}`
-                }
-              }
-            }
-            try{
-              fs.writeFileSync('./'+ fullNamePath, fileContent)
-              var link = "/downloads?filename=" + fullNamePath
-              res.send({"status":"ok","message":link})
-            }catch (e){
-              console.log("cannot create report file")
-              res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
-            }
-          }
-        })
-    },
-    */
     downloadStandardSMSReport: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){
@@ -1926,6 +1880,8 @@ var engine = User.prototype = {
           callback(null, jsonObj.id)
         } catch (e) {
           console.log('Endpoint: POST ' + endpoint)
+          console.log('EventFilters: ' + JSON.stringify(eventFilters))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           callback(e.message, "")
         }
@@ -1957,6 +1913,7 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: POST ' + endpoint)
+          console.log(e.response.headers)
           console.log('ERR: ' + e.message)
           this.subscribeForNotification((err, res) => {
             callback(err, res)
@@ -1995,6 +1952,8 @@ var engine = User.prototype = {
           callback(null, jsonObj.id)
         } catch (e) {
           console.log('Endpoint: PUT ' + endpoint)
+          console.log('EventFilters: ' + JSON.stringify(eventFilters))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           callback(e.message, "failed")
         }
@@ -2037,6 +1996,8 @@ var engine = User.prototype = {
           callback(null, jsonObj.id)
         } catch (e) {
           console.log('Endpoint: PUT ' + endpoint)
+          console.log('EventFilters: ' + JSON.stringify(eventFilters))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
           callback(e.message, "failed")
         }

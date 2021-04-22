@@ -471,7 +471,7 @@ function isValidCSVContent(){
     var headerCols = header.trim().split(",")
     var firstRow = recipientsFromFile[1]
     var row = detectAndHandleCommas(firstRow)
-    var firstRowCols = firstRow.trim().split(",")
+    var firstRowCols = row.trim().split(",")
     if (headerCols.length != firstRowCols.length){
       return false
     }
