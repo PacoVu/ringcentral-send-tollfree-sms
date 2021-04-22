@@ -290,7 +290,7 @@ function uploadContactsFile(e){
       data: formData,
       success: function (res) {
           if (res.status == "ok"){
-            var contactGroup = undefined //contactList.find(o => o.groupName == res.contactList.groupName)
+            var contactGroup = undefined
             var updated = false
             selectedContactGroup = res.contactList.groupName
             for (var i=0; i<contactList.length; i++){
@@ -302,7 +302,7 @@ function uploadContactsFile(e){
               }
             }
             if (!updated){
-              contactList.push(res.contactList) //= contactList.concat(res.contactList)
+              contactList.push(res.contactList)
             }
             if (contactList.length > 0){
               $("#my-contacts-pane").show()
@@ -332,7 +332,6 @@ function readContacts(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       contactList = res.contactList
-      //alert(JSON.stringify(contactList))
       if (contactList.length > 0){
         $("#my-contacts-pane").show()
         updateContactList()
@@ -485,13 +484,7 @@ function checkValueChange(){
     ;
   }
 }
-/*
-function disableWebhookInputs(flag){
-  $("#webhook-address").prop("disabled", flag)
-  $("#header-name").prop("disabled", flag)
-  $("#header-value").prop("disabled", flag)
-}
-*/
+
 function generateCode() {
   var text = "";
   var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
