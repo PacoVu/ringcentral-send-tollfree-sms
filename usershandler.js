@@ -1269,8 +1269,9 @@ var engine = User.prototype = {
         perPage: 1000
       }
       if (pageToken != "")
-      params['pageToken'] = pageToken
+        params['pageToken'] = pageToken
 
+      console.log('Params: ' + JSON.stringify(params))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
