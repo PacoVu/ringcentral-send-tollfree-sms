@@ -66,7 +66,7 @@ function User(id) {
   this.index = 0
   this.delayInterval = 1510
   this.intervalTimer = null
-  this.StartTimestamp = 0
+
   this.sendReport = {
       sendInProgress: false,
       successCount: "Sending 0/0",
@@ -964,18 +964,7 @@ var engine = User.prototype = {
         try {
           var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
-          this.StartTimestamp = Date.now()
-          /*
-          this.batchResult = {
-            id: jsonObj.id,
-            batchSize: jsonObj.batchSize,
-            processedCount: jsonObj.processedCount,
-            rejectedCount: jsonObj.rejected.length,
-            rejectedNumbers: jsonObj.rejected,
-            status: jsonObj.status,
-            batchType: this.batchSummaryReport.type
-          }
-          */
+
           var batchResult = {
             id: jsonObj.id,
             batchSize: jsonObj.batchSize,
@@ -1002,12 +991,9 @@ var engine = User.prototype = {
             this.eventEngine.setVoteInfo(voteInfo)
           }
           this.addBatchDataToDB((err, result) => {
-            console.log(result)
-            console.log(batchResult)
             res.send({
                 status:"ok",
-                //time: formatSendingTime(0),
-                result: batchResult // this.processingBatches //
+                result: batchResult
             })
           })
         } catch (e) {
@@ -1026,31 +1012,12 @@ var engine = User.prototype = {
         })
       }
     },
-    // no more polling batch result
-    /*
-    getBatchResult: async function(req, res){
-      console.log("getBatchResult")
-      var processingTime = (Date.now() - this.StartTimestamp) / 1000
-      //var batchResult = this.batchResult
-      //if (this.processingBatches.length > 0)
-      //  batchResult = this.processingBatches[0].batchResult
-      console.log(this.processingBatches)
-      res.send({
-          status:"ok",
-          time: formatSendingTime(processingTime),
-          result: this.batchResult //.batchResult
-          //result: this.processingBatches
-        })
-    },
-    */
     processBatchEventNotication: function(eventObj){
       console.log("Batch completed")
-      console.log(eventObj)
       // find the batch
       this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
         if (batch){
           console.log("found batch")
-          console.log(batch)
           if (eventObj.body.status == "Completed")
             this._postBatchReport(batch, 1, "")
           // check status to deal with the future when deletion is supported
