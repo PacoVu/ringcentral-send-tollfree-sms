@@ -1181,12 +1181,12 @@ var engine = User.prototype = {
       if (pageToken != "")
         params['pageToken'] = pageToken
 
+      console.log('Params: ' + JSON.stringify(params))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          //this.batchFullReport = this.batchFullReport.concat(jsonObj.records)
           var keepPolling = false
           for (var message of jsonObj.records){
             switch (message.messageStatus) {
@@ -1230,8 +1230,6 @@ var engine = User.prototype = {
             }else{
               // update local db
               this._updateCampaignDB(null, (err, result) => {
-                //thisUser.batchSummaryReport.live = false
-                //thisUser.eventEngine.postResults(thisUser.batchSummaryReport)
                 //console.log("DONE SEND BATCH")
                 if (thisUser.batchSummaryReport.sentCount == 0 && thisUser.batchSummaryReport.queuedCount == 0){
                   console.log("Call post result only once when all messages are sent. Post only if webhook uri is provided.")
@@ -1242,7 +1240,6 @@ var engine = User.prototype = {
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
           console.log(e.response.headers)
           console.log('ERR ' + e.message);
         }
@@ -1258,7 +1255,7 @@ var engine = User.prototype = {
         perPage: 1000
       }
       if (pageToken != "")
-      params['pageToken'] = pageToken
+        params['pageToken'] = pageToken
 
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
