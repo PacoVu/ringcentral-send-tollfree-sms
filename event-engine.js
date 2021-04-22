@@ -468,16 +468,17 @@ var engine = ActiveUser.prototype = {
           var jsonObj = await resp.json()
           if (jsonObj.records.length > 0){
             for (var record of jsonObj.records) {
-              //console.log(JSON.stringify(record))
               if (record.deliveryMode.transportType == "WebHook"){
                 if (record.id != this.subscriptionId){
                   var r =  await p.delete(`/restapi/v1.0/subscription/${record.id}`)
                     console.log("Deleted")
                 }else{
-                  console.log("my only subscription")
+                  console.log("my only subscription: " + record.id)
+                  /*
                   this.updateNotification((err, res) => {
                     console.log("update")
                   })
+                  */
                 }
               }
             }

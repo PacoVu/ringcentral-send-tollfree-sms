@@ -357,7 +357,12 @@ var engine = User.prototype = {
       }
     },
     setWebhookAddress: function (req, res){
-      //var userKey = makeId()
+      if (req.body.address.indexOf("http://") < 0 || req.body.address.indexOf("https://") < 0){
+        return res.send({
+          status: "error",
+          message: "Invalid webhook address!"
+        })
+      }
       var query = 'UPDATE a2p_sms_users SET '
       var data = {
         url: req.body.address,
@@ -709,35 +714,38 @@ var engine = User.prototype = {
         },
         voterList: []
       }
-      //var commands = []
+      var command = ""
       if (body.command_1 != null && body.command_1 != ""){
-        //commands.push(body.command_1)
-        voteInfo.voteCommands.push(body.command_1)
-        voteInfo.voteResults[body.command_1] = 0
+        command = body.command_1.trim()
+        voteInfo.voteCommands.push(command)
+        voteInfo.voteResults[command] = 0
       }
       if (body.command_2 != null && body.command_2 != ""){
-        //commands.push(body.command_2)
-        voteInfo.voteCommands.push(body.command_2)
-        voteInfo.voteResults[body.command_2] = 0
+        command = body.command_2.trim()
+        voteInfo.voteCommands.push(command)
+        voteInfo.voteResults[command] = 0
       }
       if (body.command_3 != null && body.command_3 != ""){
-        //commands.push(body.command_3)
-        voteInfo.voteCommands.push(body.command_3)
-        voteInfo.voteResults[body.command_3] = 0
+        command = body.command_3.trim()
+        voteInfo.voteCommands.push(command)
+        voteInfo.voteResults[command] = 0
       }
 
       // auto reply
       if (body.reply_1_message != null && body.reply_1_message != ""){
-          voteInfo.autoReplyMessages[body.command_1] = body.reply_1_message
-          voteInfo.autoReply = true
+        command = body.command_1.trim()
+        voteInfo.autoReplyMessages[command] = body.reply_1_message
+        voteInfo.autoReply = true
       }
       if (body.reply_2_message  != null && body.reply_2_message != ""){
-          voteInfo.autoReplyMessages[body.command_2] = body.reply_2_message
-          voteInfo.autoReply = true
+        command = body.command_2.trim()
+        voteInfo.autoReplyMessages[command] = body.reply_2_message
+        voteInfo.autoReply = true
       }
       if (body.reply_3_message != null && body.reply_3_message != ""){
-          voteInfo.autoReplyMessages[body.command_3] = body.reply_3_message
-          voteInfo.autoReply = true
+        command = body.command_3.trim()
+        voteInfo.autoReplyMessages[command] = body.reply_3_message
+        voteInfo.autoReply = true
       }
 
       var requestBody = {
