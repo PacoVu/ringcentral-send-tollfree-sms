@@ -443,8 +443,6 @@ app.post('/webhookcallback', function(req, res) {
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
-            //"event":"/restapi/v1.0/account/129304023/a2p-sms/batch?from=+12342002153"
-            //"event":"/restapi/v1.0/account/129304023/a2p-sms/messages?direction=Inbound&to=+12342002153"
             if (jsonObj.event.indexOf("/a2p-sms/batch?") >= 0){
               router.processBatchEventNotication(jsonObj)
             }else{
@@ -456,7 +454,7 @@ app.post('/webhookcallback', function(req, res) {
                   eventEngine.processNotification(jsonObj)
                 }else{
                   console.log("Not my notification!!!")
-                  //console.log(jsonObj)
+                  console.log(jsonObj)
                 }
               }else{
                 console.log("Not ready. Still loading users")
