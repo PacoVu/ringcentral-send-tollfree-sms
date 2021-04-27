@@ -982,9 +982,9 @@ var engine = User.prototype = {
             status: jsonObj.status,
             batchType: this.batchSummaryReport.type
           }
-          console.log("Ext id: " this.extensionId)
+          console.log("Ext id: " + this.extensionId)
           console.log(batchResult)
-          
+
           if (jsonObj.rejected.length){
             this.batchSummaryReport.rejectedCount = jsonObj.rejected.length
             this.batchSummaryReport.totalCount -= jsonObj.rejected.length
