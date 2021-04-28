@@ -344,7 +344,7 @@ var engine = User.prototype = {
       }
     },
     setWebhookAddress: function (req, res){
-      if (req.body.address.indexOf("http://") < 0 || req.body.address.indexOf("https://") < 0){
+      if (req.body.address.indexOf("https://") < 0 && req.body.address.indexOf("http://") < 0){
         return res.send({
           status: "error",
           message: "Invalid webhook address!"
