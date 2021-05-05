@@ -1507,7 +1507,7 @@ var engine = User.prototype = {
                   fileContent += `,${voter.isReplied}`
                   fileContent += `,${voter.isSent}`
                   var autoReplyMessage = (campaign.autoReplyMessages[`${voter.repliedMessage}`]) ? campaign.autoReplyMessages[`${voter.repliedMessage}`] : ""
-                  fileContent += `,${autoReplyMessage}`// COME HERE
+                  fileContent += `,"${autoReplyMessage}"`
                   index++
                   if (index > 500){
                     index = 0
