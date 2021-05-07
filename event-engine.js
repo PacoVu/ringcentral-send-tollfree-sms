@@ -19,7 +19,7 @@ var engine = ActiveUser.prototype = {
       console.log("setup ActiveUser Engine")
       this.rc_platform = platform
       var thisUser = this
-      this.loadVoteDataFromDB((err, result) => {
+      this.loadVoteDataFromDB(async (err, result) => {
         if (!err){
           if (result > 0){
             this.autoDeleteTimer = setInterval(function(){
@@ -28,13 +28,43 @@ var engine = ActiveUser.prototype = {
             this.updateStatusTimer = setInterval(function(){
               thisUser.detectExpiredVoteCampaign()
             }, this.updateInterval)
-
+            console.log("result: " + result)
             thisUser.readWebhookInfoFromDB( async (err, res) => {
-              await thisUser.deleteExtraWebHookSubscriptions()
+              await thisUser.deleteExtraSubscriptions(false)
               callback(null, result)
             })
           }else{
-            //await thisUser.deleteExtraWebHookSubscriptions()
+            // delete all subscriptions
+            await thisUser.deleteExtraSubscriptions(false)
+            callback(null, result)
+          }
+        }else{
+          callback(err, result)
+        }
+      })
+      //thisUser.readWebhookInfoFromDB( async (err, res) => {})
+    },
+    autoSetup: function(platform, callback){
+      console.log("setup ActiveUser Engine")
+      this.rc_platform = platform
+      var thisUser = this
+      this.loadVoteDataFromDB(async (err, result) => {
+        if (!err){
+          if (result > 0){
+            this.autoDeleteTimer = setInterval(function(){
+              thisUser.autoDeleteVoteCampaign()
+            }, this.deleteInterval)
+            this.updateStatusTimer = setInterval(function(){
+              thisUser.detectExpiredVoteCampaign()
+            }, this.updateInterval)
+            console.log("result: " + result)
+            thisUser.readWebhookInfoFromDB( async (err, res) => {
+              await thisUser.deleteExtraSubscriptions(false)
+              callback(null, result)
+            })
+          }else{
+            // delete all subscriptions
+            await thisUser.deleteExtraSubscriptions(true)
             callback(null, result)
           }
         }else{
@@ -121,15 +151,16 @@ var engine = ActiveUser.prototype = {
               voteCounts: campaign.voteCounts
             }
           }
-          this.updateCampaignDataInDB([voteReport])
-          this.voteCampaignArr.splice(i, 1);
-          this.updateVoteDataInDB((err, res) => {
+          this.updateCampaignDataInDB([voteReport], (err, result) => {
+            this.voteCampaignArr.splice(i, 1);
+            this.updateVoteDataInDB((err, res) => {
               if (err){
                 console.log("cannot update db " + err)
                 callback(err, res)
               }else{
                 callback(null, res)
               }
+            })
           })
           return
         }else{
@@ -307,8 +338,8 @@ var engine = ActiveUser.prototype = {
           return callback(err, err.message)
         }
         if (!err && result.rows.length > 0){
-          //thisUser.voteCampaignArr = JSON.parse(result.rows[0].votes)
           thisUser.voteCampaignArr = JSON.parse(result.rows[0].active_survey)
+          //console.log(thisUser.voteCampaignArr)
           callback(null, thisUser.voteCampaignArr.length)
         }else{
           callback(null, 0)
@@ -420,12 +451,14 @@ var engine = ActiveUser.prototype = {
         if (err){
           console.error(err.message);
           console.log("QUERY: " + query)
+          callback(err, "Cannot update survey data")
         }else{
           console.log("updateVoteDataInDB DONE");
+          callback(null, "ok")
         }
       })
     },
-    updateCampaignDataInDB: function(archiveVoteList){
+    updateCampaignDataInDB: function(archiveVoteList, callback){
       var thisUser = this
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -452,7 +485,10 @@ var engine = ActiveUser.prototype = {
               console.log("Error?")
             }
             console.log("Archive vote done")
+            callback(null, "done")
           })
+        }else{
+          callback(err, "")
         }
       })
     },
@@ -504,7 +540,7 @@ var engine = ActiveUser.prototype = {
       }
     },
     /// Clean up WebHook subscriptions
-    deleteExtraWebHookSubscriptions: async function() {
+    deleteExtraSubscriptions: async function(deleteCurrentSubscription) {
       if (this.rc_platform == undefined)
         return
 
@@ -526,7 +562,13 @@ var engine = ActiveUser.prototype = {
                     }
                   }
                 }else{
-                  console.log(`my only subscription ${this.subscriptionId}`)
+                  if (deleteCurrentSubscription && this.subscriptionId != ""){
+                    var r =  await p.delete(`/restapi/v1.0/subscription/${this.subscriptionId}`)
+                    console.log(`Deleted current subscription: ${this.subscriptionId}`)
+                    this.subscriptionId = ""
+                    this.updateActiveUserSubscription()
+                  }else
+                    console.log(`my only subscription ${this.subscriptionId}`)
                   /*
                   this.updateNotification(record.eventFilters, (err, res) => {
                     console.log("update")

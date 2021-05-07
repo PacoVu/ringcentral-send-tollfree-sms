@@ -530,9 +530,11 @@ function isAnyLiveCampaign(){
       if (campaign.queuedCount){
         return campaign
       }else{
-        var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
-        if (total == 0)
-          return campaign
+        if (campaign.message != ""){
+          var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
+          if (total == 0)
+            return campaign
+        }
       }
     }
   }

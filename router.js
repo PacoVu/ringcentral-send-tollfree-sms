@@ -27,12 +27,11 @@ function autoStart(){
                 if (user.access_tokens.length > 0){
                   var platform = new RCPlatform(user.user_id)
                   //var platform = new (require('./platform.js'))(user.user_id);
-                  //console.log(user.access_tokens)
                   platform.autoLogin(user.access_tokens, (err, res) => {
                     var aUser = new ActiveUser(user.user_id, user.subscription_id)
                     if (!err){
-                      console.log("Has platform")
-                      aUser.setup(platform, (err, result) => {
+                      console.log("Auto login succeeded")
+                      aUser.autoSetup(platform, (err, result) => {
                         console.log("setup: " + result)
                         if (err == null && result > 0){
                           activeUsers.push(aUser)
@@ -41,8 +40,8 @@ function autoStart(){
                         done()
                       })
                     }else{
-                      console.log("No platform")
-                      aUser.setup(null, (err, result) => {
+                      console.log("Auto login failed")
+                      aUser.autoSetup(null, (err, result) => {
                         if (err == null && result > 0){
                           activeUsers.push(aUser)
                           console.log("activeUsers.length: " + activeUsers.length)

@@ -1461,8 +1461,9 @@ var engine = User.prototype = {
         this.eventEngine.deleteCampaignByBatchId(req.query.batchId, (err, result) => {
           if (err)
             res.send({status:"error",message:"Cannot deleted"})
-          else
+          else{
             res.send({status:"ok",message:"deleted"})
+          }
         })
       }
     },
