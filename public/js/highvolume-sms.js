@@ -62,11 +62,14 @@ function readCampaigns(){
     if (res.status == "ok"){
       campaignList = res.campaigns
       voteReportList = res.voteReports
-      if (campaignList.length == 0)
+      if (campaignList.length == 0){
         createNewCampaign()
-      else
-        $("#history").show()
-      //console.log(JSON.stringify(campaignList))
+      }else{
+        if ($("#create").css("display") == "none")
+          $("#history").show()
+        else
+          return
+      }
       listAllCampaigns(undefined)
     }else if (res.status == "error"){
       _alert(res.message)
