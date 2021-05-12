@@ -126,10 +126,9 @@
               </div>
               <div id="block_2" class="input_page" style="display: none">
                 <div id="csv-template-columns" class="block_space" style="display: none">
-                  <label class="">Template columns</label><br>
-                  <div id="template-columns" class="form-control">-</div>
+                  <label class="">.CSV Columns</label><br>
+                  <select id="template-columns" class="form-control" onchange="addToMessage(this)"></select>
                 </div>
-                <hr style="margin: 2px !important"></hr>
 
                 <div class="block_space">
                   <!--label class="label-input" for="message">Message</label-->

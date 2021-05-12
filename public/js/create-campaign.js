@@ -312,7 +312,8 @@ function resetCampaignInput(){
   $("#recipient-phone-number").hide()
   $("#csv-template-columns").hide()
   $("#columns").html("")
-  $("#template-columns").html("")
+  //$("#template-columns").html("")
+  $("#template-columns").val("")
   $("#to-number-column").val("")
   $("#attachment").val("")
   $("#message").val("")
@@ -448,6 +449,7 @@ function readCSVFile(elm){
         return
       }
       processCsvFileContent()
+      validateRicipientNumbers()
     };
   }else{
     totalRecipients = 0
@@ -455,7 +457,8 @@ function readCSVFile(elm){
     totalMessageSegments = 0
     updateMsgPreviewAndEstimatedCost()
     $("#columns").html("-")
-    $("#template-columns").html("-")
+    //$("#template-columns").html("-")
+    $("#template-columns").val("")
     $("#columns").hide()
     $("#recipient-phone-number").hide()
     $("#csv-template-columns").hide()
@@ -479,6 +482,38 @@ function isValidCSVContent(){
   return true
 }
 
+function validateRicipientNumbers(){
+  var okToSend = true
+  var alertMsg = "<b>Please fix your recipient phone number(s)!</b> Sample valid number: 14081234567 <br><br>"
+  if (recipientsFromFile.length >= 1){
+    var col = $("#to-number-column").val()
+    for (var i=1; i<recipientsFromFile.length; i++){
+      var row = recipientsFromFile[i]
+      row = detectAndHandleCommas(row)
+      var cleanRow = row.trim().split(",")
+      var number = cleanRow[csvColumnIndex[`${col}`]].replace("+", "")
+      if (isNaN(number)){
+        okToSend = false
+        alertMsg += `Row ${i}, number ${number}. Wrong number format!<br>`
+        if (i > 10){
+          alertMsg += `...`
+          break
+        }
+      }else if (number.length < 11){
+        okToSend = false
+        alertMsg += `Row ${i}, number ${number}. Missing country code!<br>`
+        if (i > 10){
+          alertMsg += `...`
+          break
+        }
+      }
+    }
+  }
+  if (!okToSend){
+    _alert(alertMsg)
+  }
+  return okToSend
+}
 
 function processCsvFileContent(){
   var header = recipientsFromFile[0]
@@ -496,6 +531,7 @@ function processCsvFileContent(){
     row = detectAndHandleCommas(row)
     sampleRow = row.trim().split(",")
   }
+  $("#template-columns").html("")
   displayColumns(columns)
   $("#recipient-phone-number").show()
   $("#csv-template-columns").show()
@@ -542,7 +578,7 @@ function detectAndHandleCommas(row){
 
 function displayColumns(columns){
   $("#columns").show()
-  var html = "|&nbsp;"
+  var columnsItem = ""
   var recipientCol = "|&nbsp;"
   var filled = false
   for (var col of columns){
@@ -553,13 +589,12 @@ function displayColumns(columns){
         filled = true
         updateSampleRecipient(col)
       }
-    }//else{
-      // closed "else" to display number columns for selecting option to compose text message.
-      html += `<a href="#" onclick="addToMessage('${col}');return false;">${col}</a>&nbsp;|&nbsp;`
-    //}
+    }
+    columnsItem += `<option value="${col.replace(/\s/g, "__")}">${col}</option>`
   }
   $("#columns").html(recipientCol)
-  $("#template-columns").html(html)
+  $("#template-columns").html(columnsItem)
+  $('#template-columns').selectpicker('refresh');
 }
 
 function checkPos(){
@@ -595,7 +630,8 @@ function addToRecipient(template){
     updateSampleRecipient(template)
 }
 
-function addToMessage(template){
+function addToMessage(elm){
+  var template = $(elm).val().replace(/(__)/g, " ")
   var insertPos = checkPos()
   var msg = $("#message").val()
   var headMsg = msg.substring(0, insertPos).trim()
@@ -896,6 +932,9 @@ function canSendMessages() {
       return //_alert("Please enter at least one response option!")
     }
   }
+  if (!validateRicipientNumbers()){
+    return //_alert("Please correct recipient phone numbers!")
+  }
 
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
@@ -926,29 +965,7 @@ function canSendMessages() {
       processData: false
   });
 }
-/*
-function pollResult(){
-  if (currentBatchId == "")
-    return
-  var url = "get-batch-result?batchId=" + currentBatchId
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok"){
-      parseResultResponse(res)
-    }else if (res.status == "error"){
-      _alert(res.message)
-    }else{
-      if (res.message)
-        _alert(res.message)
-      else
-        _alert("You have been logged out. Please login again.")
-      window.setTimeout(function(){
-        window.location.href = "/relogin"
-      },8000)
-    }
-  });
-}
-*/
+
 function parseResultResponse(resp){
   var batchResult = resp.result
   currentBatchId = batchResult.id
