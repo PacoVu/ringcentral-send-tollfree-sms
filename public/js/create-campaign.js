@@ -449,21 +449,27 @@ function readCSVFile(elm){
         return
       }
       processCsvFileContent()
-      validateRicipientNumbers()
+      if (!validateRicipientNumbers()){
+        _resetCSVInputs()
+        $(elm).val("")
+        return
+      }
     };
   }else{
-    totalRecipients = 0
-    $("#preview-recipients").html(totalRecipients + " recipient")
-    totalMessageSegments = 0
-    updateMsgPreviewAndEstimatedCost()
-    $("#columns").html("-")
-    //$("#template-columns").html("-")
-    $("#template-columns").val("")
-    $("#columns").hide()
-    $("#recipient-phone-number").hide()
-    $("#csv-template-columns").hide()
-    //$("#opted-out-block").hide()
+    _resetCSVInputs()
   }
+}
+
+function _resetCSVInputs(){
+  totalRecipients = 0
+  $("#preview-recipients").html(totalRecipients + " recipient")
+  totalMessageSegments = 0
+  updateMsgPreviewAndEstimatedCost()
+  $("#columns").html("-")
+  $("#template-columns").val("")
+  $("#columns").hide()
+  $("#recipient-phone-number").hide()
+  $("#csv-template-columns").hide()
 }
 
 function isValidCSVContent(){
@@ -484,7 +490,7 @@ function isValidCSVContent(){
 
 function validateRicipientNumbers(){
   var okToSend = true
-  var alertMsg = "<b>Please fix your recipient phone number(s)!</b> Sample valid number: 14081234567 <br><br>"
+  var alertMsg = "<b>Please fix your recipient phone number format!</b> Valid phone number sample: 14081234567 <br><br>"
   if (recipientsFromFile.length >= 1){
     var col = $("#to-number-column").val()
     for (var i=1; i<recipientsFromFile.length; i++){
@@ -513,6 +519,57 @@ function validateRicipientNumbers(){
     _alert(alertMsg)
   }
   return okToSend
+}
+
+function validateRicipientMessageLength(){
+  var okToSend = true
+  var alertMsg = "<b>Message is too long!</b> Maximum message length is 1000 characters<br><br>"
+  if (recipientsFromFile.length >= 1){
+    var msg = $("#message").val()
+    var count = 1
+    for (var i=1; i<recipientsFromFile.length; i++){
+      var row = recipientsFromFile[i]
+      row = detectAndHandleCommas(row)
+      var cleanRow = row.trim().split(",")
+      var error = checkMessageLength(msg, cleanRow, i)
+      if (error != ""){
+        okToSend = false
+        alertMsg += error
+        count++
+        if (count > 11){
+          alertMsg += '...'
+          break
+        }
+      }
+    }
+  }
+  if (!okToSend){
+    _alert(alertMsg)
+  }
+  return okToSend
+}
+
+function checkMessageLength(msg, row, index){
+  let re = new RegExp('/\{([^}]+)\}/g');
+  var arr = msg.match(/{([^}]*)}/g)
+  var message = ""
+  if (arr){
+    for (var pattern of arr){
+      for (var key of Object.keys(csvColumnIndex)){
+        var k = `{${key}}`
+        if (k == pattern){
+          var text = row[csvColumnIndex[key]].replaceAll('"', '')
+          text = text.replaceAll(MASK, ',')
+          message = msg.replace(pattern, text)
+        }
+      }
+    }
+  }
+  var error = ""
+  if (message.length > 1000){
+    error = `Row ${index}: Template message is ${message.length} character long!<br>`
+  }
+  return error
 }
 
 function processCsvFileContent(){
@@ -932,8 +989,14 @@ function canSendMessages() {
       return //_alert("Please enter at least one response option!")
     }
   }
-  if (!validateRicipientNumbers()){
-    return //_alert("Please correct recipient phone numbers!")
+
+  if (!$("#enable-manual-input").is(":checked")){
+    if (!validateRicipientNumbers()){
+      return
+    }
+    if (!validateRicipientMessageLength()){
+      return
+    }
   }
 
   var form = $("#sms-form");

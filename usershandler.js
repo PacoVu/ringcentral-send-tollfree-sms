@@ -1766,15 +1766,24 @@ var engine = User.prototype = {
     logout: async function(req, res, callback){
       console.log("LOGOUT FUNC")
       if (this.eventEngine && this.eventEngine.voteCampaignArr.length > 0){
-        callback(null, "logged out")
+        callback(null, 1)
       }else{
+        // delete subscription
+        await this.deleteSubscription()
         var p = await this.rc_platform.getPlatform(this.extensionId)
         if (p)
           await p.logout()
         else
           console.log("No platform?")
         // may need to clear tokens and destroy eventEngine etc.
-        callback(null, "logged out")
+
+        this.subscriptionId = ""
+        this.updateActiveUserSubscription()
+        this.rc_platform.updateUserAccessTokens("")
+        var activeUsers = router.getActiveUsers()
+        var index = activeUsers.findIndex(o => o.extensionId.toString() === this.extensionId.toString())
+        activeUsers.splice(index, 1)
+        callback(null, 0)
       }
     },
     readBatchReportFromDB: function(batchId, callback){
