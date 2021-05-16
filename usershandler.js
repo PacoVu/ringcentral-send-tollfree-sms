@@ -1210,11 +1210,11 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             // don't update db. Taken care by notification path
-            /*
+
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT")
             })
-            */
+            
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1768,6 +1768,7 @@ var engine = User.prototype = {
       if (this.eventEngine && this.eventEngine.voteCampaignArr.length > 0){
         callback(null, 1)
       }else{
+        /*
         // delete subscription
         await this.deleteSubscription()
         var p = await this.rc_platform.getPlatform(this.extensionId)
@@ -1776,13 +1777,13 @@ var engine = User.prototype = {
         else
           console.log("No platform?")
         // may need to clear tokens and destroy eventEngine etc.
-
         this.subscriptionId = ""
         this.updateActiveUserSubscription()
         this.rc_platform.updateUserAccessTokens("")
         var activeUsers = router.getActiveUsers()
         var index = activeUsers.findIndex(o => o.extensionId.toString() === this.extensionId.toString())
         activeUsers.splice(index, 1)
+        */
         callback(null, 0)
       }
     },

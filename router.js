@@ -7,13 +7,38 @@ var users = []
 
 var activeUsers = []
 //exports.activeUsers = activeUsers
-autoStart()
+createUserTable()
+
+function createUsersAdditionalDataTable() {
+  var query = "CREATE TABLE IF NOT EXISTS a2p_sms_users_tempdata (user_id VARCHAR(15) PRIMARY KEY, active_survey TEXT DEFAULT '[]', rejected_numbers TEXT DEFAULT '[]')"
+  pgdb.create_table(query, (err, res) => {
+    if (err) {
+      console.log(err.message)
+    }else{
+      console.log("createUsersAdditionalDataTable DONE")
+    }
+    autoStart()
+  })
+}
+
+function createUserTable() {
+  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
+  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]')"
+  pgdb.create_table(query, (err, res) => {
+    if (err) {
+      console.log(err.message)
+    }else{
+      console.log("createUserTable DONE")
+    }
+    createUsersAdditionalDataTable()
+  })
+}
+
 function autoStart(){
   console.log("autoStart")
   var RCPlatform = require('./platform.js');
   var ActiveUser = require('./event-engine.js');
-  createUserTable()
-  createUsersAdditionalDataTable()
+
   var query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users`
   pgdb.read(query, (err, result) => {
     if (err){
@@ -64,31 +89,6 @@ function autoStart(){
             console.log("autoStart completed")
           });
       }
-    }
-  })
-}
-
-function createUsersAdditionalDataTable() {
-  console.log("createUsersAdditionalDataTable")
-  var query = "CREATE TABLE IF NOT EXISTS a2p_sms_users_tempdata (user_id VARCHAR(15) PRIMARY KEY, active_survey TEXT DEFAULT '[]', rejected_numbers TEXT DEFAULT '[]')"
-  pgdb.create_table(query, (err, res) => {
-      if (err) {
-        console.log(err.message)
-      }else{
-        console.log("createUsersAdditionalDataTable created")
-      }
-    })
-}
-
-function createUserTable() {
-  console.log("createUserTable")
-  var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]')"
-  pgdb.create_table(query, (err, res) => {
-    if (err) {
-      console.log(err.message)
-    }else{
-      console.log("U.T DONE")
     }
   })
 }
@@ -209,8 +209,8 @@ var router = module.exports = {
     }
     var thisObj = this
     users[index].logout(req, res, function(err, result){
-      users[index] = null
-      users.splice(index, 1);
+      //users[index] = null
+      //users.splice(index, 1);
       thisObj.forceLogin(req, res)
     })
   },
