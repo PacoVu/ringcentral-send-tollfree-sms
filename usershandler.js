@@ -1028,9 +1028,15 @@ var engine = User.prototype = {
       this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
         if (batch){
           console.log("found batch")
-          if (eventObj.body.status == "Completed")
+          if (eventObj.body.status == "Completed"){
+            batch.queuedCount = 0
+            batch.deliveredCount = 0
+            batch.sentCount = 0
+            batch.unreachableCount = 0
+            batch.totalCost = 0.0
             this._postBatchReport(batch, 1, "")
           // check status to deal with the future when deletion is supported
+          }
         }
       })
     },
@@ -1214,7 +1220,7 @@ var engine = User.prototype = {
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT")
             })
-            
+
             res.send({
               status: "ok",
               batchReport: batchReport
