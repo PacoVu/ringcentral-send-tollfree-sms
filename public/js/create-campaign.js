@@ -497,7 +497,17 @@ function validateRicipientNumbers(){
       var row = recipientsFromFile[i]
       row = detectAndHandleCommas(row)
       var cleanRow = row.trim().split(",")
-      var number = cleanRow[csvColumnIndex[`${col}`]].replace("+", "")
+      number = validatePhoneNumber(cleanRow[csvColumnIndex[`${col}`]])
+      //var number = cleanRow[csvColumnIndex[`${col}`]].replace("+", "")
+      if (number.length < 12){
+        okToSend = false
+        alertMsg += `Row ${i}, number ${number}. Invalid phone number!<br>`
+        if (i > 10){
+          alertMsg += `...`
+          break
+        }
+      }
+      /*
       if (isNaN(number)){
         okToSend = false
         alertMsg += `Row ${i}, number ${number}. Wrong number format!<br>`
@@ -513,12 +523,23 @@ function validateRicipientNumbers(){
           break
         }
       }
+      */
     }
   }
   if (!okToSend){
     _alert(alertMsg)
   }
   return okToSend
+}
+function validatePhoneNumber(number){
+  number = number.replace(/[+()\-\s]/g, '')
+  if (!isNaN(number)){
+    if (number.length == 10)
+      number = `+1${number}`
+    else if (number.length == 11)
+      number = `+${number}`
+  }
+  return number
 }
 
 function validateRicipientMessageLength(){
@@ -991,9 +1012,11 @@ function canSendMessages() {
   }
 
   if (!$("#enable-manual-input").is(":checked")){
+    /*
     if (!validateRicipientNumbers()){
       return
     }
+    */
     if (!validateRicipientMessageLength()){
       return
     }

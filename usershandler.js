@@ -748,22 +748,24 @@ var engine = User.prototype = {
           totalRecipients = recipientArr.length
           for (var recipient of recipientArr){
             recipient = recipient.trim()
-            recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+            //recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+            recipient = this.validateRicipientNumber(recipient)
             var item = {
               to:[recipient]
             }
             requestBody.messages.push(item)
+
+            var voter = {
+                id: "",
+                phoneNumber: recipient,
+                isReplied: false,
+                repliedMessage: "",
+                repliedTime: 0,
+                sentMessage: message,
+                isSent: false
+              }
+            voteInfo.voterList.push(voter)
           }
-          var voter = {
-              id: "",
-              phoneNumber: recipient,
-              isReplied: false,
-              repliedMessage: "",
-              repliedTime: 0,
-              sentMessage: message,
-              isSent: false
-            }
-          voteInfo.voterList.push(voter)
           //console.log(JSON.stringify(requestBody))
         }
       }else{
@@ -793,27 +795,28 @@ var engine = User.prototype = {
             for (var row of recipientsFromFile){
               row = detectAndHandleCommas(row)
               var columns = row.trim().split(",")
-              var toNumber = columns[csvColumnIndex[toNumberColumnName]]
-              toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
+              var recipient = columns[csvColumnIndex[toNumberColumnName]]
+              //toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
+              recipient = this.validateRicipientNumber(recipient)
               if (arr){
                 msg = resembleMessage(message, columns, csvColumnIndex)
                 if (sampleMessage == "")
                   sampleMessage = msg
                 var group = {
-                    to: [toNumber],
+                    to: [recipient],
                     text: msg
                 }
                 requestBody.messages.push(group)
               }else{ // no template => text is common to all recipients
                 var item = {
-                    to: [toNumber]
+                    to: [recipient]
                 }
                 requestBody.messages.push(item)
               }
 
               var voter = {
                 id: "",
-                phoneNumber: toNumber,
+                phoneNumber: recipient,
                 isReplied: false,
                 repliedMessage: "",
                 repliedTime: 0,
@@ -854,7 +857,6 @@ var engine = User.prototype = {
         rejectedCount: 0,
         totalCost: 0.0
       }
-      //this.eventEngine.setPlatform(this.rc_platform)
       this.sendBatchMessage(res, requestBody, voteInfo)
     },
     _sendTailoredMessage: function(req, res){
@@ -877,7 +879,8 @@ var engine = User.prototype = {
           totalRecipients = recipientArr.length
           for (var recipient of recipientArr){
             recipient = recipient.trim()
-            recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+            //recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
+            recipient = this.validateRicipientNumber(recipient)
             var item = {
               to:[recipient]
             }
@@ -912,20 +915,21 @@ var engine = User.prototype = {
             for (var row of recipientsFromFile){
               row = detectAndHandleCommas(row)
               var columns = row.trim().split(",")
-              var toNumber = columns[csvColumnIndex[toNumberColumnName]]
-              toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
+              var recipient = columns[csvColumnIndex[toNumberColumnName]]
+              //toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
+              recipient = this.validateRicipientNumber(recipient)
               if (arr){
                 var msg = resembleMessage(message, columns, csvColumnIndex)
                 if (sampleMessage == "")
                   sampleMessage = msg
                 var group = {
-                    to: [toNumber],
+                    to: [recipient],
                     text: msg
                 }
                 requestBody.messages.push(group)
               }else{ // no template => text is common to all recipients
                 var item = {
-                    to: [toNumber]
+                    to: [recipient]
                 }
                 requestBody.messages.push(item)
               }
@@ -960,10 +964,17 @@ var engine = User.prototype = {
         rejectedCount: 0,
         totalCost: 0.0
       }
-
-      //console.log(JSON.stringify(requestBody))
-      //console.log(this.batchSummaryReport)
       this.sendBatchMessage(res, requestBody, null)
+    },
+    validateRicipientNumber: function(number){
+      number = number.replace(/[+()\-\s]/g, '')
+      if (!isNaN(number)){
+        if (number.length == 10)
+          number = `+1${number}`
+        else if (number.length == 11)
+          number = `+${number}`
+      }
+      return number
     },
     sendBatchMessage: async function(res, requestBody, voteInfo){
       var p = await this.rc_platform.getPlatform(this.extensionId)
