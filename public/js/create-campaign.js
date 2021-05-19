@@ -490,40 +490,23 @@ function isValidCSVContent(){
 
 function validateRicipientNumbers(){
   var okToSend = true
-  var alertMsg = "<b>Please fix your recipient phone number format!</b> Valid phone number sample: 14081234567 <br><br>"
+  var alertMsg = "<b>Please correct the recipient phone number(s) listed below!</b><br><br>"
   if (recipientsFromFile.length >= 1){
     var col = $("#to-number-column").val()
     for (var i=1; i<recipientsFromFile.length; i++){
       var row = recipientsFromFile[i]
       row = detectAndHandleCommas(row)
       var cleanRow = row.trim().split(",")
-      number = validatePhoneNumber(cleanRow[csvColumnIndex[`${col}`]])
-      //var number = cleanRow[csvColumnIndex[`${col}`]].replace("+", "")
-      if (number.length < 12){
+      var number = cleanRow[csvColumnIndex[`${col}`]]
+      var invalid = validatePhoneNumber(number)
+      if (invalid){
         okToSend = false
-        alertMsg += `Row ${i}, number ${number}. Invalid phone number!<br>`
+        alertMsg += `At row ${i}: <b>"${number}"</b>. Invalid phone number!<br>`
         if (i > 10){
           alertMsg += `...`
           break
         }
       }
-      /*
-      if (isNaN(number)){
-        okToSend = false
-        alertMsg += `Row ${i}, number ${number}. Wrong number format!<br>`
-        if (i > 10){
-          alertMsg += `...`
-          break
-        }
-      }else if (number.length < 11){
-        okToSend = false
-        alertMsg += `Row ${i}, number ${number}. Missing country code!<br>`
-        if (i > 10){
-          alertMsg += `...`
-          break
-        }
-      }
-      */
     }
   }
   if (!okToSend){
@@ -531,15 +514,22 @@ function validateRicipientNumbers(){
   }
   return okToSend
 }
+
 function validatePhoneNumber(number){
+  var invalid = false
   number = number.replace(/[+()\-\s]/g, '')
   if (!isNaN(number)){
     if (number.length == 10)
       number = `+1${number}`
     else if (number.length == 11)
       number = `+${number}`
+    if (number.length != 12)
+      invalid = true
+  }else{
+    invalid = true
   }
-  return number
+  //
+  return invalid
 }
 
 function validateRicipientMessageLength(){
@@ -834,11 +824,7 @@ function qaTextMessage(msg){
   }
   return msg
 }
-/*
-function disableSubmitBtn(flag){
-  $("#submit").prop('disabled', flag);
-}
-*/
+
 // submit form using ajax seems not enforce required inputs
 function checkFromField(){
   if ($("#from-number").val() == ""){
@@ -898,52 +884,7 @@ function checkMessageField(){
   }
   return true
 }
-/*
-function _alert(message){
-  $("#alert-message").html(message)
-  $('#alert-dlg').modal('show')
-}
-*/
-/*
-function checkCommandFields(){
-  var hasCommand = false
-  var temp = $("#command_1").val().trim()
-  if (temp != ""){
-    if (temp.indexOf(" ") >= 0){
-      //alert("Support a single word response only!")
-      _alert("Support a single word response only!")
-      $("#command_1").focus()
-      return false
-    }else
-      hasCommand = true
-  }
 
-  temp = $("#command_2").val().trim()
-  if (temp != ""){
-    if (temp.indexOf(" ") >= 0){
-      _alert("Support a single word response only!")
-      $("#command_2").focus()
-      return false
-    }else
-      hasCommand = true
-  }
-
-  temp = $("#command_3").val().trim()
-  if (temp != ""){
-    if (temp.indexOf(" ") >= 0){
-      _alert("Support a single word response only!")
-      $("#command_3").focus()
-      return false
-    }else
-      hasCommand = true
-  }
-  if (!hasCommand){
-    _alert("Please enter at least one response option!")
-    $("#command_1").focus()
-  }
-  return hasCommand
-}
-*/
 function checkCommandFields(){
   var hasCommand = false
   for (var i=1; i<4; i++){
@@ -972,18 +913,6 @@ function checkCommandFields(){
 function sendBatchMessage(e) {
   e.preventDefault();
   canSendMessages()
-  /*
-  if (pendingBatch){
-    var r = confirm("You have a pending batch. Do you want to send a new batch before the previous batch completed?");
-    if (r == true) {
-      startPollingResult(false)
-      pendingBatch = false
-      canSendMessages()
-    }
-  }else{
-    canSendMessages()
-  }
-  */
 }
 
 function canSendMessages() {
@@ -1012,11 +941,6 @@ function canSendMessages() {
   }
 
   if (!$("#enable-manual-input").is(":checked")){
-    /*
-    if (!validateRicipientNumbers()){
-      return
-    }
-    */
     if (!validateRicipientMessageLength()){
       return
     }

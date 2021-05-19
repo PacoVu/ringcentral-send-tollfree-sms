@@ -376,9 +376,10 @@ var engine = ActiveUser.prototype = {
       }
       var thisUser = this
       if (deleting) {
-        thisUser.updateCampaignDataInDB(archiveVoteList)
-        this.updateVoteDataInDB((err, res) => {
-          console.log(res)
+        thisUser.updateCampaignDataInDB(archiveVoteList, (err, result) => {
+          this.updateVoteDataInDB((err, res) => {
+            console.log(res)
+          })
         })
       }
     },
