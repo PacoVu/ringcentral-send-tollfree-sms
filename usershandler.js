@@ -1435,6 +1435,102 @@ var engine = User.prototype = {
         })
       }
     },
+    // analytics
+    readMessageStore: function (req, res){
+      console.log("readMessageStore")
+
+      var readParams = {
+        view: "Detailed",
+        dateFrom: req.body.dateFrom,
+        dateTo: req.body.dateTo,
+        perPage: 1000
+      }
+
+      if (req.body.phoneNumbers)
+        readParams['phoneNumber'] = JSON.parse(req.body.phoneNumbers)
+
+      if (req.body.pageToken)
+          readParams['pageToken'] = req.body.pageToken
+
+      var accountData = []
+      var analyticsData = {
+        outboundCount: 0,
+        inboundCount: 0,
+        deliveredCount: 0,
+        sendingFailedCount: 0,
+        deliveryFailedCount: 0,
+        deliveryFailures: {},
+        sendingFailures: {},
+        sentMsgCost: 0.0,
+        receivedMsgCost: 0.0,
+        optedOutCount: 0,
+        optedInCount: 0
+      }
+      this._readMessageStore(res, readParams, analyticsData)
+    },
+    _readMessageStore: async function (res, readParams, analyticsData){
+      console.log("_readMessageStore")
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, readParams)
+          var jsonObj = await resp.json()
+          for (var message of jsonObj.records){
+            if (message.direction == "Outbound"){
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                  analyticsData.deliveredCount++
+                  break
+                case "DeliveryFailed":
+                  analyticsData.deliveryFailedCount++
+                  break
+                case "SendingFailed":
+                  analyticsData.sendingFailedCount++
+                  break;
+                default:
+                  break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.sentMsgCost += cost
+            }else{
+              analyticsData.inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.receivedMsgCost += cost
+            }
+
+          }
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            var thisUser = this
+            setTimeout(function(){
+                readParams['pageToken'] = jsonObj.paging.nextPageToken
+                thisUser._readMessageStore(res, readParams)
+            }, 1200)
+          }else{
+            res.send({
+                status: "ok",
+                result: analyticsData
+              })
+          }
+        } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(readParams))
+          console.log(e.response.headers)
+          console.log('ERR ' + e.message);
+          res.send({
+              status: "error",
+              message: e.message
+            })
+        }
+      }else{
+        res.send({
+          status: "failed",
+          message: "Platform error."
+        })
+      }
+    },
+    // analytics end
     downloadHVMessageStore: function(req, res){
       var dir = "reports/"
       if(!fs.existsSync(dir)){

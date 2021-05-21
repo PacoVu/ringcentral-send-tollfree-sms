@@ -206,7 +206,7 @@ var engine = ActiveUser.prototype = {
         }
       }
       //
-      if (notFound && this.logNewMessage)
+      if (this.logNewMessage)
         this.newMessageArr.push(body)
     },
     processThisCampaign: function(campaign, voter, body){
