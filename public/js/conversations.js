@@ -182,9 +182,14 @@ function pollNewMessages(){
   getting.done(function( res ) {
     if (res.status == "ok"){
       for (var msg of res.newMessages){
-        messageList.splice(0, 0, msg);
-        processResult()
+        var msgIndex = messageList.findIndex(o => o.id === msg.id)
+        if (msgIndex < 0)
+          messageList.splice(0, 0, msg);
+        else
+          messageList[msgIndex] = msg
       }
+      if (res.newMessages.length)
+        processResult()
       pollingTimer = window.setTimeout(function(){
         pollNewMessages()
       },3000)
@@ -350,14 +355,14 @@ function processResult(nextPage){
       totalOutbound++
       var recipient = recipientPhoneNumbers.find(o => o.number === message.to[0])
       if (recipient == undefined){
-        if (message.messageStatus != "SendingFailed"){
+        //if (message.messageStatus != "SendingFailed"){
           var item = {
             outbound: 1,
             inbound: 0,
             number: message.to[0]
           }
           recipientPhoneNumbers.push(item)
-        }
+        //}
       }else{
         recipient.outbound++
       }
@@ -392,44 +397,7 @@ function processResult(nextPage){
     $("#next-page").hide()
   }
 }
-/*
-function processResult(nextPage){
-  recipientPhoneNumbers = []
-  dateStr = ""
-  for (var message of messageList){
-    if (message.direction == "Outbound"){
-      var number = recipientPhoneNumbers.find(n => n === message.to[0])
-      if (number == undefined){
-        if (message.messageStatus != "SendingFailed"){
-          recipientPhoneNumbers.push(message.to[0])
-        }
-      }
-    }else{
-      var number = recipientPhoneNumbers.find(n => n === message.from)
-      if (number == undefined){
-        recipientPhoneNumbers.push(message.from)
-      }
-    }
-  }
-  // check if the current selected number is still existed
-  var exist = recipientPhoneNumbers.find(n => n === currentSelectedItem)
-  //alert(exist)
-  if (exist == undefined)
-    currentSelectedItem = 0
-  $("#left_pane").show()
-  $("#downloads").show()
 
-  createRecipientsList(recipientPhoneNumbers)
-
-  if (nextPage){
-    var link = $("#next-block");
-    link.attr("href",`javascript:readMessageStore("${nextPage}")`);
-    link.css('display', 'inline');
-  }else {
-    $("#next-page").hide()
-  }
-}
-*/
 function createRecipientsList(recipientPhoneNumbers, totalOutbound, totalInbound){
   var html = `<div id='0' class='recipient-item' onclick='showConversation(0)'><div class="recipient-info">All conversations</div><div class="message-count">${totalInbound}/${totalOutbound}</div></div>`
   for (var recipient of recipientPhoneNumbers){
