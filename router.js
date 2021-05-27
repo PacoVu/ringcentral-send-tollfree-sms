@@ -287,18 +287,13 @@ var router = module.exports = {
       // result contain extensionId. Use it to check for orphan user and remove it
       if (!err){
         console.log("USERLENGTH: " + users.length)
-        var shouldReplace = false
-        var oldUser = null
-        var newUser = null
-        var oldUserIndex = -1
-        var newUserIndex = -1
         for (var i = 0; i < users.length; i++){
-          console.log("REPLACING")
+          console.log("DETECTING OLD USER INSTANCE")
           if (i != index){
             var extId = users[i].getExtensionId()
             var userId = users[i].getUserId()
             if (extId == extensionId && userId != req.session.userId){ // old user
-              console.log("Replaced!")
+              console.log("Removed old user instance!")
               users[i] = null
               users.splice(i, 1);
               break

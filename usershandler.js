@@ -842,9 +842,6 @@ var engine = User.prototype = {
             var tempFile = currentFolder + "/uploads/" + file.filename
             fs.unlinkSync(tempFile);
           }
-          //this.updateActiveUserTokensTable()
-          //this.eventEngine.setPlatform(this.rc_platform)
-          //this.sendBatchMessage(res, requestBody, body.campaign_name, "vote", voteInfo)
         }
       }
       if (sampleMessage == "")
@@ -1046,7 +1043,7 @@ var engine = User.prototype = {
     processBatchEventNotication: function(eventObj){
       console.log("Batch completed")
       // find the batch
-      console.log(eventObj)
+      //console.log(eventObj)
       this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
         if (batch){
           console.log("found batch")

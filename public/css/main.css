@@ -427,8 +427,8 @@ button:focus {
 
 .conv-control-pane{
   background-color: #f5f6fb;
-  min-width: 450px!important;
-  max-width: 450px!important;
+  min-width: 460px!important;
+  max-width: 460px!important;
 }
 
 .recipient-list {
