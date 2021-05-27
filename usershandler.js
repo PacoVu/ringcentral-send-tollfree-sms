@@ -145,6 +145,16 @@ var engine = User.prototype = {
         lowVolume: lowVolume
       })
     },
+    loadAnalyticsPage: function(res){
+      var lowVolume = false
+      if (this.phoneTFNumbers.length)
+        lowVolume = true
+      res.render('analytics', {
+        userName: this.getUserName(),
+        phoneNumbers: this.phoneHVNumbers,
+        lowVolume: lowVolume
+      })
+    },
     loadCampaignHistoryPage: function(res){
       this.updateNotification(false, (err, result) => {
         console.log("Stop getting outbound notification")
@@ -1004,7 +1014,7 @@ var engine = User.prototype = {
             // add rejected numbers to a temp db
             this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
           }
-
+          this.processingBatches.push(jsonObj.id)
           this.batchSummaryReport.batchId = jsonObj.id
 
           if (voteInfo){
@@ -1036,18 +1046,17 @@ var engine = User.prototype = {
     processBatchEventNotication: function(eventObj){
       console.log("Batch completed")
       // find the batch
+      console.log(eventObj)
       this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
         if (batch){
           console.log("found batch")
           if (eventObj.body.status == "Completed"){
-            batch.queuedCount = 0
-            batch.deliveredCount = 0
-            batch.sentCount = 0
-            batch.unreachableCount = 0
-            batch.totalCost = 0.0
+            var index = this.processingBatches.findIndex(o => o == eventObj.body.id)
+            if (index >= 0)
+              this.processingBatches.splice(index, 1)
             this._postBatchReport(batch, 1, "")
-          // check status to deal with the future when deletion is supported
           }
+          // check status to deal with the future when deletion is supported
         }
       })
     },
@@ -1227,11 +1236,11 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             // don't update db. Taken care by notification path
-
+            /*
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT")
             })
-
+            */
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1436,39 +1445,591 @@ var engine = User.prototype = {
       }
     },
     // analytics
-    readMessageStore: function (req, res){
-      console.log("readMessageStore")
-
+    getMessagingAnalytics: function (req, res){
+      console.log("getMessagingAnalytics")
+      var timeOffset = 0 //parseInt(req.body.timeOffset)
+      var ts = new Date(req.body.dateFrom).getTime()
+      var dateFrom = new Date(ts - timeOffset).toISOString()
+      ts = new Date(req.body.dateTo).getTime()
+      var dateTo = new Date(ts - timeOffset).toISOString()
       var readParams = {
         view: "Detailed",
-        dateFrom: req.body.dateFrom,
-        dateTo: req.body.dateTo,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
         perPage: 1000
       }
-
-      if (req.body.phoneNumbers)
-        readParams['phoneNumber'] = JSON.parse(req.body.phoneNumbers)
+      var phoneNumbers = JSON.parse(req.body.phoneNumbers)
+      if (phoneNumbers[0] != "all")
+        readParams['phoneNumber'] = phoneNumbers
 
       if (req.body.pageToken)
           readParams['pageToken'] = req.body.pageToken
 
-      var accountData = []
       var analyticsData = {
         outboundCount: 0,
         inboundCount: 0,
         deliveredCount: 0,
         sendingFailedCount: 0,
         deliveryFailedCount: 0,
-        deliveryFailures: {},
-        sendingFailures: {},
+        deliveryFailures: [],
+        sendingFailures: [],
         sentMsgCost: 0.0,
         receivedMsgCost: 0.0,
         optedOutCount: 0,
-        optedInCount: 0
+        optedInCount: 0,
+        months: [],
+        weekDays: [
+          {
+            wd: 'Mon',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Tue',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Wed',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Thu',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Fri',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Sat',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Sun',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          }
+        ],
+        roundTheClock: [],
+        phoneNumbers: [],
+        segmentCounts: []
       }
-      this._readMessageStore(res, readParams, analyticsData)
+
+      this._readMessageStore(res, readParams, analyticsData, timeOffset)
+      //this._readTestMessageStore(res, analyticsData, timeOffset)
     },
-    _readMessageStore: async function (res, readParams, analyticsData){
+    _readTestMessageStore: async function (res, analyticsData, timeOffset){
+      console.log("_readTestMessageStore")
+      //fs.readFileSync('./tempFile/testData.json',)
+      var resp = fs.readFileSync('./tempFile/testData.json', 'utf8');
+      var jsonObj = await JSON.parse(resp)
+      for (var message of jsonObj){
+        var localDate = message.creationTime.substring(0, 7)
+        var found = false
+        for (var i=0; i<analyticsData.months.length; i++){
+          var month = analyticsData.months[i]
+          if (month.month == localDate){
+            if (message.direction == "Outbound"){
+              analyticsData.months[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                analyticsData.months[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                analyticsData.months[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                analyticsData.months[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.months[i].sentMsgCost += cost
+            }else{ // received messages
+              analyticsData.months[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.months[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            month: localDate,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          analyticsData.months.push(item)
+          //console.log(analyticsData.months)
+        }
+        // by phoneNumbers
+        found = false
+        var fromNumber = (message.direction == "Outbound") ? message.from : message.to[0]
+        for (var i=0; i<analyticsData.phoneNumbers.length; i++){
+          var number = analyticsData.phoneNumbers[i]
+          if (number.number == fromNumber){
+            if (message.direction == "Outbound"){
+              analyticsData.phoneNumbers[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                analyticsData.phoneNumbers[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                analyticsData.phoneNumbers[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                analyticsData.phoneNumbers[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.phoneNumbers[i].sentMsgCost += cost
+            }else{ // received messages
+              analyticsData.phoneNumbers[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.phoneNumbers[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            number: fromNumber,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          analyticsData.phoneNumbers.push(item)
+          //console.log(analyticsData.phoneNumbers)
+        }
+        // by weekDays
+        found = false
+        // "creationTime":"2021-05-24T13:49:41.441964Z",
+        var createdDate = new Date(message.creationTime)
+        let dateOptions = { weekday: 'short' }
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        //  createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        var wd = createdDateStr.substring(0, 3)
+        for (var i=0; i<analyticsData.weekDays.length; i++){
+          var week = analyticsData.weekDays[i]
+          if (week.wd == wd){
+            if (message.direction == "Outbound"){
+              analyticsData.weekDays[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                analyticsData.weekDays[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                analyticsData.weekDays[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                analyticsData.weekDays[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.weekDays[i].sentMsgCost += cost
+            }else{ // received messages
+              analyticsData.weekDays[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.weekDays[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            wd: wd,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          analyticsData.weekDays.push(item)
+          //console.log(analyticsData.weekDays)
+        }
+        // by roundTheClock
+        found = false
+        // "creationTime":"2021-05-24T13:49:41.441964Z",
+        var hr = message.creationTime.substring(11, 13)
+        var hour = parseInt(hr)
+        for (var i=0; i<analyticsData.roundTheClock.length; i++){
+          var timeSlide = analyticsData.roundTheClock[i]
+          if (timeSlide.hour == hour){
+            if (message.direction == "Outbound"){
+              analyticsData.roundTheClock[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                analyticsData.roundTheClock[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                analyticsData.roundTheClock[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                analyticsData.roundTheClock[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.roundTheClock[i].sentMsgCost += cost
+            }else{ // received messages
+              analyticsData.roundTheClock[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.roundTheClock[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            hour: hour,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          analyticsData.roundTheClock.push(item)
+          //console.log(analyticsData.roundTheClock)
+        }
+        // by segmentCount
+        found = false
+        var segment = (message.segmentCount != undefined) ? parseInt(message.segmentCount) : 0
+        for (var i=0; i<analyticsData.segmentCounts.length; i++){
+          var seg = analyticsData.segmentCounts[i]
+          if (seg.count == segment){
+            if (message.direction == "Outbound"){
+              analyticsData.segmentCounts[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                analyticsData.segmentCounts[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                analyticsData.segmentCounts[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                analyticsData.segmentCounts[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.segmentCounts[i].sentMsgCost += cost
+            }else{ // received messages
+              analyticsData.segmentCounts[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              analyticsData.segmentCounts[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            count: segment,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          analyticsData.segmentCounts.push(item)
+          //console.log(analyticsData.segmentCounts)
+        }
+        // breakout ends
+
+        if (message.direction == "Outbound"){
+          analyticsData.outboundCount++
+          switch (message.messageStatus) {
+            case "Delivered":
+            case "Sent":
+            analyticsData.deliveredCount++
+            break
+            case "DeliveryFailed":
+            analyticsData.deliveryFailedCount++
+            var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+            var hasPhoneNumber = 0
+            var hasURL = 0
+            var hasSegments = 0
+            var isOptedOut = 0
+            var invalidNumber = 0
+            var noCountryCode = 0
+            if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // content problem
+              hasPhoneNumber = detectPhoneNumber(message.text)
+              hasURL = detectUrl(message.text)
+              hasSegments = detectSegment(message.text)
+            }else if (code == "SMS-UP-420" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
+              // recipient number problem
+              var pn = message.to[0].replace("+", "")
+              if (pn.length <= 10)
+                noCountryCode = pn
+              else //if (pn.length == 11)
+                invalidNumber = pn
+            }else if (code == "SMS-CAR-413 "){ // opted out
+              isOptedOut = 1
+            }else{ // if (code == "SMS-CAR-199"){
+
+            }
+            var found = false
+            for (var i=0; i<analyticsData.deliveryFailures.length; i++){
+              var item = analyticsData.deliveryFailures[i]
+              if (code == item.code){
+                analyticsData.deliveryFailures[i].count++
+                analyticsData.deliveryFailures[i].hasPhoneNumber += hasPhoneNumber
+                analyticsData.deliveryFailures[i].hasURL += hasURL
+                analyticsData.deliveryFailures[i].segmented += hasSegments
+                analyticsData.deliveryFailures[i].optoutCount += isOptedOut
+                if (invalidNumber != 0)
+                  analyticsData.deliveryFailures[i].invalidNumbers.push(invalidNumber)
+                if (noCountryCode != 0)
+                  analyticsData.deliveryFailures[i].noCountryCode.push(noCountryCode)
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                code: code,
+                count: 1,
+                hasPhoneNumber: hasPhoneNumber,
+                hasURL: hasURL,
+                segmented: hasSegments,
+                optoutCount: isOptedOut,
+                invalidNumbers: [],
+                noCountryCode: []
+              }
+              if (invalidNumber != 0)
+                item.invalidNumbers.push(invalidNumber)
+              if (noCountryCode != 0)
+                item.noCountryCode.push(noCountryCode)
+              analyticsData.deliveryFailures.push(item)
+            }
+            break
+            case "SendingFailed":
+            analyticsData.sendingFailedCount++
+            var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+            var found = false
+            for (var i=0; i<analyticsData.sendingFailures.length; i++){
+              var item = analyticsData.sendingFailures[i]
+              if (code == item.code){
+                analyticsData.sendingFailures[i].count++
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                code: code,
+                count: 1
+              }
+              analyticsData.sendingFailures.push(item)
+            }
+            break;
+            default:
+            break
+          }
+          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+          analyticsData.sentMsgCost += cost
+        }else{ // received messages
+          analyticsData.inboundCount++
+          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+          analyticsData.receivedMsgCost += cost
+        }
+
+      }
+        analyticsData.roundTheClock.sort(sortRoundTheClock)
+        analyticsData.segmentCounts.sort(sortSegmentCount)
+        console.log(analyticsData)
+        res.send({
+          status: "ok",
+          result: analyticsData
+        })
+    },
+    _readMessageStore: async function (res, readParams, analyticsData, timeOffset){
       console.log("_readMessageStore")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var p = await this.rc_platform.getPlatform(this.extensionId)
@@ -1477,24 +2038,460 @@ var engine = User.prototype = {
           var resp = await p.get(endpoint, readParams)
           var jsonObj = await resp.json()
           for (var message of jsonObj.records){
+            //var ts = new Date(message.creationTime).getTime()
+            //var localDate = new Date(ts - timeOffset).toISOString()
+            //localDate = localDate.substring(0, 7)
+            var localDate = message.creationTime.substring(0, 7)
+            var found = false
+            for (var i=0; i<analyticsData.months.length; i++){
+              var month = analyticsData.months[i]
+              if (month.month == localDate){
+                if (message.direction == "Outbound"){
+                  analyticsData.months[i].outboundCount++
+                  switch (message.messageStatus) {
+                    case "Delivered":
+                    case "Sent":
+                      analyticsData.months[i].deliveredCount++
+                      break
+                    case "DeliveryFailed":
+                      analyticsData.months[i].deliveryFailedCount++
+                      break
+                    case "SendingFailed":
+                      analyticsData.months[i].sendingFailedCount++
+                      break;
+                    default:
+                      break
+                  }
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.months[i].sentMsgCost += cost
+                }else{ // received messages
+                  analyticsData.months[i].inboundCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.months[i].receivedMsgCost += cost
+                }
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                month: localDate,
+                outboundCount: 0,
+                inboundCount: 0,
+                deliveredCount: 0,
+                sendingFailedCount: 0,
+                deliveryFailedCount: 0,
+                sentMsgCost: 0.0,
+                receivedMsgCost: 0.0,
+              }
+              if (message.direction == "Outbound"){
+                item.outboundCount++
+                switch (message.messageStatus) {
+                  case "Delivered":
+                  case "Sent":
+                    item.deliveredCount++
+                    break
+                  case "DeliveryFailed":
+                    item.deliveryFailedCount++
+                    break
+                  case "SendingFailed":
+                    item.sendingFailedCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.sentMsgCost += cost
+              }else{ // received messages
+                item.inboundCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.receivedMsgCost += cost
+              }
+              analyticsData.months.push(item)
+              //console.log(analyticsData.months)
+            }
+            // by phoneNumbers
+            found = false
+            var fromNumber = (message.direction == "Outbound") ? message.from : message.to[0]
+            for (var i=0; i<analyticsData.phoneNumbers.length; i++){
+              var number = analyticsData.phoneNumbers[i]
+              if (number.number == fromNumber){
+                if (message.direction == "Outbound"){
+                  analyticsData.phoneNumbers[i].outboundCount++
+                  switch (message.messageStatus) {
+                    case "Delivered":
+                    case "Sent":
+                      analyticsData.phoneNumbers[i].deliveredCount++
+                      break
+                    case "DeliveryFailed":
+                      analyticsData.phoneNumbers[i].deliveryFailedCount++
+                      break
+                    case "SendingFailed":
+                      analyticsData.phoneNumbers[i].sendingFailedCount++
+                      break;
+                    default:
+                      break
+                  }
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.phoneNumbers[i].sentMsgCost += cost
+                }else{ // received messages
+                  analyticsData.phoneNumbers[i].inboundCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.phoneNumbers[i].receivedMsgCost += cost
+                }
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                number: fromNumber,
+                outboundCount: 0,
+                inboundCount: 0,
+                deliveredCount: 0,
+                sendingFailedCount: 0,
+                deliveryFailedCount: 0,
+                sentMsgCost: 0.0,
+                receivedMsgCost: 0.0,
+              }
+              if (message.direction == "Outbound"){
+                item.outboundCount++
+                switch (message.messageStatus) {
+                  case "Delivered":
+                  case "Sent":
+                    item.deliveredCount++
+                    break
+                  case "DeliveryFailed":
+                    item.deliveryFailedCount++
+                    break
+                  case "SendingFailed":
+                    item.sendingFailedCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.sentMsgCost += cost
+              }else{ // received messages
+                item.inboundCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.receivedMsgCost += cost
+              }
+              analyticsData.phoneNumbers.push(item)
+              //console.log(analyticsData.phoneNumbers)
+            }
+            // by weekDays
+            found = false
+            // "creationTime":"2021-05-24T13:49:41.441964Z",
+            var createdDate = new Date(message.creationTime)
+            let dateOptions = { weekday: 'short' }
+            var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+            //  createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+            var wd = createdDateStr.substring(0, 3)
+            for (var i=0; i<analyticsData.weekDays.length; i++){
+              var week = analyticsData.weekDays[i]
+              if (week.wd == wd){
+                if (message.direction == "Outbound"){
+                  analyticsData.weekDays[i].outboundCount++
+                  switch (message.messageStatus) {
+                    case "Delivered":
+                    case "Sent":
+                      analyticsData.weekDays[i].deliveredCount++
+                      break
+                    case "DeliveryFailed":
+                      analyticsData.weekDays[i].deliveryFailedCount++
+                      break
+                    case "SendingFailed":
+                      analyticsData.weekDays[i].sendingFailedCount++
+                      break;
+                    default:
+                      break
+                  }
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.weekDays[i].sentMsgCost += cost
+                }else{ // received messages
+                  analyticsData.weekDays[i].inboundCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.weekDays[i].receivedMsgCost += cost
+                }
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                wd: wd,
+                outboundCount: 0,
+                inboundCount: 0,
+                deliveredCount: 0,
+                sendingFailedCount: 0,
+                deliveryFailedCount: 0,
+                sentMsgCost: 0.0,
+                receivedMsgCost: 0.0,
+              }
+              if (message.direction == "Outbound"){
+                item.outboundCount++
+                switch (message.messageStatus) {
+                  case "Delivered":
+                  case "Sent":
+                    item.deliveredCount++
+                    break
+                  case "DeliveryFailed":
+                    item.deliveryFailedCount++
+                    break
+                  case "SendingFailed":
+                    item.sendingFailedCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.sentMsgCost += cost
+              }else{ // received messages
+                item.inboundCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.receivedMsgCost += cost
+              }
+              analyticsData.weekDays.push(item)
+              //console.log(analyticsData.weekDays)
+            }
+            // by roundTheClock
+            found = false
+            // "creationTime":"2021-05-24T13:49:41.441964Z",
+            var hr = message.creationTime.substring(11, 13)
+            var hour = parseInt(hr)
+            for (var i=0; i<analyticsData.roundTheClock.length; i++){
+              var timeSlide = analyticsData.roundTheClock[i]
+              if (timeSlide.hour == hour){
+                if (message.direction == "Outbound"){
+                  analyticsData.roundTheClock[i].outboundCount++
+                  switch (message.messageStatus) {
+                    case "Delivered":
+                    case "Sent":
+                      analyticsData.roundTheClock[i].deliveredCount++
+                      break
+                    case "DeliveryFailed":
+                      analyticsData.roundTheClock[i].deliveryFailedCount++
+                      break
+                    case "SendingFailed":
+                      analyticsData.roundTheClock[i].sendingFailedCount++
+                      break;
+                    default:
+                      break
+                  }
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.roundTheClock[i].sentMsgCost += cost
+                }else{ // received messages
+                  analyticsData.roundTheClock[i].inboundCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.roundTheClock[i].receivedMsgCost += cost
+                }
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                hour: hour,
+                outboundCount: 0,
+                inboundCount: 0,
+                deliveredCount: 0,
+                sendingFailedCount: 0,
+                deliveryFailedCount: 0,
+                sentMsgCost: 0.0,
+                receivedMsgCost: 0.0,
+              }
+              if (message.direction == "Outbound"){
+                item.outboundCount++
+                switch (message.messageStatus) {
+                  case "Delivered":
+                  case "Sent":
+                    item.deliveredCount++
+                    break
+                  case "DeliveryFailed":
+                    item.deliveryFailedCount++
+                    break
+                  case "SendingFailed":
+                    item.sendingFailedCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.sentMsgCost += cost
+              }else{ // received messages
+                item.inboundCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.receivedMsgCost += cost
+              }
+              analyticsData.roundTheClock.push(item)
+              //console.log(analyticsData.roundTheClock)
+            }
+            // by segmentCount
+            found = false
+            var segment = (message.segmentCount != undefined) ? parseInt(message.segmentCount) : 0
+            for (var i=0; i<analyticsData.segmentCounts.length; i++){
+              var seg = analyticsData.segmentCounts[i]
+              if (seg.count == segment){
+                if (message.direction == "Outbound"){
+                  analyticsData.segmentCounts[i].outboundCount++
+                  switch (message.messageStatus) {
+                    case "Delivered":
+                    case "Sent":
+                      analyticsData.segmentCounts[i].deliveredCount++
+                      break
+                    case "DeliveryFailed":
+                      analyticsData.segmentCounts[i].deliveryFailedCount++
+                      break
+                    case "SendingFailed":
+                      analyticsData.segmentCounts[i].sendingFailedCount++
+                      break;
+                    default:
+                      break
+                  }
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.segmentCounts[i].sentMsgCost += cost
+                }else{ // received messages
+                  analyticsData.segmentCounts[i].inboundCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  analyticsData.segmentCounts[i].receivedMsgCost += cost
+                }
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                count: segment,
+                outboundCount: 0,
+                inboundCount: 0,
+                deliveredCount: 0,
+                sendingFailedCount: 0,
+                deliveryFailedCount: 0,
+                sentMsgCost: 0.0,
+                receivedMsgCost: 0.0,
+              }
+              if (message.direction == "Outbound"){
+                item.outboundCount++
+                switch (message.messageStatus) {
+                  case "Delivered":
+                  case "Sent":
+                    item.deliveredCount++
+                    break
+                  case "DeliveryFailed":
+                    item.deliveryFailedCount++
+                    break
+                  case "SendingFailed":
+                    item.sendingFailedCount++
+                    break;
+                  default:
+                    break
+                }
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.sentMsgCost += cost
+              }else{ // received messages
+                item.inboundCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.receivedMsgCost += cost
+              }
+              analyticsData.segmentCounts.push(item)
+              //console.log(analyticsData.segmentCounts)
+            }
+            // breakout ends
+
             if (message.direction == "Outbound"){
+              analyticsData.outboundCount++
               switch (message.messageStatus) {
                 case "Delivered":
                 case "Sent":
-                  analyticsData.deliveredCount++
-                  break
+                analyticsData.deliveredCount++
+                break
                 case "DeliveryFailed":
-                  analyticsData.deliveryFailedCount++
-                  break
+                analyticsData.deliveryFailedCount++
+                var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+                var hasPhoneNumber = 0
+                var hasURL = 0
+                var hasSegments = 0
+                var isOptedOut = 0
+                var invalidNumber = 0
+                var noCountryCode = 0
+                if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // content problem
+                  hasPhoneNumber = detectPhoneNumber(message.text)
+                  hasURL = detectUrl(message.text)
+                  hasSegments = detectSegment(message.text)
+                }else if (code == "SMS-UP-420" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
+                  // recipient number problem
+                  var pn = message.to[0].replace("+", "")
+                  if (pn.length <= 10)
+                    noCountryCode = pn
+                  else //if (pn.length == 11)
+                    invalidNumber = pn
+                }else if (code == "SMS-CAR-413 "){ // opted out
+                  isOptedOut = 1
+                }else{ // if (code == "SMS-CAR-199"){
+
+                }
+                var found = false
+                for (var i=0; i<analyticsData.deliveryFailures.length; i++){
+                  var item = analyticsData.deliveryFailures[i]
+                  if (code == item.code){
+                    analyticsData.deliveryFailures[i].count++
+                    analyticsData.deliveryFailures[i].hasPhoneNumber += hasPhoneNumber
+                    analyticsData.deliveryFailures[i].hasURL += hasURL
+                    analyticsData.deliveryFailures[i].segmented += hasSegments
+                    analyticsData.deliveryFailures[i].optoutCount += isOptedOut
+                    if (invalidNumber != 0)
+                      analyticsData.deliveryFailures[i].invalidNumbers.push(invalidNumber)
+                    if (noCountryCode != 0)
+                      analyticsData.deliveryFailures[i].noCountryCode.push(noCountryCode)
+                    found = true
+                    break
+                  }
+                }
+                if (!found){
+                  var item = {
+                    code: code,
+                    count: 1,
+                    hasPhoneNumber: hasPhoneNumber,
+                    hasURL: hasURL,
+                    segmented: hasSegments,
+                    optoutCount: isOptedOut,
+                    invalidNumbers: [],
+                    noCountryCode: []
+                  }
+                  if (invalidNumber != 0)
+                    item.invalidNumbers.push(invalidNumber)
+                  if (noCountryCode != 0)
+                    item.noCountryCode.push(noCountryCode)
+                  analyticsData.deliveryFailures.push(item)
+                }
+                break
                 case "SendingFailed":
-                  analyticsData.sendingFailedCount++
-                  break;
+                analyticsData.sendingFailedCount++
+                var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+                var found = false
+                for (var i=0; i<analyticsData.sendingFailures.length; i++){
+                  var item = analyticsData.sendingFailures[i]
+                  if (code == item.code){
+                    analyticsData.sendingFailures[i].count++
+                    found = true
+                    break
+                  }
+                }
+                if (!found){
+                  var item = {
+                    code: code,
+                    count: 1
+                  }
+                  analyticsData.sendingFailures.push(item)
+                }
+                break;
                 default:
-                  break
+                break
               }
               var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
               analyticsData.sentMsgCost += cost
-            }else{
+            }else{ // received messages
               analyticsData.inboundCount++
               var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
               analyticsData.receivedMsgCost += cost
@@ -1505,9 +2502,12 @@ var engine = User.prototype = {
             var thisUser = this
             setTimeout(function(){
                 readParams['pageToken'] = jsonObj.paging.nextPageToken
-                thisUser._readMessageStore(res, readParams)
+                thisUser._readMessageStore(res, readParams, analyticsData, timeOffset)
             }, 1200)
           }else{
+            console.log(analyticsData)
+            analyticsData.roundTheClock.sort(sortRoundTheClock)
+            analyticsData.segmentCounts.sort(sortSegmentCount)
             res.send({
                 status: "ok",
                 result: analyticsData
@@ -1532,6 +2532,8 @@ var engine = User.prototype = {
     },
     // analytics end
     downloadHVMessageStore: function(req, res){
+      this.getMessagingAnalytics(req, res)
+      //
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
@@ -1876,28 +2878,25 @@ var engine = User.prototype = {
         res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
       }
     },
-    logout: async function(req, res, callback){
+    logout: async function(callback){
       console.log("LOGOUT FUNC")
-      if (this.eventEngine && this.eventEngine.voteCampaignArr.length > 0){
+      if ((this.eventEngine && this.eventEngine.voteCampaignArr.length > 0) || this.processingBatches.length > 0){
         callback(null, 1)
       }else{
-        /*
-        // delete subscription
         await this.deleteSubscription()
         var p = await this.rc_platform.getPlatform(this.extensionId)
         if (p)
-          await p.logout()
+        await p.logout()
         else
-          console.log("No platform?")
+        console.log("No platform?")
         // may need to clear tokens and destroy eventEngine etc.
-        this.subscriptionId = ""
-        this.updateActiveUserSubscription()
-        this.rc_platform.updateUserAccessTokens("")
         var activeUsers = router.getActiveUsers()
         var index = activeUsers.findIndex(o => o.extensionId.toString() === this.extensionId.toString())
         activeUsers.splice(index, 1)
-        */
-        callback(null, 0)
+        //this.subscriptionId = ""
+        this.resetSubscriptionAndAccessTokens((err, res) => {
+          callback(null, 0)
+        })
       }
     },
     readBatchReportFromDB: function(batchId, callback){
@@ -2106,6 +3105,19 @@ var engine = User.prototype = {
       }else{
         console.log("err: updateNotification");
         callback("err", "failed")
+      }
+    },
+    deleteSubscription: async function() {
+      console.log("deleteSubscription")
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try{
+          var r =  await p.delete(`/restapi/v1.0/subscription/${this.subscriptionId}`)
+          console.log("Deleted subscription")
+        }catch(e){
+          console.log("Cannot delete notification subscription")
+          console.log(e.message)
+        }
       }
     },
     /// Clean up WebHook subscriptions
@@ -2458,12 +3470,20 @@ var engine = User.prototype = {
         })
       })
     },
+    resetSubscriptionAndAccessTokens: function(callback) {
+      console.log("resetSubscriptionAndAccessTokens")
+      var query = `UPDATE a2p_sms_users SET subscription_id='', access_tokens='' WHERE user_id='${this.extensionId}'`
+      console.log(query)
+      pgdb.update(query, (err, result) =>  {
+        if (err){
+          console.error("UPDATE ERR? " + err.message);
+        }
+        console.log("Subscription and access token reset")
+        callback(null, "ok")
+      })
+    },
     updateActiveUserSubscription: function() {
       console.log("updateActiveUserSubscription")
-      //var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, votes, contacts, subscription_id, webhooks, access_tokens)"
-      //query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
-      //var values = [this.extensionId, this.accountId, "", "", "", this.subscriptionId, "", ""]
-
       var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
       query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
       var values = [this.extensionId, this.accountId, "[]", "[]", this.subscriptionId, "", "", "[]"]
@@ -2512,7 +3532,7 @@ var engine = User.prototype = {
           batches.push(newBatch)
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var query = `UPDATE a2p_sms_users SET batches='  ${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2666,6 +3686,87 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   post_req.end();
 }
 
+function detectPhoneNumber(message){
+  var wordArr = message.split(" ")
+  var hasPhoneNumber = 0
+  for (var w of wordArr){
+    var number = w.replace(/[+()\-\s]/g, '')
+    if (!isNaN(number)){
+      if (number.length >= 10 && number.length <= 11){
+        hasPhoneNumber = 1
+        console.log(message)
+        break
+      }
+    }
+  }
+  return hasPhoneNumber
+}
+
+function detectUrl(message){
+  var hasUrl = 0
+  var tempMsg = message.toLowerCase()
+  var shortenLinks = [
+    "https://",
+    "http://"
+  ]
+
+  for (var link of shortenLinks){
+    var index = tempMsg.indexOf(link)
+    if (index >= 0){
+      hasUrl = 1
+      console.log(message)
+      break
+    }
+  }
+  return hasUrl
+}
+
+function detectShortenUrl(message){
+  var hasUrl = 0
+  var tempMsg = message.toLowerCase()
+  var shortenLinks = [
+    "https://bit.ly/",
+    "https://ow.ly",
+    "https://goo.gl/",
+    "https://tinyurl.com/",
+    "https://tiny.cc/",
+    "https://bc.vc/",
+    "https://budurl.com/",
+    "https://clicky.me/",
+    "https://is.gd/",
+    "https://lc.chat/",
+    "https://soo.gd/",
+    "https://s2r.co/",
+    "http://bit.ly/",
+    "http://ow.ly",
+    "http://goo.gl/",
+    "http://tinyurl.com/",
+    "http://tiny.cc/",
+    "http://bc.vc/",
+    "http://budurl.com/",
+    "http://clicky.me/",
+    "http://is.gd/",
+    "http://lc.chat/",
+    "http://soo.gd/",
+    "http://s2r.co/",
+  ]
+
+  for (var link of shortenLinks){
+    var index = tempMsg.indexOf(link)
+    if (index >= 0){
+      hasUrl = 1
+      console.log(message)
+      break
+    }
+  }
+  return hasUrl
+}
+
+function detectSegment(message){
+  var segmented = (message.length > 160) ? 1 : 0
+  return segmented
+}
+
 function makeId() {
   var text = "";
   var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -2680,4 +3781,12 @@ function sortBatchCreatedDate(a,b) {
   //var bTime = new Date(b.creationTime).getTime()
   return b.creationTime - a.creationTime;
   //return bTime - aTime;
+}
+
+function sortRoundTheClock(a,b) {
+  return a.hour - b.hour;
+}
+
+function sortSegmentCount(a,b) {
+  return a.count - b.count;
 }

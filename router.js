@@ -35,6 +35,78 @@ function createUserTable() {
 }
 
 function autoStart(){
+  console.log("New autoStart")
+  var RCPlatform = require('./platform.js');
+  var ActiveUser = require('./event-engine.js');
+
+  var query = `SELECT user_id, active_survey FROM a2p_sms_users_tempdata`
+  pgdb.read(query, (err, result) => {
+    if (err){
+      console.error(err.message);
+    }else{
+      if (result.rows){
+        async.forEachLimit(result.rows, 1, function(user, setupNextUser){
+            async.waterfall([
+              function setupNextUser(done) {
+                // create platform
+                if (user.active_survey != '[]'){
+                  query = `SELECT user_id, subscription_id, access_tokens FROM a2p_sms_users WHERE user_id='${user.user_id}'`
+                  pgdb.read(query, (err, result) => {
+                    if (!err && result.rows.length > 0){
+                      var accessTokens = result.rows[0].access_tokens
+                      var userId = result.rows[0].user_id
+                      var subscriptionId =  result.rows[0].subscription_id
+                      //console.log("SAVED TOKENS")
+                      //console.log(accessTokens)
+                      //console.log("========")
+                      var platform = new RCPlatform(userId)
+                      platform.autoLogin(accessTokens, (err, res) => {
+                        var aUser = new ActiveUser(userId, subscriptionId)
+                        if (!err){
+                          console.log("Auto login succeeded")
+                          aUser.autoSetup(platform, (err, result) => {
+                            console.log("setup: " + result)
+                            if (err == null && result > 0){
+                              activeUsers.push(aUser)
+                              console.log("activeUsers.length: " + activeUsers.length)
+                            }
+                            done()
+                          })
+                        }else{
+                          console.log("Auto login failed")
+                          aUser.autoSetup(null, (err, result) => {
+                            if (err == null && result > 0){
+                              activeUsers.push(aUser)
+                              console.log("activeUsers.length: " + activeUsers.length)
+                            }
+                            done()
+                          })
+                        }
+                      })
+                    }else{
+                      console.error(err.message);
+                      done()
+                    }
+                  })
+                }else{
+                  done()
+                }
+              }
+            ], function (error, success) {
+              if (error) {
+                console.log('Some error!');
+              }
+              setupNextUser()
+            });
+          }, function(err){
+            console.log("autoStart completed")
+          });
+      }
+    }
+  })
+}
+
+function autoStart_old(){
   console.log("autoStart")
   var RCPlatform = require('./platform.js');
   var ActiveUser = require('./event-engine.js');
@@ -50,6 +122,9 @@ function autoStart(){
               function setupNextUser(done) {
                 // create platform
                 if (user.access_tokens.length > 0){
+                  console.log("SAVED TOKENS")
+                  console.log(user.access_tokens)
+                  console.log("========")
                   var platform = new RCPlatform(user.user_id)
                   //var platform = new (require('./platform.js'))(user.user_id);
                   platform.autoLogin(user.access_tokens, (err, res) => {
@@ -161,6 +236,7 @@ var router = module.exports = {
     req.session.destroy();
     res.render('index')
   },
+  /*
   login: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -202,15 +278,50 @@ var router = module.exports = {
       }
     })
   },
+  */
+  login: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].login(req, res, function(err, extensionId){
+      // result contain extensionId. Use it to check for orphan user and remove it
+      if (!err){
+        console.log("USERLENGTH: " + users.length)
+        var shouldReplace = false
+        var oldUser = null
+        var newUser = null
+        var oldUserIndex = -1
+        var newUserIndex = -1
+        for (var i = 0; i < users.length; i++){
+          console.log("REPLACING")
+          if (i != index){
+            var extId = users[i].getExtensionId()
+            var userId = users[i].getUserId()
+            if (extId == extensionId && userId != req.session.userId){ // old user
+              console.log("Replaced!")
+              users[i] = null
+              users.splice(i, 1);
+              break
+            }
+          }
+        }
+      }
+    })
+  },
   logout: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0){
       return this.forceLogin(req, res)
     }
     var thisObj = this
-    users[index].logout(req, res, function(err, result){
-      //users[index] = null
-      //users.splice(index, 1);
+    users[index].logout((err, result) =>{
+      if (result == 0){
+        console.log("removing user")
+        users[index] = null
+        users.splice(index, 1)
+      }else {
+        console.log("keeping this user")
+      }
       thisObj.forceLogin(req, res)
     })
   },
@@ -320,6 +431,12 @@ var router = module.exports = {
     users[index].downloadVoteReport(req, res)
   },
   */
+  getMessagingAnalytics: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].getMessagingAnalytics(req, res)
+  },
   downloadHVMessageStore: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -466,6 +583,12 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].loadMessageStorePage(res)
+  },
+  loadAnalyticsPage: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].loadAnalyticsPage(res)
   },
   setDelayInterVal: function(req, res){
     var index = getUserIndex(req.session.userId)

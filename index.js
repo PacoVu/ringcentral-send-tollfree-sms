@@ -111,6 +111,15 @@ app.get ('/conversations', function (req, res) {
   }
 })
 
+app.get ('/analytics', function (req, res) {
+  console.log('loadAnalyticsPage')
+  if (req.session.extensionId != 0)
+    router.loadAnalyticsPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get("/poll-new-messages", function (req, res) {
   if (req.session.extensionId != 0)
     router.pollNewMessages(req, res)
@@ -149,6 +158,15 @@ app.post('/read-message-store', function (req, res) {
   console.log('readMessageStore')
   if (req.session.extensionId != 0)
     router.readMessageList(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/create-messaging-analytics', function (req, res) {
+  console.log('getMessagingAnalytics')
+  if (req.session.extensionId != 0)
+    router.getMessagingAnalytics(req, res)
   else{
     res.render('index')
   }

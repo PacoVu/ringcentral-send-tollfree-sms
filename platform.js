@@ -23,8 +23,10 @@ function RCPlatform(userId) {
   var boundFunction = ( async function() {
       console.log("WONDERFUL")
       console.log(this.extensionId);
-      var tokenObj = await this.platform.auth().data()
-      this.updateUserAccessTokens(JSON.stringify(tokenObj))
+      //var tokenObj = await this.platform.auth().data()
+      //console.log("REFRESHED TOKENS")
+      //this.updateUserAccessTokens(JSON.stringify(tokenObj))
+      this.updateUserAccessTokens()
   }).bind(this);
   this.platform.on(this.platform.events.refreshSuccess, boundFunction);
 
@@ -40,11 +42,26 @@ RCPlatform.prototype = {
       })
       var tokenObj = await resp.json()
       this.extensionId = tokenObj.owner_id
-      this.updateUserAccessTokens(JSON.stringify(tokenObj))
+      //console.log("NEW LOGIN TOKENS")
+      //this.updateUserAccessTokens(JSON.stringify(tokenObj))
+      this.updateUserAccessTokens()
       return  tokenObj.owner_id
     }catch(e){
       console.log('PLATFORM LOGIN ERROR ' + e.message || 'Server cannot authorize user');
       return null
+    }
+  },
+  autoLogin: async function(data, callback){
+    var tokenObj = JSON.parse(data)
+    this.extensionId = tokenObj.owner_id
+    this.platform.auth().setData(tokenObj)
+    if (await this.platform.loggedIn()){
+      console.log("Auto login ok")
+      callback(null, "Auto login ok")
+    }else{
+      console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED")
+      console.log("CAN'T REFRESH: " + e.message)
+      callback(e.message, "Auto login Failed")
     }
   },
   logout: async function(){
@@ -52,16 +69,24 @@ RCPlatform.prototype = {
     await this.platform.logout()
   },
   getPlatform: async function(extId){
+    /*
     var tokenObj = await this.platform.auth().data()
     if (extId  ==  tokenObj.owner_id)
       console.log (`requester: ${extId}  ==  owner: ${tokenObj.owner_id}`)
-    if (extId != tokenObj.owner_id){
-      console.log(tokenObj.owner_id)
-      console.log(extId)
+    else{
+      console.log (`requester: ${extId}  !=  owner: ${tokenObj.owner_id}`)
       console.log("If this ever happens => SERIOUS PROBLEM. Need to check and fix!")
       return null
     }
-    if (this.platform.loggedIn()){
+    */
+    if (extId  ==  this.extensionId)
+      console.log (`requester: ${extId}  ==  owner: ${this.extensionId}`)
+    else{
+      console.log (`requester: ${extId}  !=  owner: ${this.extensionId}`)
+      console.log("If this ever happens => SERIOUS PROBLEM. Need to check and fix!")
+      return null
+    }
+    if (await this.platform.loggedIn()){
         return this.platform
     }else{
         console.log("BOTH TOKEN TOKENS EXPIRED")
@@ -72,25 +97,16 @@ RCPlatform.prototype = {
   getSDKPlatform: function(){
     return this.platform
   },
-  autoLogin: async function(data, callback){
-    var tokenObj = JSON.parse(data)
-    this.extensionId = tokenObj.owner_id
-    await this.platform.auth().setData(tokenObj)
-    if (await this.platform.loggedIn()){
-      console.log("Auto login ok")
-      callback(null, "Auto login ok")
-    }else{
-      console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED")
-      console.log("CAN'T REFRESH: " + e.message)
-      callback(e.message, "Auto login Failed")
-    }
-  },
   getTokens: async function(){
     var tokenObj = await this.platform.auth().data()
     return JSON.stringify(tokenObj)
   },
-  updateUserAccessTokens: function(tokenStr) {
+  updateUserAccessTokens: async function() {
     console.log("updateUserAccessTokens")
+    var tokenObj = await this.platform.auth().data()
+    var tokenStr = JSON.stringify(tokenObj)
+    //console.log(tokenStr)
+    //console.log("===== check token end =====")
     var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
     query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
     var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr, "[]"]

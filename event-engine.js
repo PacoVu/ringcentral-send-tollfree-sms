@@ -431,17 +431,6 @@ var engine = ActiveUser.prototype = {
       })
     },
     updateVoteDataInDB: function(callback){
-      /*
-      var query = 'UPDATE a2p_sms_users_tempdata SET '
-      query += "active_survey='" + JSON.stringify(this.voteCampaignArr) + "' WHERE user_id='" + this.extensionId + "'"
-      //console.log(query)
-      pgdb.update(query, (err, result) =>  {
-        if (err){
-          console.error(err.message);
-        }
-        callback(null, "updated vote campaign data")
-      })
-      */
       var query = "INSERT INTO a2p_sms_users_tempdata (user_id, active_survey, rejected_numbers)"
       query += " VALUES ($1,$2,$3)"
       var activeServeys = JSON.stringify(this.voteCampaignArr)

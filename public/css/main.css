@@ -419,6 +419,11 @@ button:focus {
   max-width: 350px!important;
 }
 */
+.analytics-control-pane{
+  background-color: #f5f6fb;
+  min-width: 300px!important;
+  max-width: 300px!important;
+}
 
 .conv-control-pane{
   background-color: #f5f6fb;
@@ -580,4 +585,8 @@ button:focus {
 .right {
   float: right;
   background-color: #f5f6fb;
+}
+
+.analytics-table {
+  border: 1px solid gray;
 }
