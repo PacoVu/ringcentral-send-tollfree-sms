@@ -12,7 +12,6 @@ function User(id) {
   this.id = id;
   this.extensionId = 0;
   this.accountId = 0;
-  this.adminUser = false
   this.userEmail = "" // for feedback only
   this.userName = ""
   this.subscriptionId = ""
@@ -188,6 +187,7 @@ var engine = User.prototype = {
     },
     login: async function(req, res, callback){
       if (req.query.code) {
+        //var rc_platform = this.rc_platform
         var thisUser = this
         var extensionId = await this.rc_platform.login(req.query.code)
         if (extensionId){
@@ -195,14 +195,12 @@ var engine = User.prototype = {
           req.session.extensionId = extensionId;
 
           //thisUser.deleteAllRegisteredWebHookSubscriptions()
+
           var p = await this.rc_platform.getPlatform(this.extensionId)
           if (p){
             try {
               var resp = await p.get("/restapi/v1.0/account/~/extension/~/")
               var jsonObj = await resp.json()
-              if (jsonObj.permissions.admin.enabled){
-                this.adminUser = true
-              }
               this.accountId = jsonObj.account.id
               var fullName = jsonObj.contact.firstName + " " + jsonObj.contact.lastName
               if (jsonObj.contact.hasOwnProperty("email"))
@@ -269,31 +267,6 @@ var engine = User.prototype = {
       }
     },
     readA2PSMSPhoneNumber: async function(req, res){
-      // admin w/o number
-      if (this.adminUser){
-        if (this.phoneHVNumbers.length == 0 && this.phoneTFNumbers.length == 0){
-            // check if this account has any users who has V SMS numbers and ever used the app
-            var query = `SELECT account_id FROM a2p_sms_users WHERE user_id='${this.accountId}'`
-            pgdb.read(query, (err, result) => {
-              if (!err && result.rows.length > 0){
-                console.log(result.rows)
-                res.render('analytics', {
-                  userName: this.getUserName(),
-                  phoneNumbers: this.phoneHVNumbers,
-                  lowVolume: false,
-                })
-              }else{ // no history
-                res.render('main', {
-                  userName: this.userName,
-                  lowVolume: false,
-                  highVolume: false
-                })
-              }
-            })
-            return
-        }
-      }
-
       // decide what page to load
       if (this.phoneHVNumbers.length > 0 && this.subscriptionId != ""){
         console.log("temp solution")
@@ -375,6 +348,7 @@ var engine = User.prototype = {
             this.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
           }
         }
+        //console.log(this.phoneTFNumbers)
       } catch (e) {
         console.log("Cannot read phone numbers!!!")
         console.error(e.message);
@@ -1048,7 +1022,6 @@ var engine = User.prototype = {
           if (voteInfo){
             voteInfo.batchId = jsonObj.id
             this.eventEngine.setVoteInfo(voteInfo)
-            //this._getVoteReport(jsonObj.id, "")
           }
           this.addBatchDataToDB((err, result) => {
             res.send({
@@ -1480,198 +1453,6 @@ var engine = User.prototype = {
           result: this.analyticsData
       })
     },
-    downloadAnalytics: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = dir //+ this.downloadFileName //this.getExtensionId()
-      var fileContent = ""
-      fullNamePath += 'test_analytics.csv'
-      // Total
-      fileContent = "Messaging statistics between 2021-03-07 and 2021-06-05"
-      fileContent += "\nTotal messages by direction"
-      fileContent += `\n,Outbound,${this.analyticsData.outboundCount}`
-      fileContent += `\n,Inbound,${this.analyticsData.inboundCount}`
-      fileContent += `\n,Total,${this.analyticsData.outboundCount + this.analyticsData.inboundCount},`
-
-      fileContent += "\nTotal cost by direction (USD)"
-      var totalCost = this.analyticsData.sentMsgCost + this.analyticsData.receivedMsgCost
-      fileContent += `\n,Outbound,${this.analyticsData.sentMsgCost.toFixed(2)}`
-      fileContent += `\n,Inbound,${this.analyticsData.receivedMsgCost.toFixed(2)}`
-      fileContent += `\n,Total,${totalCost.toFixed(2)},`
-      // status
-      fileContent += "\nTotal messages by status"
-      fileContent += `\n,Delivered,${this.analyticsData.deliveredCount}`
-      fileContent += `\n,Sending failed,${this.analyticsData.sendingFailedCount}`
-      fileContent += `\n,Delivery failed,${this.analyticsData.deliveryFailedCount}`
-
-      // Monthly
-      fileContent += "\n\n# Messages by direction (per month)"
-      //fileContent += "\n,Month,Outbound # Messages,Inbound # Messages,Total # Messages,Response Rate"
-
-      var monthlyData = this.analyticsData.months
-
-      var months = "\n,Month"
-      var inboundMsg = "\n,# Inbound messages"
-      var outboundMsg = "\n,# Outbound messages"
-      var totalMsg = "\n,# Total messages"
-      var responseRate = "\n,Response rate"
-
-      var statusInfoHeader = "\n# Outbound messages by status (per month)"
-      var deliveredMsg = "\n,# Delivered messages"
-      var failedMsg = "\n,# Failed messages"
-      var deliveryRate = "\n,Delivery rate"
-
-      var costInfoHeader = "\nCost by direction (USD per month)"
-      var inboundCost = "\n,Cost of inbound messages"
-      var outboundCost = "\n,Cost of outbound messages"
-      var totalCost = "\n,Total cost"
-
-      var costEfficiencyHeader = "\nOutbound messaging cost efficiency (USD per month)"
-      var deliveredCost = "\n,Cost of succeeded outbound messages"
-      var failedCost = "\n,Cost of failed outbound messages"
-      var efficiencyRate = "\n,Cost efficiency rate"
-
-      for (var i=monthlyData.length-1; i>=0; i--) {
-        var m =  monthlyData[i]
-        var total = m.inboundCount + m.outboundCount
-        var rate = 0.0
-        if (m.outboundCount > 0)
-          rate = (m.inboundCount / m.outboundCount) * 100
-        months += `,${m.month}`
-        inboundMsg += `,${m.inboundCount}`
-        outboundMsg += `,${m.outboundCount}`
-        totalMsg += `,${total}`
-        responseRate += `,${rate.toFixed(2)}%`
-        //fileContent += `\n,${m.month},${m.outboundCount},${m.inboundCount},${total}, ${rate.toFixed(2)}%`
-
-        // status
-        total = m.deliveredCount + m.deliveryFailedCount + m.sendingFailedCount
-        if (total > 0)
-          rate = (m.deliveredCount / total) * 100
-        deliveredMsg += `,${m.deliveredCount}`
-        failedMsg += `,${m.deliveryFailedCount + m.sendingFailedCount}`
-        deliveryRate += `,${rate.toFixed(2)}%`
-
-        // cost
-        var totalOutbountCost = m.deliveredMsgCost + m.failedMsgCost
-        total = totalOutbountCost + m.receivedMsgCost
-        if (totalOutbountCost > 0.0)
-          rate = (m.deliveredMsgCost / totalOutbountCost) * 100
-        inboundCost += `,${m.receivedMsgCost.toFixed(2)}`
-        outboundCost += `,${totalOutbountCost.toFixed(2)}`
-        totalCost += `,${total.toFixed(2)}`
-
-        // cost efficiency
-        total = m.deliveredMsgCost + m.failedMsgCost
-        if (total > 0.0)
-          rate = (m.deliveredMsgCost / total) * 100
-        deliveredCost += `,${m.deliveredMsgCost.toFixed(2)}`
-        failedCost += `,${m.failedMsgCost.toFixed(2)}`
-        efficiencyRate += `,${rate.toFixed(2)}`
-      }
-      fileContent += `${months}${inboundMsg}${outboundMsg}${totalMsg}${responseRate}`
-      fileContent += statusInfoHeader
-      fileContent += `${months}${deliveredMsg}${failedMsg}${deliveryRate}`
-      fileContent += costInfoHeader
-      fileContent += `${months}${inboundCost}${outboundCost}${totalCost}`
-      fileContent += costEfficiencyHeader
-      fileContent += `${months}${deliveredCost}${failedCost}${efficiencyRate}`
-
-      // per number
-      fileContent += "\n\n# Messages by direction (per service number)"
-
-      var serviceNumber = "\n,Service Number"
-      inboundMsg = "\n,# Inbound messages"
-      outboundMsg = "\n,# Outbound messages"
-      totalMsg = "\n,# Total messages"
-      responseRate = "\n,Response rate"
-
-      statusInfoHeader = "\n# Outbound messages by status (per service number)"
-      deliveredMsg = "\n,# Delivered messages"
-      failedMsg = "\n,# Failed messages"
-      deliveryRate = "\n,Delivery rate"
-
-      costInfoHeader = "\nCost by direction (USD per service number)"
-      inboundCost = "\n,Cost of inbound messages"
-      outboundCost = "\n,Cost of outbound messages"
-      totalCost = "\n,Total cost"
-
-      costEfficiencyHeader = "\nOutbound messaging cost efficiency (USD per service number)"
-      deliveredCost = "\n,Cost of succeeded outbound messages"
-      failedCost = "\n,Cost of failed outbound messages"
-      efficiencyRate = "\n,Cost efficiency rate"
-
-      var serviceNumberData = this.analyticsData.phoneNumbers
-      for (var i=serviceNumberData.length-1; i>=0; i--) {
-        var m =  serviceNumberData[i]
-/*
-        var total = m.inboundCount + m.outboundCount
-        var rate = 0.0
-        if (m.outboundCount > 0)
-          rate = (m.inboundCount / m.outboundCount) * 100
-        fileContent += `\n,${formatPhoneNumber(m.number)},${m.outboundCount},${m.inboundCount},${total}, ${rate.toFixed(2)}`
-*/
-        var total = m.inboundCount + m.outboundCount
-        var rate = 0.0
-        if (m.outboundCount > 0)
-          rate = (m.inboundCount / m.outboundCount) * 100
-        serviceNumber += `,${formatPhoneNumber(m.number)}`
-        inboundMsg += `,${m.inboundCount}`
-        outboundMsg += `,${m.outboundCount}`
-        totalMsg += `,${total}`
-        responseRate += `,${rate.toFixed(2)}%`
-
-        // status
-        total = m.deliveredCount + m.deliveryFailedCount + m.sendingFailedCount
-        if (total > 0)
-          rate = (m.deliveredCount / total) * 100
-        deliveredMsg += `,${m.deliveredCount}`
-        failedMsg += `,${m.deliveryFailedCount + m.sendingFailedCount}`
-        deliveryRate += `,${rate.toFixed(2)}%`
-
-        // cost
-        var totalOutbountCost = m.deliveredMsgCost + m.failedMsgCost
-        total = totalOutbountCost + m.receivedMsgCost
-        if (totalOutbountCost > 0.0)
-          rate = (m.deliveredMsgCost / totalOutbountCost) * 100
-        inboundCost += `,${m.receivedMsgCost.toFixed(2)}`
-        outboundCost += `,${totalOutbountCost.toFixed(2)}`
-        totalCost += `,${total.toFixed(2)}`
-
-        // cost efficiency
-        total = m.deliveredMsgCost + m.failedMsgCost
-        if (total > 0.0)
-          rate = (m.deliveredMsgCost / total) * 100
-        deliveredCost += `,${m.deliveredMsgCost.toFixed(2)}`
-        failedCost += `,${m.failedMsgCost.toFixed(2)}`
-        efficiencyRate += `,${rate.toFixed(2)}`
-      }
-
-      fileContent += `${serviceNumber}${inboundMsg}${outboundMsg}${totalMsg}${responseRate}`
-      fileContent += statusInfoHeader
-      fileContent += `${serviceNumber}${deliveredMsg}${failedMsg}${deliveryRate}`
-      fileContent += costInfoHeader
-      fileContent += `${serviceNumber}${inboundCost}${outboundCost}${totalCost}`
-      fileContent += costEfficiencyHeader
-      fileContent += `${serviceNumber}${deliveredCost}${failedCost}${efficiencyRate}`
-
-      try{
-        fs.writeFileSync('./'+ fullNamePath, fileContent)
-        var link = "/downloads?filename=" + fullNamePath
-        res.send({
-          status:"ok",
-          message:link
-        })
-      }catch (e){
-        console.log("cannot create report file")
-        res.send({
-          status:"error",
-          message:"Cannot create a report file! Please try gain"
-        })
-      }
-    },
     getMessagingAnalytics: function (req, res){
       console.log("getMessagingAnalytics")
       var timeOffset = 0 //parseInt(req.body.timeOffset)
@@ -1701,109 +1482,577 @@ var engine = User.prototype = {
         deliveryFailedCount: 0,
         deliveryFailures: [],
         sendingFailures: [],
-        outboundFailureTypes: {
-          content: {
-            count: 0,
-            numbers: [],
-            messages: []
-          },
-          invalidRecipientNumbers: [],
-          blockedSenderNumbers: [],
-          optoutNumbers: [],
-          others: {
-            count: 0,
-            numbers:[],
-            messages: []
-          }
-        },
         sentMsgCost: 0.0,
         receivedMsgCost: 0.0,
         optedOutCount: 0,
+        optedInCount: 0,
         months: [],
-        phoneNumbers: []
+        weekDays: [
+          {
+            wd: 'Mon',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Tue',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Wed',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Thu',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Fri',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Sat',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          },
+          {
+            wd: 'Sun',
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0
+          }
+        ],
+        roundTheClock: [],
+        phoneNumbers: [],
+        segmentCounts: []
       }
-/*
-segmentCounts: [],
-weekDays: [
-  {
-    wd: 'Mon',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Tue',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Wed',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Thu',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Fri',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sat',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sun',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  }
-],
-roundTheClock: [],
-*/
+
       this._readMessageStore(readParams, timeOffset)
-      //this._readTestMessageStore(timeOffset)
+      //this._readTestMessageStore(res, timeOffset)
       res.send({
           status: "ok",
           result: this.analyticsData
       })
+    },
+    _readTestMessageStore: async function (timeOffset){
+      console.log("_readTestMessageStore")
+      //fs.readFileSync('./tempFile/testData.json',)
+      var resp = fs.readFileSync('./tempFile/testData.json', 'utf8');
+      var jsonObj = await JSON.parse(resp)
+      for (var message of jsonObj){
+        var localDate = message.creationTime.substring(0, 7)
+        var found = false
+        for (var i=0; i<this.analyticsData.months.length; i++){
+          var month = this.analyticsData.months[i]
+          if (month.month == localDate){
+            if (message.direction == "Outbound"){
+              this.analyticsData.months[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                  this.analyticsData.months[i].deliveredCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  this.analyticsData.months[i].deliveredMsgCost += cost
+                  break
+                case "DeliveryFailed":
+                  this.analyticsData.months[i].deliveryFailedCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  this.analyticsData.months[i].failedMsgCost += cost
+                  break
+                case "SendingFailed":
+                  this.analyticsData.months[i].sendingFailedCount++
+                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  this.analyticsData.months[i].failedMsgCost += cost
+                  break;
+                default:
+                  break
+              }
+              //var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              //this.analyticsData.months[i].sentMsgCost += cost
+            }else{ // received messages
+              this.analyticsData.months[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.months[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            month: localDate,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            deliveredMsgCost: 0.0,
+            failedMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+                item.deliveredCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.deliveredMsgCost += cost
+                break
+              case "DeliveryFailed":
+                item.deliveryFailedCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.failedMsgCost += cost
+                break
+              case "SendingFailed":
+                item.sendingFailedCount++
+                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                item.failedMsgCost += cost
+                break;
+              default:
+                break
+            }
+
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          this.analyticsData.months.push(item)
+          //console.log(this.analyticsData.months)
+        }
+        // by phoneNumbers
+        found = false
+        var fromNumber = (message.direction == "Outbound") ? message.from : message.to[0]
+        for (var i=0; i<this.analyticsData.phoneNumbers.length; i++){
+          var number = this.analyticsData.phoneNumbers[i]
+          if (number.number == fromNumber){
+            if (message.direction == "Outbound"){
+              this.analyticsData.phoneNumbers[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                this.analyticsData.phoneNumbers[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                this.analyticsData.phoneNumbers[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                this.analyticsData.phoneNumbers[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.phoneNumbers[i].sentMsgCost += cost
+            }else{ // received messages
+              this.analyticsData.phoneNumbers[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.phoneNumbers[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            number: fromNumber,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          this.analyticsData.phoneNumbers.push(item)
+          //console.log(this.analyticsData.phoneNumbers)
+        }
+        // by weekDays
+        found = false
+        // "creationTime":"2021-05-24T13:49:41.441964Z",
+        var createdDate = new Date(message.creationTime)
+        let dateOptions = { weekday: 'short' }
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        //  createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        var wd = createdDateStr.substring(0, 3)
+        for (var i=0; i<this.analyticsData.weekDays.length; i++){
+          var week = this.analyticsData.weekDays[i]
+          if (week.wd == wd){
+            if (message.direction == "Outbound"){
+              this.analyticsData.weekDays[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                this.analyticsData.weekDays[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                this.analyticsData.weekDays[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                this.analyticsData.weekDays[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.weekDays[i].sentMsgCost += cost
+            }else{ // received messages
+              this.analyticsData.weekDays[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.weekDays[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            wd: wd,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          this.analyticsData.weekDays.push(item)
+          //console.log(this.analyticsData.weekDays)
+        }
+        // by roundTheClock
+        found = false
+        // "creationTime":"2021-05-24T13:49:41.441964Z",
+        var hr = message.creationTime.substring(11, 13)
+        var hour = parseInt(hr)
+        for (var i=0; i<this.analyticsData.roundTheClock.length; i++){
+          var timeSlide = this.analyticsData.roundTheClock[i]
+          if (timeSlide.hour == hour){
+            if (message.direction == "Outbound"){
+              this.analyticsData.roundTheClock[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                this.analyticsData.roundTheClock[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                this.analyticsData.roundTheClock[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                this.analyticsData.roundTheClock[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.roundTheClock[i].sentMsgCost += cost
+            }else{ // received messages
+              this.analyticsData.roundTheClock[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.roundTheClock[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            hour: hour,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          this.analyticsData.roundTheClock.push(item)
+          //console.log(this.analyticsData.roundTheClock)
+        }
+        // by segmentCount
+        found = false
+        var segment = (message.segmentCount != undefined) ? parseInt(message.segmentCount) : 0
+        for (var i=0; i<this.analyticsData.segmentCounts.length; i++){
+          var seg = this.analyticsData.segmentCounts[i]
+          if (seg.count == segment){
+            if (message.direction == "Outbound"){
+              this.analyticsData.segmentCounts[i].outboundCount++
+              switch (message.messageStatus) {
+                case "Delivered":
+                case "Sent":
+                this.analyticsData.segmentCounts[i].deliveredCount++
+                break
+                case "DeliveryFailed":
+                this.analyticsData.segmentCounts[i].deliveryFailedCount++
+                break
+                case "SendingFailed":
+                this.analyticsData.segmentCounts[i].sendingFailedCount++
+                break;
+                default:
+                break
+              }
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.segmentCounts[i].sentMsgCost += cost
+            }else{ // received messages
+              this.analyticsData.segmentCounts[i].inboundCount++
+              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+              this.analyticsData.segmentCounts[i].receivedMsgCost += cost
+            }
+            found = true
+            break
+          }
+        }
+        if (!found){
+          var item = {
+            count: segment,
+            outboundCount: 0,
+            inboundCount: 0,
+            deliveredCount: 0,
+            sendingFailedCount: 0,
+            deliveryFailedCount: 0,
+            sentMsgCost: 0.0,
+            receivedMsgCost: 0.0,
+          }
+          if (message.direction == "Outbound"){
+            item.outboundCount++
+            switch (message.messageStatus) {
+              case "Delivered":
+              case "Sent":
+              item.deliveredCount++
+              break
+              case "DeliveryFailed":
+              item.deliveryFailedCount++
+              break
+              case "SendingFailed":
+              item.sendingFailedCount++
+              break;
+              default:
+              break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.sentMsgCost += cost
+          }else{ // received messages
+            item.inboundCount++
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            item.receivedMsgCost += cost
+          }
+          this.analyticsData.segmentCounts.push(item)
+          //console.log(this.analyticsData.segmentCounts)
+        }
+        // breakout ends
+
+        if (message.direction == "Outbound"){
+          this.analyticsData.outboundCount++
+          switch (message.messageStatus) {
+            case "Delivered":
+            case "Sent":
+            this.analyticsData.deliveredCount++
+            break
+            case "DeliveryFailed":
+            this.analyticsData.deliveryFailedCount++
+            var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+            var hasPhoneNumber = 0
+            var hasURL = 0
+            var hasSegments = 0
+            var isOptedOut = 0
+            var invalidNumber = 0
+            var noCountryCode = 0
+            if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // content problem
+              hasPhoneNumber = detectPhoneNumber(message.text)
+              hasURL = detectUrl(message.text)
+              hasSegments = detectSegment(message.text)
+            }else if (code == "SMS-UP-420" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
+              // recipient number problem
+              var pn = message.to[0].replace("+", "")
+              if (pn.length <= 10)
+                noCountryCode = pn
+              else //if (pn.length == 11)
+                invalidNumber = pn
+            }else if (code == "SMS-CAR-413 "){ // opted out
+              isOptedOut = 1
+            }else{ // if (code == "SMS-CAR-199"){
+
+            }
+            var found = false
+            for (var i=0; i<this.analyticsData.deliveryFailures.length; i++){
+              var item = this.analyticsData.deliveryFailures[i]
+              if (code == item.code){
+                this.analyticsData.deliveryFailures[i].count++
+                this.analyticsData.deliveryFailures[i].hasPhoneNumber += hasPhoneNumber
+                this.analyticsData.deliveryFailures[i].hasURL += hasURL
+                this.analyticsData.deliveryFailures[i].segmented += hasSegments
+                this.analyticsData.deliveryFailures[i].optoutCount += isOptedOut
+                if (invalidNumber != 0)
+                  this.analyticsData.deliveryFailures[i].invalidNumbers.push(invalidNumber)
+                if (noCountryCode != 0)
+                  this.analyticsData.deliveryFailures[i].noCountryCode.push(noCountryCode)
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                code: code,
+                count: 1,
+                hasPhoneNumber: hasPhoneNumber,
+                hasURL: hasURL,
+                segmented: hasSegments,
+                optoutCount: isOptedOut,
+                invalidNumbers: [],
+                noCountryCode: []
+              }
+              if (invalidNumber != 0)
+                item.invalidNumbers.push(invalidNumber)
+              if (noCountryCode != 0)
+                item.noCountryCode.push(noCountryCode)
+              this.analyticsData.deliveryFailures.push(item)
+            }
+            break
+            case "SendingFailed":
+            this.analyticsData.sendingFailedCount++
+            var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+            var found = false
+            for (var i=0; i<this.analyticsData.sendingFailures.length; i++){
+              var item = this.analyticsData.sendingFailures[i]
+              if (code == item.code){
+                this.analyticsData.sendingFailures[i].count++
+                found = true
+                break
+              }
+            }
+            if (!found){
+              var item = {
+                code: code,
+                count: 1
+              }
+              this.analyticsData.sendingFailures.push(item)
+            }
+            break;
+            default:
+            break
+          }
+          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+          this.analyticsData.sentMsgCost += cost
+        }else{ // received messages
+          this.analyticsData.inboundCount++
+          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+          this.analyticsData.receivedMsgCost += cost
+        }
+
+      }
+        this.analyticsData.roundTheClock.sort(sortRoundTheClock)
+        this.analyticsData.segmentCounts.sort(sortSegmentCount)
+        console.log(this.analyticsData)
+        res.send({
+          status: "ok",
+          result: this.analyticsData
+        })
     },
     _readMessageStore: async function (readParams, timeOffset){
       console.log("_readMessageStore")
@@ -1841,6 +2090,8 @@ roundTheClock: [],
                     default:
                       break
                   }
+                  //var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+                  //this.analyticsData.months[i].sentMsgCost += cost
                 }else{ // received messages
                   this.analyticsData.months[i].inboundCount++
                   var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
@@ -1971,7 +2222,6 @@ roundTheClock: [],
               this.analyticsData.phoneNumbers.push(item)
               //console.log(this.analyticsData.phoneNumbers)
             }
-            /*
             // by weekDays
             found = false
             // "creationTime":"2021-05-24T13:49:41.441964Z",
@@ -2189,112 +2439,97 @@ roundTheClock: [],
               this.analyticsData.segmentCounts.push(item)
               //console.log(this.analyticsData.segmentCounts)
             }
-            */
             // breakout ends
 
             if (message.direction == "Outbound"){
               this.analyticsData.outboundCount++
               switch (message.messageStatus) {
                 case "Delivered":
-                  this.analyticsData.deliveredCount++
-                  break
                 case "Sent":
-                  this.analyticsData.deliveredCount++
-                  break
+                this.analyticsData.deliveredCount++
+                break
                 case "DeliveryFailed":
-                  this.analyticsData.deliveryFailedCount++
-                  var code = (message.errorCode != undefined) ? message.errorCode : "Others"
-                  /*
-                  var hasPhoneNumber = 0
-                  var hasURL = 0
-                  var hasSegments = 0
-                  var isOptedOut = 0
-                  var invalidNumber = 0
-                  var noCountryCode = 0
+                this.analyticsData.deliveryFailedCount++
+                var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+                var hasPhoneNumber = 0
+                var hasURL = 0
+                var hasSegments = 0
+                var isOptedOut = 0
+                var invalidNumber = 0
+                var noCountryCode = 0
+                if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // content problem
+                  hasPhoneNumber = detectPhoneNumber(message.text)
+                  hasURL = detectUrl(message.text)
+                  hasSegments = detectSegment(message.text)
+                }else if (code == "SMS-UP-420" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
+                  // recipient number problem
+                  var pn = message.to[0].replace("+", "")
+                  if (pn.length <= 10)
+                    noCountryCode = pn
+                  else //if (pn.length == 11)
+                    invalidNumber = pn
+                }else if (code == "SMS-CAR-413 "){ // opted out
+                  isOptedOut = 1
+                }else{ // if (code == "SMS-CAR-199"){
 
-                  outboundFailureTypes: {
-                    content: {
-                      count: 0,
-                      numbers: []
-                      messages: []
-                    },
-                    invalidRecipientNumbers: [],
-                    blockedSenderNumbers: [],
-                    optoutNumbers: [],
-                    others: {
-                      count: 0,
-                      numbers:[],
-                      messages: []
-                    }
-                  }
-                  failureItem = {
-                    type: "",
-                    message: "",
-                    number: ""
+                }
+                var found = false
+                for (var i=0; i<this.analyticsData.deliveryFailures.length; i++){
+                  var item = this.analyticsData.deliveryFailures[i]
+                  if (code == item.code){
+                    this.analyticsData.deliveryFailures[i].count++
+                    this.analyticsData.deliveryFailures[i].hasPhoneNumber += hasPhoneNumber
+                    this.analyticsData.deliveryFailures[i].hasURL += hasURL
+                    this.analyticsData.deliveryFailures[i].segmented += hasSegments
+                    this.analyticsData.deliveryFailures[i].optoutCount += isOptedOut
+                    if (invalidNumber != 0)
+                      this.analyticsData.deliveryFailures[i].invalidNumbers.push(invalidNumber)
+                    if (noCountryCode != 0)
+                      this.analyticsData.deliveryFailures[i].noCountryCode.push(noCountryCode)
+                    found = true
+                    break
                   }
                 }
-                  */
-                  var toNumber = message.to[0]
-                  if (code == "SMS-UP-430" || code == "SMS-CAR-430" || code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
-                    console.log(code)
-                    console.log(message.text)
-                    this.analyticsData.outboundFailureTypes.content.count++
-                    if (this.analyticsData.outboundFailureTypes.content.numbers.findIndex(number => number === toNumber) < 0)
-                      this.analyticsData.outboundFailureTypes.content.numbers.push(toNumber)
-                    var url = detectShortenUrl(message.text)
-                    if (url != ""){
-                      console.log("URL: " + url)
-                      if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(link => link === url) < 0)
-                        this.analyticsData.outboundFailureTypes.content.messages.push(url)
-                    }else{
-                      var contactNumber = detectPhoneNumber(message.text)
-                      if (contactNumber != ""){
-                        if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(number => number === contactNumber) < 0)
-                          this.analyticsData.outboundFailureTypes.content.messages.push(contactNumber)
-                      }else
-                        this.analyticsData.outboundFailureTypes.content.messages.push(message.text)
-                    }
-                  }else if (code == "SMS-UP-410" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
-                    // recipient number problem
-                    if (this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.findIndex(number => number === toNumber) < 0)
-                      this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.push(toNumber)
-                  }else if (code == "SMS-CAR-413 "){
-                    // opted out
-                    if (this.analyticsData.outboundFailureTypes.optoutNumbers.findIndex(number => number === toNumber) < 0)
-                      this.analyticsData.outboundFailureTypes.optoutNumbers.push(toNumber)
-                  }else if (code == "SMS-UP-431"){
-                    if (this.analyticsData.outboundFailureTypes.blockedSenderNumbers.findIndex(number => number === message.from) < 0)
-                      this.analyticsData.outboundFailureTypes.blockedSenderNumbers.push(message.from)
-                  }else{
-                    this.analyticsData.outboundFailureTypes.others.count++
-                    if (this.analyticsData.outboundFailureTypes.others.numbers.findIndex(number => number === toNumber) < 0)
-                      this.analyticsData.outboundFailureTypes.others.numbers.push(toNumber)
-                    //if (this.analyticsData.outboundFailureTypes.others.messages.findIndex(msg => msg === message.text) < 0)
-                      this.analyticsData.outboundFailureTypes.others.messages.push(message.text)
+                if (!found){
+                  var item = {
+                    code: code,
+                    count: 1,
+                    hasPhoneNumber: hasPhoneNumber,
+                    hasURL: hasURL,
+                    segmented: hasSegments,
+                    optoutCount: isOptedOut,
+                    invalidNumbers: [],
+                    noCountryCode: []
                   }
-                  break
+                  if (invalidNumber != 0)
+                    item.invalidNumbers.push(invalidNumber)
+                  if (noCountryCode != 0)
+                    item.noCountryCode.push(noCountryCode)
+                  this.analyticsData.deliveryFailures.push(item)
+                }
+                break
                 case "SendingFailed":
-                  this.analyticsData.sendingFailedCount++
-                  var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
-                  var found = false
-                  for (var i=0; i<this.analyticsData.sendingFailures.length; i++){
-                    var item = this.analyticsData.sendingFailures[i]
-                    if (code == item.code){
-                      this.analyticsData.sendingFailures[i].count++
-                      found = true
-                      break
-                    }
+                this.analyticsData.sendingFailedCount++
+                var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
+                var found = false
+                for (var i=0; i<this.analyticsData.sendingFailures.length; i++){
+                  var item = this.analyticsData.sendingFailures[i]
+                  if (code == item.code){
+                    this.analyticsData.sendingFailures[i].count++
+                    found = true
+                    break
                   }
-                  if (!found){
-                    var item = {
-                      code: code,
-                      count: 1
-                    }
-                    this.analyticsData.sendingFailures.push(item)
+                }
+                if (!found){
+                  var item = {
+                    code: code,
+                    count: 1
                   }
-                  break;
+                  this.analyticsData.sendingFailures.push(item)
+                }
+                break;
                 default:
-                  break
+                break
               }
               var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
               this.analyticsData.sentMsgCost += cost
@@ -2305,9 +2540,8 @@ roundTheClock: [],
             }
 
           }
-          //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
-          //this.analyticsData.segmentCounts.sort(sortSegmentCount)
-          this.analyticsData.phoneNumbers.sort(sortbByNumber)
+          this.analyticsData.roundTheClock.sort(sortRoundTheClock)
+          this.analyticsData.segmentCounts.sort(sortSegmentCount)
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             this.analyticsData.task = "Processing"
             var thisUser = this
@@ -2316,8 +2550,6 @@ roundTheClock: [],
                 thisUser._readMessageStore(readParams, timeOffset)
             }, 1200)
           }else{
-            console.log(this.analyticsData.outboundFailureTypes.content.messages)
-            console.log(this.analyticsData.outboundFailureTypes.content.numbers)
             console.log(this.analyticsData)
             //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
             //this.analyticsData.segmentCounts.sort(sortSegmentCount)
@@ -2352,495 +2584,6 @@ roundTheClock: [],
         })
         */
       }
-    },
-    _readTestMessageStore: async function (timeOffset){
-      console.log("_readTestMessageStore")
-      //fs.readFileSync('./tempFile/testData.json',)
-      var resp = fs.readFileSync('./tempFile/testData.json', 'utf8');
-      var jsonObj = await JSON.parse(resp)
-      for (var message of jsonObj){
-        var localDate = message.creationTime.substring(0, 7)
-        var found = false
-        for (var i=0; i<this.analyticsData.months.length; i++){
-          var month = this.analyticsData.months[i]
-          if (month.month == localDate){
-            if (message.direction == "Outbound"){
-              this.analyticsData.months[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.months[i].deliveredCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].deliveredMsgCost += cost
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.months[i].deliveryFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].failedMsgCost += cost
-                  break
-                case "SendingFailed":
-                  this.analyticsData.months[i].sendingFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].failedMsgCost += cost
-                  break;
-                default:
-                  break
-              }
-              //var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              //this.analyticsData.months[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.months[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.months[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            month: localDate,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            deliveredMsgCost: 0.0,
-            failedMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.deliveredMsgCost += cost
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break;
-              default:
-                break
-            }
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.months.push(item)
-          //console.log(this.analyticsData.months)
-        }
-        // by phoneNumbers
-        found = false
-        var fromNumber = (message.direction == "Outbound") ? message.from : message.to[0]
-        for (var i=0; i<this.analyticsData.phoneNumbers.length; i++){
-          var number = this.analyticsData.phoneNumbers[i]
-          if (number.number == fromNumber){
-            if (message.direction == "Outbound"){
-              this.analyticsData.phoneNumbers[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.phoneNumbers[i].deliveredCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].deliveredMsgCost += cost
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.phoneNumbers[i].deliveryFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].failedMsgCost += cost
-                  break
-                case "SendingFailed":
-                  this.analyticsData.phoneNumbers[i].sendingFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].failedMsgCost += cost
-                  break;
-                default:
-                  break
-              }
-            }else{ // received messages
-              this.analyticsData.phoneNumbers[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.phoneNumbers[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            number: fromNumber,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            deliveredMsgCost: 0.0,
-            failedMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.deliveredMsgCost += cost
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break;
-              default:
-                break
-            }
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.phoneNumbers.push(item)
-          //console.log(this.analyticsData.phoneNumbers)
-        }
-        // by weekDays
-        found = false
-        // "creationTime":"2021-05-24T13:49:41.441964Z",
-        var createdDate = new Date(message.creationTime)
-        let dateOptions = { weekday: 'short' }
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        //  createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        var wd = createdDateStr.substring(0, 3)
-        for (var i=0; i<this.analyticsData.weekDays.length; i++){
-          var week = this.analyticsData.weekDays[i]
-          if (week.wd == wd){
-            if (message.direction == "Outbound"){
-              this.analyticsData.weekDays[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.weekDays[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.weekDays[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.weekDays[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.weekDays[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.weekDays[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.weekDays[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            wd: wd,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.weekDays.push(item)
-          //console.log(this.analyticsData.weekDays)
-        }
-        // by roundTheClock
-        found = false
-        // "creationTime":"2021-05-24T13:49:41.441964Z",
-        var hr = message.creationTime.substring(11, 13)
-        var hour = parseInt(hr)
-        for (var i=0; i<this.analyticsData.roundTheClock.length; i++){
-          var timeSlide = this.analyticsData.roundTheClock[i]
-          if (timeSlide.hour == hour){
-            if (message.direction == "Outbound"){
-              this.analyticsData.roundTheClock[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.roundTheClock[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.roundTheClock[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.roundTheClock[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.roundTheClock[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.roundTheClock[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.roundTheClock[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            hour: hour,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.roundTheClock.push(item)
-          //console.log(this.analyticsData.roundTheClock)
-        }
-        // by segmentCount
-        found = false
-        var segment = (message.segmentCount != undefined) ? parseInt(message.segmentCount) : 0
-        for (var i=0; i<this.analyticsData.segmentCounts.length; i++){
-          var seg = this.analyticsData.segmentCounts[i]
-          if (seg.count == segment){
-            if (message.direction == "Outbound"){
-              this.analyticsData.segmentCounts[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.segmentCounts[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.segmentCounts[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.segmentCounts[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.segmentCounts[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.segmentCounts[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.segmentCounts[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            count: segment,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.segmentCounts.push(item)
-          //console.log(this.analyticsData.segmentCounts)
-        }
-        // breakout ends
-
-        if (message.direction == "Outbound"){
-          this.analyticsData.outboundCount++
-          switch (message.messageStatus) {
-            case "Delivered":
-            case "Sent":
-              this.analyticsData.deliveredCount++
-              break
-            case "DeliveryFailed":
-              this.analyticsData.deliveryFailedCount++
-              var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
-              var hasPhoneNumber = 0
-              var hasURL = 0
-              var hasSegments = 0
-              var isOptedOut = 0
-              var invalidNumber = 0
-              var noCountryCode = 0
-              if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // content problem
-                hasPhoneNumber = detectPhoneNumber(message.text)
-                hasURL = detectShortenUrl(message.text)
-                hasSegments = detectSegment(message.text)
-              }else if (code == "SMS-UP-420" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
-                // recipient number problem
-                var pn = message.to[0].replace("+", "")
-                if (pn.length <= 10)
-                  noCountryCode = pn
-                else //if (pn.length == 11)
-                  invalidNumber = pn
-              }else if (code == "SMS-CAR-413 "){ // opted out
-                isOptedOut = 1
-              }else{ // if (code == "SMS-CAR-199"){
-
-              }
-              var found = false
-              for (var i=0; i<this.analyticsData.deliveryFailures.length; i++){
-                var item = this.analyticsData.deliveryFailures[i]
-                if (code == item.code){
-                  this.analyticsData.deliveryFailures[i].count++
-                  this.analyticsData.deliveryFailures[i].hasPhoneNumber += hasPhoneNumber
-                  this.analyticsData.deliveryFailures[i].hasURL += hasURL
-                  this.analyticsData.deliveryFailures[i].segmented += hasSegments
-                  this.analyticsData.deliveryFailures[i].optoutCount += isOptedOut
-                  if (invalidNumber != 0)
-                    this.analyticsData.deliveryFailures[i].invalidNumbers.push(invalidNumber)
-                  if (noCountryCode != 0)
-                    this.analyticsData.deliveryFailures[i].noCountryCode.push(noCountryCode)
-                  found = true
-                  break
-                }
-              }
-              if (!found){
-                var item = {
-                  code: code,
-                  count: 1,
-                  hasPhoneNumber: hasPhoneNumber,
-                  hasURL: hasURL,
-                  segmented: hasSegments,
-                  optoutCount: isOptedOut,
-                  invalidNumbers: [],
-                  noCountryCode: []
-                }
-                if (invalidNumber != 0)
-                  item.invalidNumbers.push(invalidNumber)
-                if (noCountryCode != 0)
-                  item.noCountryCode.push(noCountryCode)
-                this.analyticsData.deliveryFailures.push(item)
-              }
-              break
-            case "SendingFailed":
-              this.analyticsData.sendingFailedCount++
-              var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
-              var found = false
-              for (var i=0; i<this.analyticsData.sendingFailures.length; i++){
-                var item = this.analyticsData.sendingFailures[i]
-                if (code == item.code){
-                  this.analyticsData.sendingFailures[i].count++
-                  found = true
-                  break
-                }
-              }
-              if (!found){
-                var item = {
-                  code: code,
-                  count: 1
-                }
-                this.analyticsData.sendingFailures.push(item)
-              }
-              break;
-            default:
-              break
-          }
-          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-          this.analyticsData.sentMsgCost += cost
-        }else{ // received messages
-          this.analyticsData.inboundCount++
-          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-          this.analyticsData.receivedMsgCost += cost
-        }
-
-      }
-      this.analyticsData.roundTheClock.sort(sortRoundTheClock)
-      this.analyticsData.segmentCounts.sort(sortSegmentCount)
-      this.analyticsData.phoneNumbers.sort(sortbByNumber)
-      console.log(this.analyticsData)
-      this.analyticsData.task = "Completed"
     },
     // analytics end
     downloadHVMessageStore: function(req, res){
@@ -4000,65 +3743,22 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
 
 function detectPhoneNumber(message){
   var wordArr = message.split(" ")
-  var contactNumber = ""
+  var hasPhoneNumber = 0
   for (var w of wordArr){
     var number = w.replace(/[+()\-\s]/g, '')
     if (!isNaN(number)){
       if (number.length >= 10 && number.length <= 11){
-        contactNumber = w.trim()
-        console.log(w)
+        hasPhoneNumber = 1
+        console.log(message)
         break
       }
     }
   }
-  return contactNumber
-}
-
-const spamContentCodes = ["SMS-UP-430","SMS-CAR-430","SMS-CAR-431","SMS-CAR-432","SMS-CAR-433"]
-const invalidNumberCodes = ["SMS-UP-420","SMS-CAR-411","SMS-CAR-412","SMS-UP-410"]
-const optoutNumberCodes = ["SMS-CAR-413"]
-const blockedNumberCodes = ["SMS-UP-431"]
-function failureAnalysis(message){
-  var code = (message.errorCode != undefined) ? message.errorCode : "Others"
-  var toNumber = message.to[0]
-  if (spamContentCodes.findIndex(c => c === code) >= 0){
-    this.analyticsData.outboundFailureTypes.content.count++
-    if (this.analyticsData.outboundFailureTypes.content.numbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.content.numbers.push(toNumber)
-    var url = detectShortenUrl(message.text)
-    if (url != ""){
-      console.log("URL: " + url)
-      if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(link => link === url) < 0)
-        this.analyticsData.outboundFailureTypes.content.messages.push(url)
-    }else{
-      var contactNumber = detectPhoneNumber(message.text)
-      if (contactNumber != ""){
-        if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(number => number === contactNumber) < 0)
-          this.analyticsData.outboundFailureTypes.content.messages.push(contactNumber)
-      }else
-        this.analyticsData.outboundFailureTypes.content.messages.push(message.text)
-    }
-  }else if (invalidNumberCodes.findIndex(c => c === code) >= 0){
-    // recipient number problem
-    if (this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.push(toNumber)
-  }else if (optoutNumberCodes[0] == code){
-    // opted out
-    if (this.analyticsData.outboundFailureTypes.optoutNumbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.optoutNumbers.push(toNumber)
-  }else if (blockedNumberCodes[0] == code){
-    if (this.analyticsData.outboundFailureTypes.blockedSenderNumbers.findIndex(number => number === message.from) < 0)
-      this.analyticsData.outboundFailureTypes.blockedSenderNumbers.push(message.from)
-  }else{
-    this.analyticsData.outboundFailureTypes.others.count++
-    if (this.analyticsData.outboundFailureTypes.others.numbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.others.numbers.push(toNumber)
-    this.analyticsData.outboundFailureTypes.others.messages.push(message.text)
-  }
+  return hasPhoneNumber
 }
 
 function detectUrl(message){
-  var unsafeLink = ""
+  var hasUrl = 0
   var tempMsg = message.toLowerCase()
   var shortenLinks = [
     "https://",
@@ -4068,19 +3768,16 @@ function detectUrl(message){
   for (var link of shortenLinks){
     var index = tempMsg.indexOf(link)
     if (index >= 0){
-      var temp = tempMsg.substring(index, tempMsg.length-1)
-      var endIndex = temp.indexOf(" ")
-      endIndex = (endIndex > 0) ? endIndex : temp.length+1
-      unsafeLink = msg.substr(index, endIndex)
+      hasUrl = 1
       console.log(message)
       break
     }
   }
-  return unsafeLink
+  return hasUrl
 }
 
 function detectShortenUrl(message){
-  var unsafeLink = ""
+  var hasUrl = 0
   var tempMsg = message.toLowerCase()
   var shortenLinks = [
     "https://bit.ly/",
@@ -4107,21 +3804,17 @@ function detectShortenUrl(message){
     "http://lc.chat/",
     "http://soo.gd/",
     "http://s2r.co/",
-    "https://",
-    "http://"
   ]
 
   for (var link of shortenLinks){
     var index = tempMsg.indexOf(link)
     if (index >= 0){
-      var temp = tempMsg.substring(index, tempMsg.length-1)
-      var endIndex = temp.indexOf(" ")
-      endIndex = (endIndex > 0) ? endIndex : temp.length+1
-      unsafeLink = message.substr(index, endIndex)
+      hasUrl = 1
+      console.log(message)
       break
     }
   }
-  return unsafeLink
+  return hasUrl
 }
 
 function detectSegment(message){
@@ -4151,8 +3844,4 @@ function sortRoundTheClock(a,b) {
 
 function sortSegmentCount(a,b) {
   return a.count - b.count;
-}
-
-function sortbByNumber(a,b) {
-  return a.number - b.number;
 }

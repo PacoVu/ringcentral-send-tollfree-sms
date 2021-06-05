@@ -90,7 +90,7 @@ RCPlatform.prototype = {
         return this.platform
     }else{
         console.log("BOTH TOKEN TOKENS EXPIRED")
-        console.log("CAN'T REFRESH: " + e.message)
+        console.log("CAN'T REFRESH")
         return null
     }
   },

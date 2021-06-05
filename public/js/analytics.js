@@ -1,6 +1,7 @@
 var timeOffset = 0
 var analyticsData = undefined
 var pageToken = undefined
+var pollingTimer = undefined
 
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
@@ -18,9 +19,9 @@ function init(){
   $( "#fromdatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
   $( "#todatepicker" ).datepicker({dateFormat: "yy-mm-dd"});
 
-  var past30Days = new Date().getTime() - (86400000 * 30)
+  var past90Days = new Date().getTime() - (86400000 * 90)
 
-  $( "#fromdatepicker" ).datepicker('setDate', new Date(past30Days));
+  $( "#fromdatepicker" ).datepicker('setDate', new Date(past90Days));
   $( "#todatepicker" ).datepicker('setDate', new Date());
 }
 
@@ -60,21 +61,30 @@ function readMessageStore(token){
 
   var fromNumber = $('#my-numbers').val()
   configs['phoneNumbers'] = `["${fromNumber}"]`
-
-  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
-  $("#by_direction").html(readingAni)
+  $("#processing").show()
+  $("#options-bar").hide()
+  $("#by_direction").html("")
   $("#by_status").html("")
   $("#by_cost").html("")
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  $("#total-by-direction").html(readingAni)
+  $("#total-by-cost").html(readingAni)
+  $("#total-by-status").html(readingAni)
+  $("#downloads").hide()
   var url = "create-messaging-analytics"
   var posting = $.post( url, configs );
   posting.done(function( res ) {
     if (res.status == "ok") {
-      analyticsData = res.result
-      displayAnalytics()
+      $("#total-title").html(`Messaging statistics between ${$("#fromdatepicker").val()} and ${$("#todatepicker").val()}`)
+      pollingTimer = window.setTimeout(function(){
+          pollAnalyticsResult()
+      },3000)
     }else if (res.status == "error"){
+      $("#processing").hide()
       $("#by_direction").html("")
       _alert(res.message)
     }else{
+      $("#processing").hide()
       if (res.message)
         _alert(res.message)
       else
@@ -89,89 +99,815 @@ function readMessageStore(token){
   });
 }
 
+function pollAnalyticsResult(){
+  var url = "poll-analytics-result"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      $("#options-bar").show()
+      analyticsData = res.result
+      displayAnalytics()
+      if (res.result.task == "Processing"){
+        pollingTimer = window.setTimeout(function(){
+          pollAnalyticsResult()
+        },3000)
+      }else{
+        if (res.result.task == "Completed")
+          $("#downloads").show()
+        $("#processing").hide()
+      }
+    }else{
+      $("#processing").hide()
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
+}
+
+var mode = "graphics"
+function switchDisplayMode(){
+  if (mode == "graphics"){
+    $("#mode-icon").attr("src", "./img/graph.png")
+    $("#mode-label").html(" Graphics view")
+    mode = "table"
+  }else{
+    $("#mode-icon").attr("src", "./img/table.png")
+    $("#mode-label").html(" Table view")
+    mode = "graphics"
+  }
+  displayAnalytics()
+}
+
 function displayAnalytics(){
-  var mode = $("#display-mode").val()
-  var display = $("#display").val()
   if (mode == "graphics"){
     displayAnalyticsTotal()
-    if (display == "monthly")
-      displayAnalyticsByMonths()
-    else if (display == "hourly")
-      displayAnalyticsByHours()
-    else if (display == "weekdays")
-      displayAnalyticsByWeekDays()
-    else if (display == "bynumber")
-      displayAnalyticsByNumbers()
-    else if (display == "bysegment")
-      displayAnalyticsBySegments()
-    else if (display == "delivery_failure")
-      displayDeliveryFailedAnalytics()
   }else{
     displayAnalyticsTotalTable()
-    if (display == "monthly")
-      displayAnalyticsByMonthsTable()
-    else if (display == "hourly")
-      displayAnalyticsByHours()
-    else if (display == "weekdays")
-      displayAnalyticsByWeekDays()
-    else if (display == "bynumber")
-      displayAnalyticsByNumbersTable()
-    else if (display == "bysegment")
-      displayAnalyticsBySegmentsTable()
+  }
+  if ($("#display").val() == "failure-analytics"){
+    $("#sub-category").hide()
+    $("#graphs").hide()
+    $("#failure-category").show()
+    displayFailedAnalytics()
+  }else{
+    $("#sub-category").show()
+    $("#graphs").show()
+    $("#failure-category").hide()
+    displayAnalyticsType()
   }
 }
 
-function displayAnalyticsByMonthsTable(){
-  var byDirection = `<h2>Monthly messages by direction</h2><table class='analytics-table'>`
-  var dHeader = "<tr><td width='140'>Month</td>"
-  var received = "<tr><td width='140'>Received</td>"
-  var sent = "<tr><td width='140'>Sent</td>"
-
-  var byStatus = `<h2>Monthly messages by status</h2><table class='analytics-table'>`
-  var dHeader = "<tr><td width='140'>Month</td>"
-  var sDelivered = "<tr><td width='150'>Delivered</td>"
-  var sSentFailed = "<tr><td width='150'>Sent failed</td>"
-  var sDeliveryFailed = "<tr><td width='150'>Delivery failed</td>"
-
-  var byCost = `<h2>Monthly messaging cost</h2><table class='analytics-table'>`
-  var cReceived = "<tr><td width='140'>Received</td>"
-  var cSent = "<tr><td width='140'>Sent</td>"
-
-  var monthlyData = analyticsData.months
-  for (var m of monthlyData) {
-    dHeader += `<td width='120'>${m.month}</td>`
-    // direction
-    received += `<td>${m.inboundCount}</td>`
-    sent += `<td>${m.outboundCount}</td>`
-    // status
-    sDelivered += `<td>${m.deliveredCount}</td>`
-    sSentFailed += `<td>${m.sendingFailedCount}</td>`
-    sDeliveryFailed += `<td>${m.deliveryFailedCount}</td>`
-    // cost
-    cReceived += `<td>${m.receivedMsgCost.toFixed(2)}</td>`
-    cSent += `<td>${m.sentMsgCost.toFixed(2)}</td>`
+function displayAnalyticsType(){
+  var type = $("#analytics-type").val()
+  var breakout = $("#display").val()
+  if (mode == "graphics"){
+    if (type == "message-count"){
+      displayMessageDirection(breakout)
+    }else if (type == "message-status"){
+      displayMessageStatus(breakout)
+    }else if (type == "message-cost"){
+      displayMessageCost(breakout)
+    }
+  }else { // table
+    if (type == "message-count"){
+      displayMessageDirectionTable(breakout)
+    }else if (type == "message-status"){
+      displayMessageStatusTable(breakout)
+    }else if (type == "message-cost"){
+      displayMessageCostTable(breakout)
+    }
   }
+}
+
+function displayAnalyticsTotal(){
+  var direction_params = [[ 'Direction', '# messages', { role: "style" } ]];
+  var status_params = [[ 'Status', '# messages', { role: "style" } ]];
+  var cost_params = [[ 'Cost', 'USD', { role: "style" } ]];
+
+  var item = [ "Outbound", analyticsData.outboundCount, '#178006' ]
+  direction_params.push(item)
+  item = [ "Inbound", analyticsData.inboundCount, '#1126ba']
+  direction_params.push(item)
+
+  item = [ "Total", analyticsData.outboundCount + analyticsData.inboundCount, '#03918f' ]
+  direction_params.push(item)
+
+  item = ["Succeeded", analyticsData.deliveredCount, "#0770a8"]
+  status_params.push(item)
+  item = ["Failed", analyticsData.sendingFailedCount + analyticsData.deliveryFailedCount, '#f04b3b']
+  status_params.push(item)
+  //item = ["Delivery failed", analyticsData.deliveryFailedCount, 'brown']
+  //status_params.push(item)
+
+  item = ["Outbound", parseFloat(analyticsData.sentMsgCost.toFixed(2)), '#178006']
+  cost_params.push(item)
+  item = ["Inbound", parseFloat(analyticsData.receivedMsgCost.toFixed(2)), '#1126ba']
+  cost_params.push(item)
+
+  item = ["Total", parseFloat(analyticsData.sentMsgCost.toFixed(2)) + parseFloat(analyticsData.receivedMsgCost.toFixed(2)), '#03918f']
+  cost_params.push(item)
+
+  drawColumnChart(direction_params, "total-by-direction", '# Messages by direction', "# Messages")
+  drawColumnChart(cost_params, "total-by-cost", 'Cost by direction (USD)', "Cost")
+  drawColumnChart(status_params, "total-by-status", '# Outbound messages by status', "# Messages")
+}
+
+function displayAnalyticsTotalTable(){
+  var byDirection = `<div class='analytics-header'># Messages by direction</div><table class='analytics-table'>`
+  var dHeader = "<tr><td class='table-label'></td>"
+  var received = "<tr><td class='table-label'>Inbound</td>"
+  var sent = "<tr><td class='table-label'>Outbound</td>"
+  var total = "<tr><td class='table-label'>Total</td>"
+
+  var byStatus = `<div class='analytics-header'># Messages by status</div><table class='analytics-table'>`
+
+  var sDelivered = "<tr><td class='table-label'>Delivered</td>"
+  var sSendingFailed = "<tr><td class='table-label'>Sending failed</td>"
+  var sDeliveryFailed = "<tr><td class='table-label'>Delivery failed</td>"
+
+  var byCost = `<div class='analytics-header'>Cost by direction</div><table class='analytics-table'>`
+  var cHeader = "<tr><td class='table-label'></td>"
+  var cReceived = "<tr><td class='table-label'>Inbound</td>"
+  var cSent = "<tr><td class='table-label'>Outbound</td>"
+  var cTotal = "<tr><td class='table-label'>Total</td>"
+
+  // direction
+  dHeader += `<td class='table-data'>Messages</td>`
+  received += `<td>${analyticsData.inboundCount}</td>`
+  sent += `<td>${analyticsData.outboundCount}</td>`
+  total += `<td>${analyticsData.outboundCount + analyticsData.inboundCount}</td>`
+  // status
+  sDelivered += `<td>${analyticsData.deliveredCount}</td>`
+  sSendingFailed += `<td class='bad-data'>${analyticsData.sendingFailedCount}</td>`
+  sDeliveryFailed += `<td class='bad-data'>${analyticsData.deliveryFailedCount}</td>`
+  // cost
+  cHeader += `<td class='table-data'>USD</td>`
+  cReceived += `<td>${analyticsData.receivedMsgCost.toFixed(2)}</td>`
+  cSent += `<td>${analyticsData.sentMsgCost.toFixed(2)}</td>`
+  var totalCost = analyticsData.sentMsgCost + analyticsData.receivedMsgCost
+  cTotal += `<td>${totalCost.toFixed(2)}</td>`
+
   byDirection += `${dHeader}</tr>`
   byDirection += `${received}</tr>`
   byDirection += `${sent}</tr>`
+  byDirection += `${total}</tr>`
   byDirection += "</table>"
 
   byStatus += `${dHeader}</tr>`
   byStatus += `${sDelivered}</tr>`
-  byStatus += `${sSentFailed}</tr>`
+  byStatus += `${sSendingFailed}</tr>`
   byStatus += `${sDeliveryFailed}</tr>`
   byStatus += "</table>"
 
-  byCost += `${dHeader}</tr>`
+  byCost += `${cHeader}</tr>`
   byCost += `${cReceived}</tr>`
   byCost += `${cSent}</tr>`
+  byCost += `${cTotal}</tr>`
   byCost += "</table>"
 
-  $("#by_direction").html(byDirection)
-  $("#by_cost").html(byCost)
-  $("#by_status").html(byStatus)
+  $("#total-by-direction").html(byDirection)
+  $("#total-by-cost").html(byCost)
+  $("#total-by-status").html(byStatus)
 }
 
+function writeTitle(type, title){
+  $(`#${type}`).html(title)
+}
+
+function formatFloatNumber(number){
+  if (number >= 100.0)
+    return number.toFixed(0)
+  else if (number >= 10)
+    return number.toFixed(1)
+  else
+    return number.toFixed(2)
+}
+
+const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+function convertMonth(month){
+  var year_month = month.split("-")
+  var monthStr = months[parseInt(year_month[1])-1]
+  monthStr += ` ${year_month[0].substring(2, 4)}`
+  return monthStr
+}
+
+function showRateInfo(type){
+  var infoText = [
+    "<p>High response rate is the good health of your interactive text messaging with your customers. It would help prevent mobile carriers from blocking \
+    your text messages. Especially, when you start using your High Volume SMS phone number for the first time, as high response rate would help warm up your service phone number reputation.</p>\
+    <br><b>Best practices to increase and maintain high response rate:</b>\
+    <ul><li>Start your text messaging campaign by sending a brief message to ask if your customers would like to learn more about your sale or promo. \
+    E.g. 'Reply YES for more info'. Treat this as an opt-in or opt-out choice from a recipient.</li>\
+    <li>Break a lengthy text message into multi-section messages, then send a breif message with response choices to receive the next messages.</li>\
+    <li>If you send text messages to your customers repeatedly over a long period of time without requesting for response, send a survey message to \
+    the customers periodically, to ask if they still want to receive your text messages.</li></ul>",
+    "<p>The delivery rate indicates the percentage of your messages successfully delivered to your targeted recipients. The higher delivery rate the better, because it means your messages could reach most of your targeted recipients!</p>\
+    <br><b>Here is a few tips for how to increase the delivery rate:</b>\
+    <ul><li>Make sure your recipient phone number is in a correct format (E.164) with a country code followed by the area code and the local number without space, bracket or hyphen symbols.</li>\
+    <li>Remove landline and invalid phone numbers from your recipient list as much as you can.</li>\
+    <li>Download your campaign's report, copy the recipient phone number from any failed messages and remove them from your recipient list after sending every campaign.</li>\
+    <li>Regularly, read opted-out numbers and remove them from your recipient list.</li>\
+    <li>Follow the guidelines and best practices to avoid your messages get blocked as spam content.</li></ul>",
+    "<p>Cost efficiency rate is calculated from the cost of successfully delivered messages and the cost of undeliverable messages. Keeping the cost \
+    efficiency at a high rate will help you maximize the value of your text messaging spending.</p>\
+    <br><b>Here is a few tips for how to increase cost efficiency rate:</b>\
+    <ul><li>Regularly, read opted-out numbers and remove them from your recipient list.</li>\
+    <li>Follow the guidelines and best practices to avoid your messages get blocked as spam content.</li>\
+    <li>Learn from your previous campaigns to avoid or to minimize the numbers of 'DeliveryFailed' incidents by modifying your message content if the message was flagged as spam content, or removing those recipients' phone number from the recipient list of your next campaigns.</li></ul>"
+  ]
+  var title = [
+    "Response rate",
+    "Delivery rate",
+    "Cost efficiency",
+  ]
+  _alert(infoText[type], title[type])
+}
+
+function displayMessageDirection(breakout){
+  var colors = ['#178006','#1126ba']
+  var color = ['#178006']
+  if (breakout == "monthly"){
+    var monthlyData = analyticsData.months
+    var direction_params = [['Month', 'Outbound', 'Inbound']]
+    var response_params = [['Month', 'Response rate']];
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      var item = [ convertMonth(m.month), m.outboundCount, m.inboundCount ]
+      direction_params.push(item)
+      var rate = 0.0
+      if (m.outboundCount > 0)
+        rate = (m.inboundCount / m.outboundCount) * 100
+      item = [convertMonth(m.month), parseFloat(formatFloatNumber(rate))]
+      response_params.push(item)
+    }
+    writeTitle('statistics-title', '# Messages by direction (per month)')
+    drawComboChart(direction_params, "statistics", 'Messages by direction (per month)', 'Messages', 'Month', colors)
+    writeTitle('analysis-title', 'Response rate (per month).<a class="info-link" href="#" onclick="showRateInfo(0);return false;" style="float:right"> Increase and maintain high response rate.</a>')
+    drawComboChart(response_params, "analysis", 'Response rate (per month)', '%', 'Month', color)
+  }else if (breakout == "bynumber"){
+    var serviceNumberData = analyticsData.phoneNumbers
+    var direction_params = [[ 'Service Number', 'Outbound', 'Inbound' ]];
+    var response_params = [['Month', 'Response rate']];
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      var item = [ serviceNumber, m.outboundCount, m.inboundCount ]
+      direction_params.push(item)
+      var rate = 0.0
+      if (m.outboundCount > 0)
+        rate = (m.inboundCount / m.outboundCount) * 100
+      item = [serviceNumber, parseFloat(formatFloatNumber(rate))]
+      response_params.push(item)
+    }
+    writeTitle('statistics-title', '# Messages by direction (per service number)')
+    drawComboChart(direction_params, "statistics", 'Messages by direction (per service number)', 'Messages', 'Phone Number', colors)
+    writeTitle('analysis-title', 'Response rate (per service number).<a href="#" onclick="showRateInfo(0);return false;" style="float:right"> Increase and maintain high response rate.</a>')
+    drawComboChart(response_params, "analysis", 'Response rate (per service number)', '%', 'Phone Number', color)
+  }
+}
+
+function displayMessageDirectionTable(breakout){
+  writeTitle('analysis-title', '')
+  var byDirection = "<table class='analytics-table'>"
+  var dHeader = ""
+  var dReceived = "<tr><td class='table-label'>Inbound messages</td>"
+  var dSent = "<tr><td class='table-label'>Outbound messages</td>"
+  var dTotal = "<tr><td class='table-label'>Total messages</td>"
+  var dRate = "<tr><td class='table-label'>Response rate</td>"
+
+  if (breakout == "monthly"){
+    dHeader = "<tr><td class='table-label'>Month</td>"
+    var monthlyData = analyticsData.months
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      dHeader += `<td class='table-data'>${convertMonth(m.month)}</td>`
+      // direction
+      dReceived += `<td>${m.inboundCount}</td>`
+      dSent += `<td>${m.outboundCount}</td>`
+      dTotal += `<td>${m.outboundCount + m.inboundCount}</td>`
+      var rate = 0.0
+      if (m.outboundCount > 0)
+        rate = (m.inboundCount / m.outboundCount) * 100
+      dRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', '# Messages by direction (per month)')
+  }else if (breakout == "bynumber"){
+    var dHeader = "<tr><td class='table-label'>Service Number</td>"
+    var serviceNumberData = analyticsData.phoneNumbers
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      dHeader += `<td class='table-data'>${serviceNumber}</td>`
+      // direction
+      dReceived += `<td>${m.inboundCount}</td>`
+      dSent += `<td>${m.outboundCount}</td>`
+      dTotal += `<td>${m.outboundCount + m.inboundCount}</td>`
+      var rate = 0.0
+      if (m.outboundCount > 0)
+        rate = (m.inboundCount / m.outboundCount) * 100
+      dRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', '# Messages by direction (per service number)')
+  }
+
+  byDirection += `${dHeader}</tr>`
+  byDirection += `${dReceived}</tr>`
+  byDirection += `${dSent}</tr>`
+  byDirection += `${dTotal}</tr>`
+  byDirection += `${dRate}</tr>`
+  byDirection += "</table>"
+
+  $("#statistics").html(byDirection)
+  $("#analysis").html("")
+}
+
+function displayMessageStatus(breakout){
+  var colors = ['#0770a8', '#f04b3b']
+  var color = ['#178006']
+  if (breakout == "monthly"){
+    var monthlyData = analyticsData.months
+    var status_params = [['Month', 'Delivered', 'Failed']]
+    var efficiency_params = [['Month', 'Delivery rate']];
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      var item = [convertMonth(m.month), m.deliveredCount, m.deliveryFailedCount + m.sendingFailedCount]
+      status_params.push(item)
+      var rate = 0.0
+      var total = m.deliveredCount + m.deliveryFailedCount + m.sendingFailedCount
+      if (total > 0)
+        rate = (m.deliveredCount / total) * 100
+      item = [convertMonth(m.month), parseFloat(formatFloatNumber(rate))]
+      efficiency_params.push(item)
+    }
+    writeTitle('statistics-title', '# Outbound messages by status (per month)')
+    drawComboChart(status_params, "statistics", 'Outbound messages by status (per month)', 'Messages', 'Month', colors)
+    writeTitle('analysis-title', 'Delivery rate (per month) <a href="#" onclick="showRateInfo(1);return false;">&#9432;</a>')
+    drawComboChart(efficiency_params, "analysis", 'Delivery rate (per month)', '%', 'Month', color)
+  }else if (breakout == "bynumber"){
+    var serviceNumberData = analyticsData.phoneNumbers
+    var status_params = [[ 'Service Number', 'Delivered', 'Failed' ]];
+    var efficiency_params = [['service Number', 'Delivery rate']];
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      var item = [ serviceNumber, m.deliveredCount, m.deliveryFailedCount + m.sendingFailedCount ]
+      status_params.push(item)
+      var rate = 0.0
+      var total = m.deliveredCount + m.deliveryFailedCount + m.sendingFailedCount
+      if (total > 0)
+        rate = (m.deliveredCount / total) * 100
+      item = [serviceNumber, parseFloat(formatFloatNumber(rate))]
+      efficiency_params.push(item)
+    }
+    writeTitle('statistics-title', '# Outbound messages by status (per service number)')
+    drawComboChart(status_params, "statistics", 'Outbound messages by status (per service number)', 'Messages', 'Phone Number', colors)
+    writeTitle('analysis-title', 'Delivery rate (per service number) <a href="#" onclick="showRateInfo(1);return false;">&#9432;</a>')
+    drawComboChart(efficiency_params, "analysis", 'Delivery rate (per service number)', '%', 'Phone Number', color)
+  }
+}
+
+function displayMessageStatusTable(breakout){
+  writeTitle('analysis-title', '')
+  var dHeader = ""
+  var byStatus = "<table class='analytics-table'>"
+  var sSucceeded = "<tr><td class='table-label'>Delivered</td>"
+  var sFailed = "<tr><td class='table-label'>Failed</td>"
+  var sSuccessRate = "<tr><td class='table-label'>Delivery rate</td>"
+
+  if (breakout == "monthly"){
+    dHeader = "<tr><td class='table-label'>Month</td>"
+    var monthlyData = analyticsData.months
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      dHeader += `<td class='table-data'>${convertMonth(m.month)}</td>`
+      sSucceeded += `<td>${m.deliveredCount}</td>`
+      var totalFailedCount = m.sendingFailedCount + m.deliveryFailedCount
+      sFailed += `<td class='bad-data'>${totalFailedCount}</td>`
+      var total = m.deliveredCount + totalFailedCount
+      var rate = (m.deliveredCount / total) * 100
+      sSuccessRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', '# Outbound messages by status (per month)')
+  }else if (breakout == "bynumber"){
+    dHeader = "<tr><td class='table-label'>Service Number</td>"
+    var serviceNumberData = analyticsData.phoneNumbers
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      dHeader += `<td class='table-data'>${serviceNumber}</td>`
+      sSucceeded += `<td>${m.deliveredCount}</td>`
+      var totalFailedCount = m.sendingFailedCount + m.deliveryFailedCount
+      sFailed += `<td class='bad-data'>${totalFailedCount}</td>`
+      var total = m.deliveredCount + totalFailedCount
+      var rate = (m.deliveredCount / total) * 100
+      sSuccessRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', '# Outbound messages by status (per service number)')
+  }
+
+  byStatus += `${dHeader}</tr>`
+  byStatus += `${sSucceeded}</tr>`
+  byStatus += `${sFailed}</tr>`
+  byStatus += `${sSuccessRate}</tr>`
+  byStatus += "</table>"
+
+  $("#statistics").html(byStatus)
+  $("#analysis").html("")
+}
+
+function displayMessageCost(breakout){
+  var colors = ['#178006','red','#1126ba']
+  var color = ['#178006']
+  if (breakout == "monthly"){
+    var monthlyData = analyticsData.months
+    var cost_params = [['Month', 'Outbound success', 'Outbound failure', 'Inbound']];
+    var efficiency_params = [['Month', 'Efficiency rate']];
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      var item = [convertMonth(m.month), parseFloat(formatFloatNumber(m.deliveredMsgCost)), parseFloat(formatFloatNumber(m.failedMsgCost)), parseFloat(formatFloatNumber(m.receivedMsgCost))]
+      cost_params.push(item)
+      var rate = 0.0
+      var totalCost = m.deliveredMsgCost + m.failedMsgCost
+      if (totalCost > 0.0)
+        rate = (m.deliveredMsgCost / totalCost) * 100
+      rate = parseFloat(rate.toFixed(1))
+      var item = [convertMonth(m.month), rate]
+      efficiency_params.push(item)
+    }
+    writeTitle('statistics-title', 'Cost by direction (per month)')
+    drawComboChart(cost_params, "statistics", 'Cost by direction (per month)', 'USD', 'Month', colors)
+    writeTitle('analysis-title', 'Outbound messaging cost efficiency (per month) <a href="#" onclick="showRateInfo(2);return false;">&#9432;</a>')
+    drawComboChart(efficiency_params, "analysis", 'Outbound messaging cost efficiency (per month)', '%', 'Month', color)
+  }else if (breakout == "bynumber"){
+    var serviceNumberData = analyticsData.phoneNumbers
+    var cost_params = [[ 'Service Number', 'Outbound success', 'Outbound failure', 'Inbound']];
+    var efficiency_params = [[ 'Service Number', 'Efficiency rate' ]];
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      var item = [ serviceNumber, parseFloat(formatFloatNumber(m.deliveredMsgCost)), parseFloat(formatFloatNumber(m.failedMsgCost)), parseFloat(formatFloatNumber(m.receivedMsgCost))]
+      cost_params.push(item)
+      var rate = 0.0
+      var totalCost = m.deliveredMsgCost + m.failedMsgCost
+      if (totalCost > 0.0)
+        rate = (m.deliveredMsgCost / totalCost) * 100
+      rate = parseFloat(rate.toFixed(1))
+      var item = [serviceNumber, rate]
+      efficiency_params.push(item)
+    }
+    writeTitle('statistics-title', 'Cost by direction (per service number)')
+    drawComboChart(cost_params, "statistics", 'Cost by direction (per service number)', 'USD', 'Phone Number', colors)
+    writeTitle('analysis-title', 'Outbound messaging cost efficiency (per service number) <a href="#" onclick="showRateInfo(2);return false;">&#9432;</a>')
+    drawComboChart(efficiency_params, "analysis", 'Outbound messaging cost efficiency (per service number)', '%', 'Phone Number', color)
+  }
+}
+
+function displayMessageCostTable(breakout){
+  var dHeader = ""
+  var byCost = "<table class='analytics-table'>"
+  var cInbound = "<tr><td class='table-label'>Cost of inbound messages</td>"
+  var cOutbound = "<tr><td class='table-label'>Cost of outbound messages</td>"
+  var cTotal = "<tr><td class='table-label'>Total Cost</td>"
+
+  var byCostEfficiency = "<table class='analytics-table'>"
+  var eOutboundDelivered = "<tr><td class='table-label'>Cost of succeeded outbound messages</td>"
+  var eOutboundFailed = "<tr><td class='table-label'>Cost of failed outbound messages</td>"
+  var eRate = "<tr><td class='table-label'>Efficiency rate</td>"
+
+  if (breakout == "monthly"){
+    dHeader = "<tr><td class='table-label'>Month</td>"
+    var monthlyData = analyticsData.months
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      dHeader += `<td class='table-data'>${convertMonth(m.month)}</td>`
+      cInbound += `<td>${formatFloatNumber(m.receivedMsgCost)}</td>`
+      var deliveryCost = m.deliveredMsgCost + m.failedMsgCost
+      cOutbound += `<td>${formatFloatNumber(deliveryCost)}</td>`
+      var totalCost = deliveryCost + m.receivedMsgCost
+      cTotal += `<td>${formatFloatNumber(totalCost)}</td>`
+
+      eOutboundDelivered += `<td>${formatFloatNumber(m.deliveredMsgCost)}</td>`
+      eOutboundFailed += `<td class='bad-data'>${formatFloatNumber(m.failedMsgCost)}</td>`
+      var rate = (m.deliveredMsgCost / deliveryCost) * 100
+      eRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', 'Cost by direction (USD per month)')
+    writeTitle('analysis-title', 'Outbound messaging cost efficiency (per month)')
+  }else if (breakout == "bynumber"){
+    dHeader = "<tr><td class='table-label'>Service Number</td>"
+    var serviceNumberData = analyticsData.phoneNumbers
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      dHeader += `<td class='table-data'>${serviceNumber}</td>`
+      cInbound += `<td>${formatFloatNumber(m.receivedMsgCost)}</td>`
+      var deliveryCost = m.deliveredMsgCost + m.failedMsgCost
+      cOutbound += `<td>${formatFloatNumber(deliveryCost)}</td>`
+      var totalCost = deliveryCost + m.receivedMsgCost
+      cTotal += `<td>${formatFloatNumber(totalCost)}</td>`
+
+      eOutboundDelivered += `<td>${formatFloatNumber(m.deliveredMsgCost)}</td>`
+      eOutboundFailed += `<td class='bad-data'>${formatFloatNumber(m.failedMsgCost)}</td>`
+      var rate = (m.deliveredMsgCost / deliveryCost) * 100
+      eRate += `<td>${formatFloatNumber(rate)} %</td>`
+    }
+    writeTitle('statistics-title', 'Cost by direction (USD per service number)')
+    writeTitle('analysis-title', 'Outbound messaging cost efficiency (per service number)')
+  }
+
+  byCost += `${dHeader}</tr>`
+  byCost += `${cInbound}</tr>`
+  byCost += `${cOutbound}</tr>`
+  byCost += `${cTotal}</tr>`
+
+  byCost += "</table>"
+
+  byCostEfficiency += `${dHeader}</tr>`
+  byCostEfficiency += `${eOutboundDelivered}</tr>`
+  byCostEfficiency += `${eOutboundFailed}</tr>`
+  byCostEfficiency += `${eRate}</tr>`
+
+  $("#statistics").html(byCost)
+  $("#analysis").html(byCostEfficiency)
+}
+
+function displayFailedAnalytics(){
+
+  /*
+  var error_params = [['Error Type', '# Count', { role: "style" } ]];
+  //alert(error_params)
+  var item = [ "Spam Content", analyticsData.outboundFailureTypes.content.count, '#e88c02' ]
+  error_params.push(item)
+  item = [ "Invalid Number", analyticsData.outboundFailureTypes.invalidRecipientNumbers.length, '#ab6305']
+  error_params.push(item)
+  item = [ "Opted-Out Number", analyticsData.outboundFailureTypes.optoutNumbers.length, '#cc040e' ]
+  error_params.push(item)
+  item = [ "Blocked Number", analyticsData.outboundFailureTypes.blockedSenderNumbers.length, '#ab6305' ]
+  error_params.push(item)
+  item = ["Others", analyticsData.outboundFailureTypes.others.count + analyticsData.sendingFailedCount, "#0748a3"]
+  error_params.push(item)
+
+  writeTitle("statistics-title", "Outbound failure by reason")
+  var block = `<div class='row col-lg-12'>`
+  block += "<div class='col-lg-4' id='graph-column'></div>"
+  block += "<div class='col-lg-8' id='text-column'></div>"
+  block += '</div>'
+  $("#statistics").html(block)
+  */
+  //drawColumnChart(error_params, "graph-column", '', "")
+  var error_params = [['Error Type', '# Count']];
+  //alert(error_params)
+  var item = [ "Spam Content", analyticsData.outboundFailureTypes.content.count]
+  error_params.push(item)
+  item = [ "Invalid Number", analyticsData.outboundFailureTypes.invalidRecipientNumbers.length]
+  error_params.push(item)
+  item = [ "Opted-Out Number", analyticsData.outboundFailureTypes.optoutNumbers.length]
+  error_params.push(item)
+  item = [ "Blocked Number", analyticsData.outboundFailureTypes.blockedSenderNumbers.length]
+  error_params.push(item)
+  item = ["Others", analyticsData.outboundFailureTypes.others.count + analyticsData.sendingFailedCount]
+  error_params.push(item)
+  var colors = {0:{color: '#e88c02'}, 1:{color: '#ab6305'}, 2:{color: '#cc040e'}, 3:{color: '#ab6305'}, 4:{color: '#0748a3'}}
+  drawPieChart(error_params, "graph-column", '', colors)
+  /*
+  var selectedType = $("#failure-types").val()
+  var message = ""
+  if (selectedType == "spam"){
+    message = "<div class='breakout'>Suspected spam content</div>"
+    for (var c of analyticsData.outboundFailureTypes.content.messages){
+      message += `<div class='block_space'>${c}</div>`
+    }
+  }else if (selectedType == "invalid-number"){
+    message = "<div class='breakout'>Invalid recipient numbers</div>"
+    for (var c of analyticsData.outboundFailureTypes.invalidRecipientNumbers){
+      message += `<div>${c}</div>`
+    }
+  }else if (selectedType == "optedout-number"){
+    message = "<div class='breakout'>Opted out numbers</div>"
+    for (var c of analyticsData.outboundFailureTypes.optoutNumbers){
+      message += `<div class='block_space'>${c}</div>`
+    }
+  }else if (selectedType == "blocked-number"){
+    message = "<div class='breakout'>Blocked service numbers</div>"
+    for (var c of analyticsData.outboundFailureTypes.blockedSenderNumbers){
+      message += `<div class='block_space'>${c}</div>`
+    }
+  }else if (selectedType == "others"){
+    message = "<div class='breakout'>Other unknown numbers</div>"
+    for (var c of analyticsData.outboundFailureTypes.others.messages){
+      message += `<div class='block_space'>${c}</div>`
+    }
+  }
+  $("#text-column").html(message)
+  */
+  $("#analysis-title").html("")
+  $("#analysis").html("")
+}
+
+function drawComboChart(params, graph, title, vTitle, hTitle, colors, format){
+  var data = google.visualization.arrayToDataTable(params);
+  var view = new google.visualization.DataView(data);
+  var columns = [];
+  for (var i = 0; i <= colors.length; i++) {
+      if (i > 0) {
+          columns.push(i);
+          columns.push({
+              calc: "stringify",
+              sourceColumn: i,
+              type: "string",
+              role: "annotation"
+          });
+
+      } else {
+          columns.push(i);
+      }
+  }
+
+  view.setColumns(columns);
+  var options = {
+          //title : title,
+          width: "100%",
+          height: 220,
+          //vAxis: {minValue: 0, title: `${vTitle}`},{vAxis: {format:'#%'}
+          //hAxis: {title: `${hTitle}`, format: 0},
+          vAxis: { minValue: 0, title: `${vTitle}` },
+          //hAxis: {format: 0},
+          seriesType: 'bars',
+          bar: {groupWidth: "60%"},
+          legend: { position: "top" },
+          colors: colors //['#2280c9','#2f95a5', '#f04b3b']
+          //series: {3: {type: 'line'}}
+        };
+
+  var chart = new google.visualization.ComboChart(document.getElementById(graph));
+  chart.draw(view, options);
+}
+
+function drawColumnChart(params, graph, title, vTitle){
+    var data = google.visualization.arrayToDataTable(params);
+    var view = new google.visualization.DataView(data);
+    view.setColumns([0, 1,
+                    { calc: "stringify",
+                       sourceColumn: 1,
+                       type: "string",
+                       role: "annotation"
+                    },
+                    2]);
+
+    var options = {
+      title: title,
+      vAxis: {minValue: 0, title: `${vTitle}`},
+      //hAxis: {format: 0},
+      width: 360,
+      height: 220,
+      bar: {groupWidth: "90%"},
+      legend: { position: "none" },
+    };
+
+    var chart = new google.visualization.ColumnChart(document.getElementById(graph));
+    chart.draw(view, options);
+    /*
+    google.visualization.events.addListener(chart, 'select', selectHandler);
+    function selectHandler() {
+      var selection = chart.getSelection();
+
+      var selectedType = -1
+      for (var i = 0; i < selection.length; i++) {
+        var item = selection[i];
+        if (item.row != null) {
+          selectedType = item.row
+        }
+      }
+      var message = ""
+      if (selectedType == 0){
+        message = "<div>Suspected spam content</div>"
+        for (var c of analyticsData.outboundFailureTypes.content.messages){
+          message += `<div>${c}</div>`
+        }
+      }else if (selectedType == 1){
+        message = "<div>Invalid recipient numbers</div>"
+        for (var c of analyticsData.outboundFailureTypes.invalidRecipientNumbers){
+          message += `<div>${c}</div>`
+        }
+      }else if (selectedType == 2){
+        message = "<div>Blocked service numbers</div>"
+        for (var c of analyticsData.outboundFailureTypes.blockedSenderNumbers){
+          message += `<div>${c}</div>`
+        }
+      }else if (selectedType == 3){
+        message = "<div>Opted out numbers</div>"
+        for (var c of analyticsData.outboundFailureTypes.optoutNumbers){
+          message += `<div>${c}</div>`
+        }
+      }else if (selectedType == 4){
+        message = "<div>Other unknown numbers</div>"
+        for (var c of analyticsData.outboundFailureTypes.others.messages){
+          message += `<div>${c}</div>`
+        }
+      }
+      $("#text-column").html(message)
+    }
+    */
+}
+
+function drawPieChart(params, graph, title, colors){
+  var data = google.visualization.arrayToDataTable(params);
+  //var view = new google.visualization.DataView(data);
+
+  var options = {
+    title: title,
+    width: 300,
+    height: 300,
+    slices: colors,
+    backgroundColor: 'transparent',
+    chartArea:{left:0,top:20,bottom:20,width:'90%',height:'90%'},
+    legend: {
+      position: "bottom"
+    },
+    pieSliceText: 'value',
+    pieStartAngle: 90,
+    pieHole: 0.7
+  };
+  var element = document.getElementById(graph)
+  var chart = new google.visualization.PieChart(element);
+  chart.draw(data, options);
+  google.visualization.events.addListener(chart, 'select', selectHandler);
+  function selectHandler() {
+    //alert(chart.getSelection()[0])
+    var selection = chart.getSelection();
+    var selectedType = -1
+    for (var i = 0; i < selection.length; i++) {
+      var item = selection[i];
+      if (item.row != null) {
+        selectedType = item.row
+      }
+    }
+    var message = ""
+    if (selectedType == 0){
+      message = "<div class='breakout'>Suspected spam content</div>"
+      for (var c of analyticsData.outboundFailureTypes.content.messages){
+        message += `<div class='block_space'>${c}</div>`
+      }
+    }else if (selectedType == 1){
+      message = "<div class='breakout'>Invalid recipient numbers</div>"
+      for (var c of analyticsData.outboundFailureTypes.invalidRecipientNumbers){
+        message += `<div>${c}</div>`
+      }
+    }else if (selectedType == 2){
+      message = "<div class='breakout'>Opted out numbers</div>"
+      for (var c of analyticsData.outboundFailureTypes.optoutNumbers){
+        message += `<div class='block_space'>${c}</div>`
+      }
+    }else if (selectedType == 3){
+      message = "<div class='breakout'>Blocked service numbers</div>"
+      for (var c of analyticsData.outboundFailureTypes.blockedSenderNumbers){
+        message += `<div class='block_space'>${c}</div>`
+      }
+    }else if (selectedType == 4){
+      message = "<div class='breakout'>Other unknown numbers</div>"
+      for (var c of analyticsData.outboundFailureTypes.others.messages){
+        message += `<div class='block_space'>${c}</div>`
+      }
+    }
+    $("#text-column").html(message)
+  }
+}
+
+function drawScatterChart(params, graph, title, vTitle, hTitle) {
+    var data = google.visualization.arrayToDataTable(params);
+    var options = {
+      title: title,
+      width: "100%",
+      height: 220,
+      vAxis: {title: `${vTitle}`, minValue: 0},
+      hAxis: {title: `${hTitle}`, minValue: 0, maxValue: 23, format: 0},
+      viewWindow: {minValue: 0, maxValue: 23},
+      pointShape: { type: 'triangle', rotation: 180 },
+      colors:['#2280c9','#2f95a5', '#f04b3b'],
+      legend: {
+        position: "right"
+      }
+    };
+
+    var element = document.getElementById(graph)
+    var chart = new google.visualization.LineChart(element);
+    chart.draw(data, options);
+}
+
+
+function downloadAnalytics(){
+  var timeOffset = new Date().getTimezoneOffset()*60000;
+  var url = "download-analytics?timeOffset=" + timeOffset
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok")
+      window.location.href = res.message
+    else
+      alert(res.message)
+  });
+}
+
+function logout(){
+  window.location.href = "index?n=1"
+}
+
+// TBD
+/*
 function displayAnalyticsByHours(){
   var roundTheClock = analyticsData.roundTheClock
   var direction_params = [];
@@ -224,145 +960,48 @@ function displayAnalyticsBySegments(){
 
 function displayAnalyticsByWeekDays(){
   var weekDays = analyticsData.weekDays
-  var direction_params = [];
-  var arr = [ 'Day', 'Received', 'Sent' ];
-  direction_params.push(arr);
-  var status_params = [];
-  arr = [ 'Day', 'Delivered', 'SendingFailed', 'DeliveryFailed' ];
-  status_params.push(arr);
-  var cost_params = [];
-  var arr = [ 'Day', 'Received', 'Sent' ];
-  cost_params.push(arr);
+  var direction_params = [['Day', 'Inbound', 'Outbound']]
+  var status_params = [['Day', 'Delivered', 'DeliveryFailed', 'SendingFailed']]
+  var cost_params = [['Day', 'Inbound', 'Outbound']]
+
   for (var m of weekDays) {
     var item = [ m.wd, m.inboundCount, m.outboundCount ]
     direction_params.push(item)
-    item = [m.wd, m.deliveredCount, m.sendingFailedCount, m.deliveryFailedCount]
+    item = [m.wd, m.deliveredCount, m.deliveryFailedCount, m.sendingFailedCount ]
     status_params.push(item)
-    item = [m.wd, m.receivedMsgCost, m.sentMsgCost]
+    item = [m.wd, parseFloat(m.receivedMsgCost.toFixed(2)), parseFloat(m.sentMsgCost.toFixed(2))]
     cost_params.push(item)
   }
 
+  var colors = ['#1126ba', '#178006']
+  drawComboChart(direction_params, "by_direction", 'Week day messages by direction', 'Messages', 'Day', colors)
+  //colors = ['#178006', '#f04b3b', '#1126ba']
+  drawComboChart(cost_params, "by_cost", 'Week day messaging cost', 'USD', 'Day', colors)
+  colors = ['green', '#f04b3b', 'brown']
+  drawComboChart(status_params, "by_status", 'Week day Message by status', 'Messages', 'Day', colors)
+
+  //
   drawScatterChart(direction_params, "by_direction", 'Day messages by direction', 'Messages', 'Day of Week')
   drawScatterChart(cost_params, "by_cost", 'Day messaging cost', 'USD', 'Day of Week')
   drawScatterChart(status_params, "by_status", 'Day Message by status', 'Messages', 'Day of Week')
+  //
 }
 
-function displayAnalyticsByMonths(){
-  var monthlyData = analyticsData.months
+
+function displayAnalyticsTotalPie(){
   var direction_params = [];
-  var arr = [ 'Month', 'Received', 'Sent' ];
+  var arr = [ 'Direction', '# messages' ];
   direction_params.push(arr);
   var status_params = [];
-  arr = [ 'Month', 'Delivered', 'SendingFailed', 'DeliveryFailed' ];
-  status_params.push(arr);
-  var cost_params = [];
-  var arr = [ 'Month', 'Received', 'Sent' ];
-  cost_params.push(arr);
-  //for (var m of monthlyData) {
-  for (var i=monthlyData.length; i>=0; --i) {
-    var m =  monthlyData[i]
-    var item = [ m.month, m.inboundCount, m.outboundCount ]
-    direction_params.push(item)
-    item = [m.month, m.deliveredCount, m.sendingFailedCount, m.deliveryFailedCount]
-    status_params.push(item)
-    item = [m.month, m.receivedMsgCost, m.sentMsgCost]
-    cost_params.push(item)
-  }
-  drawComboChart(direction_params, "by_direction", 'Monthly messages by direction', 'Messages', 'Month')
-  drawComboChart(status_params, "by_status", 'Monthly Message by status', 'Messages', 'Month')
-  drawComboChart(cost_params, "by_cost", 'Monthly messaging cost', 'USD', 'Month')
-}
-
-function displayAnalyticsByNumbers(){
-  var serviceNumberData = analyticsData.phoneNumbers
-  var direction_params = [];
-  var arr = [ 'Service Number', 'Received', 'Sent' ];
-  direction_params.push(arr);
-  var status_params = [];
-  arr = [ 'Service Number', 'Delivered', 'SendingFailed', 'DeliveryFailed' ];
-  status_params.push(arr);
-  var cost_params = [];
-  var arr = [ 'Service Number', 'Received', 'Sent' ];
-  cost_params.push(arr);
-  for (var m of serviceNumberData) {
-    var serviceNumber = formatPhoneNumber(m.number,false)
-    var item = [ serviceNumber, m.inboundCount, m.outboundCount ]
-    direction_params.push(item)
-    item = [serviceNumber, m.deliveredCount, m.sendingFailedCount, m.deliveryFailedCount]
-    status_params.push(item)
-    item = [serviceNumber, m.receivedMsgCost, m.sentMsgCost]
-    cost_params.push(item)
-  }
-  drawComboChart(direction_params, "by_direction", 'Service messages by direction', 'Messages', 'Phone Number')
-  drawComboChart(status_params, "by_status", 'Service Message by status', 'Messages', 'Phone Number')
-  drawComboChart(cost_params, "by_cost", 'service messaging cost', 'USD', 'Phone Number')
-}
-
-function displayAnalyticsByNumbersTable(){
-  var byDirection = `<h2>Service messages by direction</h2><table class='analytics-table'>`
-  var dHeader = "<tr><td width='140'>Phone number</td>"
-  var received = "<tr><td width='140'>Received</td>"
-  var sent = "<tr><td width='140'>Sent</td>"
-
-  var byStatus = `<h2>Service messages by status</h2><table class='analytics-table'>`
-  var sDelivered = "<tr><td width='150'>Delivered</td>"
-  var sSentFailed = "<tr><td width='150'>Sent failed</td>"
-  var sDeliveryFailed = "<tr><td width='150'>Delivery failed</td>"
-
-  var byCost = `<h2>Messages cost by phone number</h2><table class='analytics-table'>`
-  var cReceived = "<tr><td width='140'>Received</td>"
-  var cSent = "<tr><td width='140'>Sent</td>"
-
-  var serviceNumberData = analyticsData.phoneNumbers
-  for (var n of serviceNumberData) {
-    var serviceNumber = formatPhoneNumber(n.number,false)
-    dHeader += `<td width='120'>${serviceNumber}</td>`
-    // direction
-    received += `<td>${n.inboundCount}</td>`
-    sent += `<td>${n.outboundCount}</td>`
-    // status
-    sDelivered += `<td>${n.deliveredCount}</td>`
-    sSentFailed += `<td>${n.sendingFailedCount}</td>`
-    sDeliveryFailed += `<td>${n.deliveryFailedCount}</td>`
-    // cost
-    cReceived += `<td>${n.receivedMsgCost.toFixed(2)}</td>`
-    cSent += `<td>${n.sentMsgCost.toFixed(2)}</td>`
-  }
-  byDirection += `${dHeader}</tr>`
-  byDirection += `${received}</tr>`
-  byDirection += `${sent}</tr>`
-  byDirection += "</table>"
-
-  byStatus += `${dHeader}</tr>`
-  byStatus += `${sDelivered}</tr>`
-  byStatus += `${sSentFailed}</tr>`
-  byStatus += `${sDeliveryFailed}</tr>`
-  byStatus += "</table>"
-
-  byCost += `${dHeader}</tr>`
-  byCost += `${cReceived}</tr>`
-  byCost += `${cSent}</tr>`
-  byCost += "</table>"
-
-  $("#by_direction").html(byDirection)
-  $("#by_cost").html(byCost)
-  $("#by_status").html(byStatus)
-}
-
-function displayAnalyticsTotal(){
-  var direction_params = [];
-  var arr = [ 'Direction', '#' ];
-  direction_params.push(arr);
-  var status_params = [];
-  arr = [ 'Status', '#' ];
+  arr = [ 'Status', '# messages' ];
   status_params.push(arr);
   var cost_params = [];
   arr = [ 'Cost', 'USD' ];
   cost_params.push(arr);
 
-  var item = [ "Received", analyticsData.inboundCount ]
+  var item = [ "Inbound", analyticsData.inboundCount ]
   direction_params.push(item)
-  item = [ "Sent", analyticsData.outboundCount ]
+  item = [ "Outbound", analyticsData.outboundCount ]
   direction_params.push(item)
 
   item = ["Delivered", analyticsData.deliveredCount]
@@ -372,154 +1011,77 @@ function displayAnalyticsTotal(){
   item = ["Delivery failed", analyticsData.deliveryFailedCount]
   status_params.push(item)
 
-  item = ["Received", analyticsData.receivedMsgCost]
+  item = ["Inbound", parseFloat(analyticsData.receivedMsgCost.toFixed(2))]
   cost_params.push(item)
-  item = ["Sent", analyticsData.sentMsgCost]
+  item = ["Outbound", parseFloat(analyticsData.sentMsgCost.toFixed(2))]
   cost_params.push(item)
 
-  drawPieChart(direction_params, "total-by-direction", 'Service messages by direction')
-  drawPieChart(status_params, "total-by-status", 'Service Message by status')
-  drawPieChart(cost_params, "total-by-cost", 'Service messaging cost (USD)')
+  //var colors = {0:{color: '#2280c9'}, 1:{color: '#2f95a5'}}
+
+  //var colors = {0:{color: '#1126ba', offset: 0.2}, 1:{color: '#178006'}}
+  //drawPieChart(direction_params, "total-by-direction", '# Messages by direction', colors)
+  var color = ['#1126ba', '#178006']
+  drawColumnChart(direction_params, "total-by-direction", '# Messages by direction', "# Messages", "Direction", colors)
+  drawPieChart(cost_params, "total-by-cost", 'Cost by direction (USD)', colors)
+  colors = {0:{color: 'green'}, 1:{color: '#f04b3b', offset: 0.2}, 2: {color: 'brown', offset: 0.3}}
+  drawPieChart(status_params, "total-by-status", '# Message by status', colors)
 }
 
-function displayAnalyticsTotalTable(){
-  var byDirection = `<h2>Total messages by direction</h2><table class='analytics-table'>`
-  var received = "<tr><td width='140'>Received</td>"
-  var sent = "<tr><td width='140'>Sent</td>"
+function displayAnalyticsByMonths(){
+  var monthlyData = analyticsData.months
+  var direction_params = [['Month', 'Inbound', 'Outbound']]
+  var status_params = [['Month', 'Delivered', 'DeliveryFailed', 'SendingFailed']]
+  //var cost_params = [['Month', 'Delivered Cost', 'Failed Cost', 'Received Message Cost']];
+  var cost_params = [['Month', 'Inbound Cost', 'Outbound Cost']];
 
-  var byStatus = `<h2>Total messages by status</h2><table class='analytics-table'>`
-  var dHeader = "<tr><td width='140'></td>"
-  var sDelivered = "<tr><td width='150'>Delivered</td>"
-  var sSentFailed = "<tr><td width='150'>Sent failed</td>"
-  var sDeliveryFailed = "<tr><td width='150'>Delivery failed</td>"
-
-  var byCost = `<h2>Total messaging cost</h2><table class='analytics-table'>`
-  var cReceived = "<tr><td width='140'>Received</td>"
-  var cSent = "<tr><td width='140'>Sent</td>"
-
-  // direction
-  dHeader += `<td width='120'>Total</td>`
-  received += `<td>${analyticsData.inboundCount}</td>`
-  sent += `<td>${analyticsData.outboundCount}</td>`
-  // status
-  sDelivered += `<td>${analyticsData.deliveredCount}</td>`
-  sSentFailed += `<td>${analyticsData.sendingFailedCount}</td>`
-  sDeliveryFailed += `<td>${analyticsData.deliveryFailedCount}</td>`
-  // cost
-  cReceived += `<td>${analyticsData.receivedMsgCost.toFixed(2)}</td>`
-  cSent += `<td>${analyticsData.sentMsgCost.toFixed(2)}</td>`
-
-  byDirection += `${dHeader}</tr>`
-  byDirection += `${received}</tr>`
-  byDirection += `${sent}</tr>`
-  byDirection += "</table>"
-
-  byStatus += `${dHeader}</tr>`
-  byStatus += `${sDelivered}</tr>`
-  byStatus += `${sSentFailed}</tr>`
-  byStatus += `${sDeliveryFailed}</tr>`
-  byStatus += "</table>"
-
-  byCost += `${dHeader}</tr>`
-  byCost += `${cReceived}</tr>`
-  byCost += `${cSent}</tr>`
-  byCost += "</table>"
-
-  $("#by_direction").html(byDirection)
-  $("#by_cost").html(byCost)
-  $("#by_status").html(byStatus)
+  //for (var m of monthlyData) {
+  for (var i=monthlyData.length-1; i>=0; i--) {
+    var m =  monthlyData[i]
+    var item = [ m.month, m.inboundCount, m.outboundCount ]
+    direction_params.push(item)
+    item = [m.month, m.deliveredCount, m.deliveryFailedCount, m.sendingFailedCount]
+    status_params.push(item)
+    item = [m.month, parseFloat(m.receivedMsgCost.toFixed(2)), parseFloat(m.deliveredMsgCost.toFixed(2)) + parseFloat(m.failedMsgCost.toFixed(2))]
+    cost_params.push(item)
+  }
+  var colors = ['#1126ba', '#178006']
+  drawComboChart(direction_params, "by_direction", 'Monthly messages by direction', 'Messages', 'Month', colors)
+  colors = ['#1126ba', '#178006']
+  drawComboChart(cost_params, "by_cost", 'Monthly messaging cost', 'USD', 'Month', colors)
+  colors = ['#178006', '#f04b3b', 'brown']
+  drawComboChart(status_params, "by_status", 'Monthly Message by status', 'Messages', 'Month', colors)
 }
 
-function displayDeliveryFailedAnalytics(){
-  var errorCode = $("#errors").val()
-  var failures = analyticsData.deliveryFailures
-  var spam_params = [];
-  arr = [ 'Spam', 'Cause' ];
-  spam_params.push(arr);
-  var invalid_params = [];
-  arr = [ 'Invalid', 'Type'];
-  invalid_params.push(arr);
-
-  for (var m of failures) {
-    if (m.code == "SMS-CAR-430" || m.code == "SMS-UP-430"){
-      var item = ["Has phone number", m.hasPhoneNumber]
-      spam_params.push(item)
-      item = ["Has URL", m.hasURL]
-      spam_params.push(item)
-      item = ["Too long", m.segmented]
-      spam_params.push(item)
-    }else if (m.code == "SMS-UP-420" || m.code == "SMS-CAR-411" || m.code == "SMS-CAR-412"){
-      var item = ['Invalid', m.invalidNumbers.length]
-      invalid_params.push(item)
-      item = ['Missing counttry code', m.noCountryCode.length]
-      invalid_params.push(item)
-    }else if (m.code == "SMS-CAR-413"){
-
-    }
-
+function displayAnalyticsByNumbers(){
+  var serviceNumberData = analyticsData.phoneNumbers
+  var direction_params = [];
+  var arr = [ 'Service Number', 'Inbound', 'Outbound' ];
+  direction_params.push(arr);
+  var status_params = [];
+  arr = [ 'Service Number', 'Delivered', 'DeliveryFailed', 'SendingFailed' ];
+  status_params.push(arr);
+  var cost_params = [];
+  var arr = [ 'Service Number', 'Inbound Cost', 'Outbound Cost' ];
+  cost_params.push(arr);
+  for (var m of serviceNumberData) {
+    var serviceNumber = formatPhoneNumber(m.number,false)
+    var item = [ serviceNumber, m.inboundCount, m.outboundCount ]
+    direction_params.push(item)
+    item = [serviceNumber, m.deliveredCount, m.deliveryFailedCount, m.sendingFailedCount]
+    status_params.push(item)
+    item = [serviceNumber, parseFloat(m.receivedMsgCost.toFixed(2)), parseFloat(m.deliveredMsgCost.toFixed(2)) + parseFloat(m.failedMsgCost.toFixed(2))]
+    cost_params.push(item)
   }
 
-  drawPieChart(spam_params, "by_direction", 'Failure by reason', 'Messages', 'Content Type')
-  drawPieChart(invalid_params, "by_cost", 'Failure by reason', 'Messages', 'Content Type')
-  $("#by_status").html("")
+  var colors = ['#1126ba', '#178006']
+  drawComboChart(direction_params, "by_direction", '# messages by direction', 'Messages', 'Phone Number', colors)
+  colors = ['#1126ba', '#178006']
+  drawComboChart(cost_params, "by_cost", 'Messaging cost', 'USD', 'Phone Number', colors)
+  colors = ['#178006', '#f04b3b', 'brown']
+  drawComboChart(status_params, "by_status", '# message by status', 'Messages', 'Phone Number', colors)
 }
 
-function drawComboChart(params, graph, title, vTitle, hTitle){
-  var data = google.visualization.arrayToDataTable(params);
-  var options = {
-          title : title,
-          width: "100%",
-          height: 250,
-          vAxis: {title: `${vTitle}`},
-          hAxis: {title: `${hTitle}`, format: 0},
-          seriesType: 'bars',
-          colors:['#2280c9','#2f95a5', '#f04b3b']
-          //series: {3: {type: 'line'}}
-        };
-
-  var chart = new google.visualization.ComboChart(document.getElementById(graph));
-  chart.draw(data, options);
-}
-
-function drawPieChart(params, graph, title){
-  var data = google.visualization.arrayToDataTable(params);
-  var view = new google.visualization.DataView(data);
-  var options = {
-    title: title,
-    width: 400,
-    height: 240,
-    slices: {0:{color: '#2280c9'}, 1:{color: '#2f95a5'}, 2: {color: '#f04b3b'}, 3: {color: '#6e0206'}},
-    backgroundColor: 'transparent',
-    legend: {
-      position: "right"
-    },
-    pieSliceText: 'value'
-  };
-  var element = document.getElementById(graph)
-  var chart = new google.visualization.PieChart(element);
-  chart.draw(data, options);
-}
-
-function drawScatterChart(params, graph, title, vTitle, hTitle) {
-    var data = google.visualization.arrayToDataTable(params);
-    var options = {
-      title: title,
-      width: "100%",
-      height: 250,
-      vAxis: {title: `${vTitle}`, minValue: 0},
-      hAxis: {title: `${hTitle}`, minValue: 0, maxValue: 23, format: 0},
-      viewWindow: {minValue: 0, maxValue: 23},
-      pointShape: { type: 'triangle', rotation: 180 },
-      colors:['#2280c9','#2f95a5', '#f04b3b'],
-      legend: {
-        position: "right"
-      }
-    };
-
-    var element = document.getElementById(graph)
-    var chart = new google.visualization.LineChart(element);
-    chart.draw(data, options);
-}
+*/
 
 /*
 function drawGauge(row, params){
@@ -614,18 +1176,289 @@ function drawScatterChart(params, title) {
     //chart.draw(data, google.charts.Scatter.convertOptions(options));
 }
 */
-function downloadMessageStore(format){
-  var timeOffset = new Date().getTimezoneOffset()*60000;
-  var url = "download-hv-message-store?format=" + format + "&timeOffset=" + timeOffset
-  var getting = $.get( url );
-  getting.done(function( res ) {
-    if (res.status == "ok")
-      window.location.href = res.message
-    else
-      alert(res.message)
-  });
+
+/*
+function displayMessageCost(breakout){
+  var colors = ['#178006','#1126ba']
+  var color = ['#178006']
+  if (breakout == "monthly"){
+    var monthlyData = analyticsData.months
+    var cost_params = [['Month', 'Outbound', 'Inbound']];
+    var efficiency_params = [['Month', 'Efficient rate']];
+    for (var i=monthlyData.length-1; i>=0; i--) {
+      var m =  monthlyData[i]
+      var item = [m.month, parseFloat(m.deliveredMsgCost.toFixed(2)) + parseFloat(m.failedMsgCost.toFixed(2)), parseFloat(m.receivedMsgCost.toFixed(2))]
+      cost_params.push(item)
+      var rate = (m.deliveredMsgCost / (m.deliveredMsgCost + m.failedMsgCost)) * 100
+      rate = parseFloat(rate.toFixed(1))
+      var item = [m.month, rate]
+      efficiency_params.push(item)
+    }
+    drawComboChart(cost_params, "by_direction", 'Cost by direction (per month)', 'USD', 'Month', colors)
+    drawComboChart(efficiency_params, "by_status", 'Messaging cost efficiency (per month)', '%', 'Month', color)
+  }else if (breakout == "bynumber"){
+    var serviceNumberData = analyticsData.phoneNumbers
+    var cost_params = [[ 'Service Number', 'Inbound', 'Outbound' ]];
+    var efficiency_params = [[ 'Service Number', 'Efficient rate' ]];
+    for (var m of serviceNumberData) {
+      var serviceNumber = formatPhoneNumber(m.number,false)
+      var item = [ serviceNumber, parseFloat(m.deliveredMsgCost.toFixed(2)) + parseFloat(m.failedMsgCost.toFixed(2)), parseFloat(m.receivedMsgCost.toFixed(2))]
+      cost_params.push(item)
+      var rate = (m.deliveredMsgCost / (m.deliveredMsgCost + m.failedMsgCost)) * 100
+      rate = parseFloat(rate.toFixed(1))
+      var item = [serviceNumber, rate]
+      efficiency_params.push(item)
+    }
+    drawComboChart(cost_params, "by_direction", 'Cost by direction (per service number)', 'USD', 'Phone Number', colors)
+    drawComboChart(efficiency_params, "by_status", 'Messaging cost efficiency (per service number)', '%', 'Phone Number', color)
+  }
+}
+*/
+/*
+function displayDeliveryFailedAnalytics(){
+  var errorCode = $("#errors").val()
+  var failures = analyticsData.deliveryFailures
+  var spam_params = [];
+  arr = [ 'Spam', 'Cause' ];
+  spam_params.push(arr);
+  var invalid_params = [];
+  arr = [ 'Invalid', 'Type'];
+  invalid_params.push(arr);
+
+  for (var m of failures) {
+    if (m.code == "SMS-CAR-430" || m.code == "SMS-UP-430"){
+      var item = ["Has phone number", m.hasPhoneNumber]
+      spam_params.push(item)
+      item = ["Contains links", m.hasURL]
+      spam_params.push(item)
+      item = ["Too long", m.segmented]
+      spam_params.push(item)
+    }else if (m.code == "SMS-UP-420" || m.code == "SMS-CAR-411" || m.code == "SMS-CAR-412"){
+      var item = ['Invalid', m.invalidNumbers.length]
+      invalid_params.push(item)
+      item = ['Missing counttry code', m.noCountryCode.length]
+      invalid_params.push(item)
+    }else if (m.code == "SMS-CAR-413"){
+
+    }
+  }
+  drawPieChart(spam_params, "by_direction", 'Failure by reason', 'Messages', 'Content Type')
+  drawPieChart(invalid_params, "by_cost", 'Failure by reason', 'Messages', 'Content Type')
+  $("#by_status").html("")
+}
+*/
+
+/*
+function displayAnalytics(){
+  displayAnalyticsTotal()
+  displayAnalyticsType()
+  return
+  //var mode = $("#display-mode").val()
+  var display = $("#display").val()
+  if (mode == "graphics"){
+    displayAnalyticsTotal()
+    if (display == "monthly")
+      //displayAnalyticsByMonths()
+      displayAnalyticsType()
+    else if (display == "bynumber")
+      //displayAnalyticsByNumbers()
+      displayAnalyticsType()
+
+    else if (display == "hourly")
+      displayAnalyticsByHours()
+    else if (display == "weekdays")
+      displayAnalyticsByWeekDays()
+    else if (display == "bysegment")
+      displayAnalyticsBySegments()
+
+    else if (display == "failure-analytics"){
+      // change types
+      //displayAnalyticsType()
+      displayFailedAnalytics()
+    }
+  }else{
+    displayAnalyticsTotalTable()
+    if (display == "monthly")
+      displayAnalyticsByMonthsTable()
+    else if (display == "bynumber")
+      displayAnalyticsByNumbersTable()
+    else if (display == "failure-analytics")
+        displayFailedAnalytics()
+
+    else if (display == "hourly")
+      displayAnalyticsByHours()
+    else if (display == "weekdays")
+      displayAnalyticsByWeekDays()
+    else if (display == "bysegment")
+      displayAnalyticsBySegmentsTable()
+
+  }
+}
+function displayAnalyticsByMonthsTable(){
+  var byDirection = `<h2>Monthly messages by direction</h2><table class='analytics-table'>`
+  var dHeader = "<tr><td width='140'>Month</td>"
+  var received = "<tr><td width='140'>Received</td>"
+  var sent = "<tr><td width='140'>Sent</td>"
+
+  var byStatus = `<h2>Monthly messages by status</h2><table class='analytics-table'>`
+  var dHeader = "<tr><td width='140'>Month</td>"
+  var sDelivered = "<tr><td width='150'>Delivered</td>"
+  var sSentFailed = "<tr><td width='150'>Sent failed</td>"
+  var sDeliveryFailed = "<tr><td width='150'>Delivery failed</td>"
+
+  var byCost = `<h2>Monthly messaging cost</h2><table class='analytics-table'>`
+  var cReceived = "<tr><td width='140'>Received</td>"
+  var cSent = "<tr><td width='140'>Sent</td>"
+
+  var monthlyData = analyticsData.months
+  //for (var m of monthlyData) {
+  for (var i=monthlyData.length-1; i>=0; i--) {
+    var m =  monthlyData[i]
+    dHeader += `<td width='120'>${m.month}</td>`
+    // direction
+    received += `<td>${m.inboundCount}</td>`
+    sent += `<td>${m.outboundCount}</td>`
+    // status
+    sDelivered += `<td>${m.deliveredCount}</td>`
+    sSentFailed += `<td>${m.sendingFailedCount}</td>`
+    sDeliveryFailed += `<td>${m.deliveryFailedCount}</td>`
+    // cost
+    cReceived += `<td>${m.receivedMsgCost.toFixed(2)}</td>`
+    cSent += `<td>${m.sentMsgCost.toFixed(2)}</td>`
+  }
+  byDirection += `${dHeader}</tr>`
+  byDirection += `${received}</tr>`
+  byDirection += `${sent}</tr>`
+  byDirection += "</table>"
+
+  byStatus += `${dHeader}</tr>`
+  byStatus += `${sDelivered}</tr>`
+  byStatus += `${sSentFailed}</tr>`
+  byStatus += `${sDeliveryFailed}</tr>`
+  byStatus += "</table>"
+
+  byCost += `${dHeader}</tr>`
+  byCost += `${cReceived}</tr>`
+  byCost += `${cSent}</tr>`
+  byCost += "</table>"
+
+  $("#by_direction").html(byDirection)
+  $("#by_cost").html(byCost)
+  $("#by_status").html(byStatus)
 }
 
-function logout(){
-  window.location.href = "index?n=1"
+function displayAnalyticsByMonthsTable(){
+  var byDirection = "<div class='analytics-header'>Monthly messages by direction</div><table class='analytics-table'>"
+  var dHeader = "<tr><td class='table-label'>Month</td>"
+  var dReceived = "<tr><td class='table-label'>Inbound</td>"
+  var dSent = "<tr><td class='table-label'>Outbound</td>"
+  var dTotal = "<tr><td class='table-label'>Total</td>"
+
+  var byStatus = "<div class='analytics-header'>Monthly messages by status</div><table class='analytics-table'>"
+  var sDelivered = "<tr><td class='table-label'>Delivered</td>"
+  var sDeliveryFailed = "<tr><td class='table-label'>Delivery failed</td>"
+  var sSentFailed = "<tr><td class='table-label'>Sending failed</td>"
+
+  var byCost = "<div class='analytics-header'>Cost by month</div><table class='analytics-table'>"
+  var cHeader = "<tr><td class='table-label'>Month</td>"
+  var cReceived = "<tr><td class='table-label'>Received Cost</td>"
+  var cDelivered = "<tr><td class='table-label'>Delivered Cost</td>"
+  var cFailed = "<tr><td class='table-label'>Failed Cost</td>"
+  var cTotal = "<tr><td class='table-label'>Total Cost</td>"
+
+  var monthlyData = analyticsData.months
+  for (var i=monthlyData.length-1; i>=0; i--) {
+    var m =  monthlyData[i]
+    dHeader += `<td class='table-data'>${m.month}</td>`
+    // direction
+    dReceived += `<td>${m.inboundCount}</td>`
+    dSent += `<td>${m.outboundCount}</td>`
+    dTotal += `<td>${m.outboundCount + m.inboundCount}</td>`
+    // status
+    sDelivered += `<td>${m.deliveredCount}</td>`
+    sDeliveryFailed += `<td class='bad-data'>${m.deliveryFailedCount}</td>`
+    sSentFailed += `<td class='bad-data'>${m.sendingFailedCount}</td>`
+    // cost
+    cDelivered += `<td>${m.deliveredMsgCost.toFixed(2)}</td>`
+    cFailed += `<td class='bad-data'>${m.failedMsgCost.toFixed(2)}</td>`
+    cReceived += `<td>${m.receivedMsgCost.toFixed(2)}</td>`
+    var totalCost = m.deliveredMsgCost + m.failedMsgCost + m.receivedMsgCost
+    cTotal += `<td>${parseFloat(totalCost.toFixed(2))}</td>`
+  }
+  byDirection += `${dHeader}</tr>`
+  byDirection += `${dReceived}</tr>`
+  byDirection += `${dSent}</tr>`
+  byDirection += `${dTotal}</tr>`
+  byDirection += "</table>"
+
+  byStatus += `${dHeader}</tr>`
+  byStatus += `${sDelivered}</tr>`
+  byStatus += `${sDeliveryFailed}</tr>`
+  byStatus += `${sSentFailed}</tr>`
+  byStatus += "</table>"
+
+  byCost += `${dHeader}</tr>`
+  byCost += `${cDelivered}</tr>`
+  byCost += `${cFailed}</tr>`
+  byCost += `${cReceived}</tr>`
+  byCost += `${cTotal}</tr>`
+  byCost += "</table>"
+
+  $("#statistics").html(byDirection)
+  $("#analysis").html(byCost)
 }
+
+function displayAnalyticsByNumbersTable(){
+  var byDirection = "<div class='analytics-header'># messages by direction</div><table class='analytics-table'>"
+  var dHeader = "<tr><td class='table-label'>Phone number</td>"
+  var dReceived = "<tr><td class='table-label'>Inbound</td>"
+  var dSent = "<tr><td class='table-label'>Outbound</td>"
+
+  var byStatus = "<div class='analytics-header'>Service messages by status</div><table class='analytics-table'>"
+  var sDelivered = "<tr><td class='table-label'>Delivered</td>"
+  var sDeliveryFailed = "<tr><td class='table-label'>Delivery failed</td>"
+  var sSentFailed = "<tr><td class='table-label'>Sending failed</td>"
+
+  var byCost = "<div class='analytics-header'>Cost by phone number</div><table class='analytics-table'>"
+  var cReceived = "<tr><td class='table-label'>Received Cost</td>"
+  var cDelivered = "<tr><td class='table-label'>Delivered Cost</td>"
+  var cFailed = "<tr><td class='table-label'>Failed Cost</td>"
+
+  var serviceNumberData = analyticsData.phoneNumbers
+  for (var n of serviceNumberData) {
+    var serviceNumber = formatPhoneNumber(n.number,false)
+    dHeader += `<td class='table-data'>${serviceNumber}</td>`
+    // direction
+    dReceived += `<td class='table-data'>${n.inboundCount}</td>`
+    dSent += `<td class='table-data'>${n.outboundCount}</td>`
+    // status
+    sDelivered += `<td class='table-data'>${n.deliveredCount}</td>`
+    sDeliveryFailed += `<td class='bad-data'>${n.deliveryFailedCount}</td>`
+    sSentFailed += `<td class='bad-data'>${n.sendingFailedCount}</td>`
+    // cost
+    cDelivered += `<td>${n.deliveredMsgCost.toFixed(2)}</td>`
+    cFailed += `<td class='bad-data'>${n.failedMsgCost.toFixed(2)}</td>`
+    cReceived += `<td>${n.receivedMsgCost.toFixed(2)}</td>`
+  }
+  byDirection += `${dHeader}</tr>`
+  byDirection += `${dReceived}</tr>`
+  byDirection += `${dSent}</tr>`
+  byDirection += "</table>"
+
+  byStatus += `${dHeader}</tr>`
+  byStatus += `${sDelivered}</tr>`
+  byStatus += `${sDeliveryFailed}</tr>`
+  byStatus += `${sSentFailed}</tr>`
+  byStatus += "</table>"
+
+  byCost += `${dHeader}</tr>`
+  byCost += `${cDelivered}</tr>`
+  byCost += `${cFailed}</tr>`
+  byCost += `${cReceived}</tr>`
+  byCost += "</table>"
+
+  $("#by_direction").html(byDirection)
+  $("#by_cost").html(byCost)
+  $("#by_status").html(byStatus)
+}
+*/

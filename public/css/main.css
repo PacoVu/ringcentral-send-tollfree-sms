@@ -587,6 +587,55 @@ button:focus {
   background-color: #f5f6fb;
 }
 
+.analytics-header {
+  font-size: 1.2em;
+  font-weight: bold;
+}
 .analytics-table {
   border: 1px solid gray;
+}
+
+tr {
+  border-bottom: 1px dotted gray;
+}
+
+.table-label {
+  width: 160px;
+  font-weight: bold;
+}
+
+.table-data {
+  width: 120px;
+}
+
+.bad-data {
+  color: red;
+}
+
+.breakout{
+  color: #0073ae;
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.display-mode-btn {
+  width:30px;
+  height:30px;
+}
+
+.display-mode-label:hover {
+  cursor: pointer;
+}
+
+a:hover, a:visited, a:link, a:active
+{
+    text-decoration: none;
+}
+
+.failed-content-list{
+  height: 200px;
+  overflow: scroll;
+  width: 100%;
+  overflow-x: hidden;
 }

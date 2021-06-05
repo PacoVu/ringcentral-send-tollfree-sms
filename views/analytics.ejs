@@ -46,7 +46,23 @@
   <%- include('_menu_header') %>
   <section id='content'>
     <div class="row col-lg-12">
+      <% if (phoneNumbers.length > 0) { %>
       <%- include('_menu') %>
+      <% } else { %>
+        <div id="menu-pane" class="col-xs-1 menu-pane">
+          <ul class="nav">
+            <!--
+            <li class="menu-item disabled" id="campaign-new" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Campaigns"><a href="#"><img src="img/campaign.png" height="30"/></a></li>
+            <li class="menu-item disabled" id="conversations" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Conversations"><a href="#"><img src="img/conversations.png" height="30"/></a></li>
+            <li class="menu-item disabled" id="campaign-log" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Logs"><a href="#"><img src="img/campaign-log.png" height="30"/></a></li>
+            <li class="menu-item disabled" id="settings" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Settings"><a href="#"><img src="img/settings.png" height="30"/></a></li>
+            <li class="menu-item disabled" id="help" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Help"><a href="#"><img src="img/help.png" height="30"/></a></li>
+            -->
+            <li class="menu-item active" id="analytics" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Analytics"><a href="/analytics"><img src="img/analytics.png" height="30"/></a></li>
+            <li class="menu-item" id="logout" data-placement="right" data-toggle="popover" data-trigger="hover" data-content="Logout"><a href="javascript:logout()"><img src="img/logout.png" height="30"/></a></li>
+          </ul>
+        </div>
+      <% } %>
       <div id="control-list-col" class="col-lg-2" style="width:340px">
         <div id="col2-header" class="form-inline read-message-input-block">
           <div class="block_space">
@@ -57,6 +73,7 @@
             <label class="label-input" for="my-numbers">Date to</label>
             <input type="text" id="todatepicker" size="10" class="form-control text-input"></input>
           </div>
+
           <div class="block_space">
             <label class="label-input" for="my-numbers">From number</label>
             <select id="my-numbers" class="selectpicker filter-select" data-width="150" title="my numbers">
@@ -66,61 +83,87 @@
               <% } %>
             </select>
           </div>
+
           <button class="btn-rc inline" onclick="readMessageStore()">Read</button>
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
-        <div class="block_space">
-          <label class="label-input" for="my-numbers">Display mode</label>
-          <select id="display-mode" class="selectpicker filter-select" data-width="150" title="Display mode" onchange="displayAnalytics()">
-            <option selected value="graphics">Graphics</option>
-            <option value="table">Table</option>
-          </select>
-        </div>
-        <div class="block_space">
-          <label class="label-input" for="my-numbers">Display option</label>
-          <select id="display" class="selectpicker filter-select" data-width="150" title="Display mode" onchange="displayAnalytics()">
-            <option selected value="monthly">Monthly</option>
-            <option value="hourly">Hourly</option>
-            <option value="weekdays">Week days</option>
-            <option value="bynumber">By Service Number</option>
-            <option value="bysegment">By Message Segment</option>
-            <option value="delivery_failure">Delivery failure</option>
-          </select>
-        </div>
-        <div class="block_space">
-          <label class="label-input" for="my-numbers">Error code</label>
-          <select id="errors" class="selectpicker filter-select" data-width="150" title="Display mode" onchange="displayDeliveryFailedAnalytics()">
-            <option selected value="SMS-CAR-430">Spam</option>
-            <option value="SMS-CAR-104">No Receipt</option>
-            <option value="SMS-CAR-411">Destination</option>
-          </select>
+        <div id="processing" style='display:none'>
+          <img src='./img/processing-indicator.gif' style='width:300px;height:200px;display: block;margin:auto;'></img>
+          <div style='width:100%; margin-left: 100px;font-size: 1.2em'>Processing ...</div>
         </div>
       </div>
-      <div id="message-col" class="col-lg-8" style="background-color: #f5f6fb;">
+      <div id="message-col" class="col-lg-9" style="background-color: #f5f6fb;">
+        <div id='display-mode' class="row col-xs-12">
+          <div class="col-lg-2 display-mode-label" onclick="switchDisplayMode()">
+            <img id='mode-icon' class="display-mode-btn" src='./img/table.png'></img>
+            <span id='mode-label'> Table view</span>
+          </div>
+          <span id="downloads" style="display: none;">
+              <a href="#" onclick="downloadAnalytics();return false;">Download Analytics Data(CSV)</a><br>
+          </span>
+        </div>
         <div class="row col-xs-12">
           <div class="col-lg-10" id="total-graphs">
-            <div class="row col-lg-12">
+            <div id="total-title" class="breakout"></div>
+            <div class="row col-lg-12" style='min-height: 200px;'>
               <div class="col-lg-4" id="total-by-direction"></div>
               <div class="col-lg-4" id="total-by-cost"></div>
               <div class="col-lg-4" id="total-by-status"></div>
             </div>
-            <div class="row col-lg-12 block_space">
 
+            <div id='options-bar' class="row col-lg-12" style='margin-top: 12px;display: none;'>
+              <label class="label-input" for="my-numbers">Breakout option</label>
+              <select id="display" class="selectpicker filter-select" data-width="200" title="Display mode" onchange="displayAnalytics()">
+                <option selected value="monthly">Per Month</option>
+                <option value="bynumber">Per Service Number</option>
+                <!--
+                <option value="hourly">Round the Clock</option>
+                <option value="weekdays">Week days</option>
+                -->
+                <option value="failure-analytics">Failure Analytics</option>
+              </select>
+              <span id="sub-category">
+                <label for="analytics-type">by</label>
+                <select id="analytics-type" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayAnalyticsType()">
+                  <option selected value="message-count">Direction</option>
+                  <option value="message-status">Outbound Message Status</option>
+                  <option value="message-cost">Cost</option>
+                </select>
+              </span>
+              <!--span id="failure-category" style="display:none">
+                <label for="my-numbers">by</label>
+                <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalytics()">
+                  <option selected value="spam">Spam content</option>
+                  <option value="invalid-number">Invalid numbers</option>
+                  <option value="optedout-number">Opted-out numbers</option>
+                  <option value="blocked-number">Blocked numbers</option>
+                  <option value="others">Other unknown reasons</option>
+                </select>
+              </span-->
+            </div>
+            <div class="row col-lg-12 block_space">
               <div class="col-lg-6" id="total-error-breakdowns"></div>
             </div>
           </div>
           <div class="col-lg-10" id="graphs">
-            <div id="by_direction"></div>
-            <div class="block_space"></div>
-            <div id="by_cost"></div>
-            <div class="block_space"></div>
-            <div id="by_status"></div>
+            <div id="statistics-title" class="breakout"></div>
+            <div id="statistics"></div>
+            <div id="analysis-title" class="breakout"></div>
+            <div id="analysis"></div>
           </div>
-          <div class="col-lg-2">
-            <span class="block_space" id="downloads" style="display: none">
-              <a href="#" onclick="downloadMessageStore('CSV');return false;" style="display: inline">Download (CSV)</a><br>
-              <a href="#" onclick="downloadMessageStore('JSON');return false;" style="display: inline">Download (JSON)</a>
-            </span>
+          <div class="col-lg-10" id="failure-category" style="display:none">
+            <div class='col-lg-4' id='graph-column'></div>
+            <div class='col-lg-8'>
+              <!--label for="failure-types">Display reason</label>
+              <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalytics()">
+                <option selected value="spam">Spam content</option>
+                <option value="invalid-number">Invalid numbers</option>
+                <option value="optedout-number">Opted-out numbers</option>
+                <option value="blocked-number">Blocked numbers</option>
+                <option value="others">Other unknown reasons</option>
+              </select-->
+              <div id='text-column' class='failed-content-list'></div>
+            </div>
           </div>
         </div>
       </div>

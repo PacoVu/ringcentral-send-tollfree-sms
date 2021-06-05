@@ -111,6 +111,10 @@
   background: #E0E3E3;
 }
 
+.menu-item.disabled {
+  background: #FFE3E3!important;
+}
+
 .menu-pane{
   min-width: 60px!important;
   max-width: 60px!important;

@@ -326,14 +326,12 @@ var router = module.exports = {
       return this.forceLogin(req, res)
     users[index].pollNewMessages(res)
   },
-  /*
-  getVoteResult: function(req, res){
+  pollAnalyticsResult: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].getVoteResult(res)
+    users[index].pollAnalyticsResult(res)
   },
-  */
   getContacts: function(req, res){
     var index = getUserIndex(req.session.userId)
     if (index < 0)
@@ -431,6 +429,12 @@ var router = module.exports = {
     if (index < 0)
       return this.forceLogin(req, res)
     users[index].getMessagingAnalytics(req, res)
+  },
+  downloadAnalytics: function(req, res){
+    var index = getUserIndex(req.session.userId)
+    if (index < 0)
+      return this.forceLogin(req, res)
+    users[index].downloadAnalytics(req, res)
   },
   downloadHVMessageStore: function(req, res){
     var index = getUserIndex(req.session.userId)

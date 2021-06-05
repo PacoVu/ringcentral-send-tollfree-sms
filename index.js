@@ -128,6 +128,14 @@ app.get("/poll-new-messages", function (req, res) {
   }
 })
 
+app.get("/poll-analytics-result", function (req, res) {
+  if (req.session.extensionId != 0)
+    router.pollAnalyticsResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get("/optout-numbers", function (req, res) {
   if (req.session.extensionId != 0)
     router.readOptedOutNumber(req, res)
@@ -310,6 +318,16 @@ app.get('/downloadvotereport', function (req, res) {
   }
 })
 */
+
+
+app.get('/download-analytics', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.downloadAnalytics(req, res)
+  else{
+    res.render('index')
+  }
+})
+
 app.get('/download-hv-message-store', function (req, res) {
   if (req.session.extensionId != 0)
     router.downloadHVMessageStore(req, res)
@@ -461,12 +479,12 @@ app.post('/webhookcallback', function(req, res) {
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
+            //console.log(jsonObj)
             if (jsonObj.event.indexOf("/a2p-sms/batch?") >= 0){
               router.processBatchEventNotication(jsonObj)
             }else{
               var aUsers = router.getActiveUsers()
               if (aUsers.length){
-                //var eventEngine = aUsers.find(o => o.subscriptionId === jsonObj.subscriptionId)
                 var eventEngine = aUsers.find(o => o.extensionId === jsonObj.ownerId)
                 if (eventEngine){
                   eventEngine.processNotification(jsonObj)
