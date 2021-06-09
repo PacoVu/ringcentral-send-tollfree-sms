@@ -1,5 +1,6 @@
 var timeOffset = 0
 var analyticsData = undefined
+var failureData = undefined
 var pageToken = undefined
 var pollingTimer = undefined
 
@@ -106,11 +107,13 @@ function pollAnalyticsResult(){
     if (res.status == "ok"){
       $("#options-bar").show()
       analyticsData = res.result
-      displayAnalytics()
+      failureData = res.failureAnalysis
+      if (res.result.task != "Initiated")
+        displayAnalytics()
       if (res.result.task == "Processing"){
         pollingTimer = window.setTimeout(function(){
           pollAnalyticsResult()
-        },3000)
+        },5000)
       }else{
         if (res.result.task == "Completed")
           $("#downloads").show()
@@ -149,11 +152,14 @@ function displayAnalytics(){
     $("#sub-category").hide()
     $("#graphs").hide()
     $("#failure-category").show()
-    displayFailedAnalytics()
+    $("#failure-analytics").show()
+    //displayFailedAnalytics(0)
+    displayFailedAnalyticsDetails()
   }else{
     $("#sub-category").show()
     $("#graphs").show()
     $("#failure-category").hide()
+    $("#failure-analytics").hide()
     displayAnalyticsType()
   }
 }
@@ -215,56 +221,25 @@ function displayAnalyticsTotal(){
 
 function displayAnalyticsTotalTable(){
   var byDirection = `<div class='analytics-header'># Messages by direction</div><table class='analytics-table'>`
-  var dHeader = "<tr><td class='table-label'></td>"
-  var received = "<tr><td class='table-label'>Inbound</td>"
-  var sent = "<tr><td class='table-label'>Outbound</td>"
-  var total = "<tr><td class='table-label'>Total</td>"
+  byDirection += "<tr><td class='table-label'>Direction</td><td class='table-label'># Messages</td></tr>"
+  byDirection += `<tr><td class='table-label'>Inbound</td><td>${formatNumber(analyticsData.inboundCount)}</td></tr>`
+  byDirection += `<tr><td class='table-label'>Outbound</td><td>${formatNumber(analyticsData.outboundCount)}</td></tr>`
+  byDirection += `<tr><td class='table-label'>Total</td><td>${formatNumber(analyticsData.outboundCount + analyticsData.inboundCount)}</td></tr></table>`
 
   var byStatus = `<div class='analytics-header'># Messages by status</div><table class='analytics-table'>`
-
-  var sDelivered = "<tr><td class='table-label'>Delivered</td>"
-  var sSendingFailed = "<tr><td class='table-label'>Sending failed</td>"
-  var sDeliveryFailed = "<tr><td class='table-label'>Delivery failed</td>"
+  byStatus += "<tr><td class='table-label'>Status</td><td class='table-label'># Messages</td></tr>"
+  byStatus += `<tr><td class='table-label'>Delivered</td><td>${formatNumber(analyticsData.deliveredCount)}</td></tr>`
+  byStatus += `<tr><td class='table-label'>Sending failed</td><td class='bad-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
+  byStatus += `<tr><td class='table-label'>Delivery failed</td><td class='bad-data'>${formatNumber(analyticsData.deliveryFailedCount)}</td></tr>`
+  var totalFailed = analyticsData.deliveryFailedCount + analyticsData.sendingFailedCount
+  byStatus += `<tr><td class='table-label'>Total failed</td><td class='bad-data'>${formatNumber(totalFailed)}</td></tr></table>`
 
   var byCost = `<div class='analytics-header'>Cost by direction</div><table class='analytics-table'>`
-  var cHeader = "<tr><td class='table-label'></td>"
-  var cReceived = "<tr><td class='table-label'>Inbound</td>"
-  var cSent = "<tr><td class='table-label'>Outbound</td>"
-  var cTotal = "<tr><td class='table-label'>Total</td>"
-
-  // direction
-  dHeader += `<td class='table-data'>Messages</td>`
-  received += `<td>${analyticsData.inboundCount}</td>`
-  sent += `<td>${analyticsData.outboundCount}</td>`
-  total += `<td>${analyticsData.outboundCount + analyticsData.inboundCount}</td>`
-  // status
-  sDelivered += `<td>${analyticsData.deliveredCount}</td>`
-  sSendingFailed += `<td class='bad-data'>${analyticsData.sendingFailedCount}</td>`
-  sDeliveryFailed += `<td class='bad-data'>${analyticsData.deliveryFailedCount}</td>`
-  // cost
-  cHeader += `<td class='table-data'>USD</td>`
-  cReceived += `<td>${analyticsData.receivedMsgCost.toFixed(2)}</td>`
-  cSent += `<td>${analyticsData.sentMsgCost.toFixed(2)}</td>`
+  byCost += "<tr><td class='table-label'>Direction</td><td class='table-label'>USD</td></tr>"
   var totalCost = analyticsData.sentMsgCost + analyticsData.receivedMsgCost
-  cTotal += `<td>${totalCost.toFixed(2)}</td>`
-
-  byDirection += `${dHeader}</tr>`
-  byDirection += `${received}</tr>`
-  byDirection += `${sent}</tr>`
-  byDirection += `${total}</tr>`
-  byDirection += "</table>"
-
-  byStatus += `${dHeader}</tr>`
-  byStatus += `${sDelivered}</tr>`
-  byStatus += `${sSendingFailed}</tr>`
-  byStatus += `${sDeliveryFailed}</tr>`
-  byStatus += "</table>"
-
-  byCost += `${cHeader}</tr>`
-  byCost += `${cReceived}</tr>`
-  byCost += `${cSent}</tr>`
-  byCost += `${cTotal}</tr>`
-  byCost += "</table>"
+  byCost += `<tr><td class='table-label'>Inbound</td><td>${formatNumber(analyticsData.receivedMsgCost.toFixed(2))}</td></tr>`
+  byCost += `<tr><td class='table-label'>Outbound</td><td>${formatNumber(analyticsData.sentMsgCost.toFixed(2))}</td></tr>`
+  byCost += `<tr><td class='table-label'>Total</td><td>${formatNumber(totalCost.toFixed(2))}</td></tr></table>`
 
   $("#total-by-direction").html(byDirection)
   $("#total-by-cost").html(byCost)
@@ -626,7 +601,201 @@ function displayMessageCostTable(breakout){
   $("#analysis").html(byCostEfficiency)
 }
 
-function displayFailedAnalytics(){
+function displayFailedAnalyticsDetails(){
+  var type = $("#failure-types").val()
+  var message = ""
+  if (type == "spam"){
+    message = "<div class='breakout'>Suspected spam content</div>"
+    message += `<p class='block_space'>Wireless carriers use different spam content filter solutions, mainly handled by machine learning algorithms. \
+    Some carriers are stricter than others. If the message is innocuous and it is still get blocked by a carrier, it is likely that the number is flagged \
+    as a spam number due to other types of violations.`
+    var warning = ` Some of the wireless carriers of your recipients rejected your messages. You should revise the messages or remove these recipients \
+    from the recipient list to avoid sending spam content to these numbers, which would decrease your service number reputation and eventually get blocked \
+    by the carriers.</p>`
+
+    var subMsg = ""
+    failureData.contents = []
+    for (var s of failureData.contents){
+      if (s.spamMsgCount > 0){
+        subMsg  += `<p class="spam-message">${s.message}</p>`
+        var rate = (s.spamMsgCount/(s.acceptedMsgCount+s.spamMsgCount)) * 100
+        var spamNumbers = s.spamMsgNumbers.join(';')
+        var ratio = s.spamMsgCount / s.spamMsgNumbers.length
+        subMsg += `<div>${s.spamMsgCount} / ${s.spamMsgNumbers.length}. Ratio:${ratio.toFixed(2)}</div>`
+        subMsg += `<div># Rejected/Passed: ${formatNumber(s.spamMsgCount)}/${formatNumber(s.acceptedMsgCount)} => Rejected rate: ${rate.toFixed(2)} % - <a href="#" onclick="copyNumbersToClipboard('${spamNumbers}')">Copy recipient phone numbers</a></div>`
+      }
+    }
+    if (subMsg != ""){
+      message += warning
+      message += "<div class='failed-content-list'>"
+      message += subMsg
+      message += "</div>"
+    }else{
+      message += "</p>"
+    }
+
+    displayFailedAnalytics(0)
+  }else if (type == "rejected-content"){
+    message = "<div class='breakout'>Rejected content</div>"
+    message += `<p class='block_space'>Wireless carriers rejected delivering your messages to their subscriber. You should correct the message or remove the recipient from the recipient list to improve the cost efficiency.</p>`
+    message += "<div class='failed-content-list'>"
+
+    for (var s of failureData.contents){
+      if (s.rejectedMsgCount > 0){
+        message  += `<p class="spam-message">${s.message}</p>`
+        var rate = (s.rejectedMsgCount/(s.acceptedMsgCount+s.rejectedMsgCount)) * 100
+        var rejectedNumbers = s.rejectedMsgNumbers.join(';')
+        message += `<div># Rejected/Passed: ${formatNumber(s.rejectedMsgCount)}/${formatNumber(s.acceptedMsgCount)} => Rejected rate: ${rate.toFixed(2)} % - <a href="#" onclick="copyNumbersToClipboard('${rejectedNumbers}')">Copy recipient phone numbers</a></div>`
+      }
+    }
+    message += "</div>"
+    displayFailedAnalytics(1)
+  }else if (type == "invalid-number"){
+    message = "<div class='breakout'>Invalid recipient numbers</div>"
+    message += `<p class='block_space'>Mobile carriers could not deliver your messages to these recipients. You should correct the numbers or remove them from the recipient list to improve the cost efficiency.</p>`
+
+    var numbers = failureData.invalidNumbers.join(';')
+    message += `<div>Ratio: ${failureData.invalidNumberCount/failureData.invalidNumbers.length}</div>`
+    message += `<div>There are ${formatNumber(failureData.invalidNumbers.length)} invalid numbers. - <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient invalid numbers</a></div>`
+    displayFailedAnalytics(2)
+  }else if (type == "optout-number"){
+    message = "<div class='breakout'>Opted out recipients</div>"
+    message += `<p class='block_space'>Sending a text message to opted-out recipients is violating text messaging compliance laws and as a consequence, mobile \
+    carrier will block your message. Keep sending text messages to an opted out recipient will trigger the recipient's mobile carriers to flag your phone number \
+    permanently.</p>`
+    if (failureData.optoutCount > 0){
+      for (var item of failureData.optoutNumbers){
+        var numbers = item.recipientNumbers.join(';')
+        message += `<p>There are ${formatNumber(item.recipientNumbers.length)} recipients who have opted out from this service number <b>${formatPhoneNumber(item.senderNumber, false)}</b>. You must remove them from \
+        the recipient list to avoid your phone number getting blocked by their wireless carrier. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy opted-out recipient phone numbers.</a></p>`
+        //message += `<div>Ratio: ${failureData.optoutCount/failureData.optoutNumbers.length}</div>`
+      }
+    }else{
+      message += `<p class='block_space'>Congratulations! There is no 'optout' violation within this time period.</p>`
+    }
+    displayFailedAnalytics(3)
+  }else if (type == "blocked-number"){
+    message = "<div class='breakout'>Blocked service numbers</div>"
+    message += "<p class='block_space'>The folloing service number(s) was blocked by carriers due to spam content violation.</p>"
+    // list service number and recipient numbers
+    displayFailedAnalytics(4)
+  }else if (type == "rejected-number"){
+    message = "<div class='breakout'>Rejected phone numbers</div>"
+    message += `<p class='block_space'>We detected these phone numbers either are invalid or do not exist. You should correct the numbers or remove them from the recipient list to improve the outbound throughput rate.</p>`
+    //message += `<p class='failed-content-list'>${failureData.rejectedNumbers.join("\n")}</p>`
+    var numbers = analyticsData.sendingFailedNumbers.join(';')
+    message += `<div>Ratio: ${analyticsData.sendingFailedCount/analyticsData.sendingFailedNumbers.length}</div>`
+    message += `<div>There are ${formatNumber(analyticsData.sendingFailedNumbers.length)} invalid numbers - <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient rejected phone numbers</a></div>`
+    displayFailedAnalytics(5)
+  }else if (type == "other-reason"){
+    message = "<div class='breakout'>Other unknown reasons</div>"
+    //message += `<p class='failed-content-list'>${failureData.unknownNumbers.join("\n")}</p>`
+    var numbers = failureData.otherErrorNumbers.join(';')
+    message += `<div>Ratio: ${failureData.otherErrorCount/failureData.otherErrorNumbers.length}</div>`
+    message += `<div>There are ${formatNumber(failureData.otherErrorNumbers.length)} recipient phone numbers. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient phone numbers</a></div>`
+    displayFailedAnalytics(6)
+  }
+  $("#text-column").html(message)
+}
+
+function copyNumbersToClipboard (numbers) {
+    var numbersArr = numbers.split(";")
+    var dummy = document.createElement("textarea")
+    document.body.appendChild(dummy)
+    var text = ""
+    for (var number of numbersArr){
+      text += `${number}\n`
+    }
+    dummy.value = text
+    dummy.select()
+    document.execCommand("copy")
+    document.body.removeChild(dummy)
+}
+
+function displayFailedAnalytics(slice){
+  console.log(failureData)
+  var spamMsgCount = 0
+  var rejectedMsgCount = 0
+  for (var s of failureData.contents){
+    spamMsgCount += s.spamMsgCount
+    rejectedMsgCount += s.rejectedMsgCount
+  }
+
+  if (mode == "graphics"){
+    var error_params = [['Error Type', '# Count']];
+
+    var item = [ "Spam Content", spamMsgCount]
+    error_params.push(item)
+
+    item = [ "Rejected content", rejectedMsgCount]
+    error_params.push(item)
+
+    item = [ "Invalid Number", failureData.invalidNumberCount]
+    error_params.push(item)
+
+    item = [ "Optout Recipient", failureData.optoutCount]
+    error_params.push(item)
+
+    item = [ "Blocked Number", failureData.blacklistedCount]
+    error_params.push(item)
+
+    item = ["Rejected Number", analyticsData.sendingFailedCount]
+    error_params.push(item)
+
+    item = ["Others", failureData.otherErrorCount]
+    error_params.push(item)
+    console.log(spamMsgCount + rejectedMsgCount + failureData.invalidNumberCount + failureData.optoutCount + failureData.blacklistedCount + analyticsData.sendingFailedCount + failureData.otherErrorCount)
+    var colors = {0:{color: '#3f3445'}, 1:{color: '#e88c02'}, 2:{color: '#ab6305'}, 3:{color: '#cc040e'}, 4:{color: 'red'}, 5:{color: '#0748a3'}, 6:{color: 'gray'}, 7:{color: '#59730a'}}
+    drawPieChart(error_params, "graph-column", '', colors, slice)
+  }else{
+    var errorData = `<div class='breakout'>Error by types</div><table class='analytics-table'>`
+    errorData += `<tr><td class='table-label'>Error Type</td><td class=''># Incidents</td></tr>`
+    errorData += `<tr><td class='table-label'>Spam content</td><td class='table-data'>${formatNumber(spamMsgCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Rejected content</td><td class='table-data'>${formatNumber(rejectedMsgCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Invalid number</td><td class='table-data'>${formatNumber(failureData.invalidNumberCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Optout recipient</td><td class='table-data'>${formatNumber(failureData.optoutCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Blocked number</td><td class='table-data'>${formatNumber(failureData.blacklistedCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Rejected number</td><td class='table-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Other reason</td><td class='table-data'>${formatNumber(failureData.otherErrorCount)}</td></tr>`
+    var total = spamMsgCount + rejectedMsgCount + failureData.invalidNumberCount
+    total += failureData.optoutCount + failureData.blacklistedCount + analyticsData.sendingFailedCount + failureData.otherErrorCount
+    errorData += `<tr><td class='table-label'>Total</td><td class='table-data'>${formatNumber(total)}</td></tr>`
+    errorData += "</table>"
+    $("#graph-column").html(errorData)
+
+  }
+  //drawKeywords(failureData[1].keywords)
+  //displayFailedAnalyticsDetails()
+}
+
+function drawKeywords(keywords){
+  $("#my_canvas").show()
+  alert(keywords)
+  var fakeKeywords = ["https","urgent","best","click","send","reply","confirm","security"]
+  var list = []
+  for (var item of fakeKeywords){
+      var kw = []
+      kw.push(item)
+      kw.push(3)
+      list.push(kw)
+  }
+  alert(JSON.stringify(list))
+  var options = {
+    list : list,
+    gridSize: 5,
+    weightFactor: 2,
+    fontFamily: 'Finger Paint, cursive, sans-serif',
+    //hover: function(item) {alert(item[0] + ':' + item[1]);},
+    //click: function(item) {alert(item[0] + ':' + item[1]);},
+    //click : function(item) { window.open(item[2]) },
+    //fontCSS: 'https://fonts.googleapis.com/css?family=Finger+Paint',
+    backgroundColor: '#ffffff'
+  }
+  WordCloud(document.getElementById('my_canvas'), options );
+  //WordCloud(document.getElementById('my_canvas'), { list: list } );
+}
+
+function displayFailedAnalytics_old(){
 
   /*
   var error_params = [['Error Type', '# Count', { role: "style" } ]];
@@ -805,27 +974,38 @@ function drawColumnChart(params, graph, title, vTitle){
     */
 }
 
-function drawPieChart(params, graph, title, colors){
+function drawPieChart(params, graph, title, colors, slice){
   var data = google.visualization.arrayToDataTable(params);
   //var view = new google.visualization.DataView(data);
+  var slices = {}
+  slices[slice] = {offset: 0.4}
 
   var options = {
     title: title,
-    width: 300,
-    height: 300,
+    width: 320,
+    height: 320,
     slices: colors,
     backgroundColor: 'transparent',
-    chartArea:{left:0,top:20,bottom:20,width:'90%',height:'90%'},
+    chartArea:{left:0,top:20,bottom:0,width:'100%',height:'100%'},
     legend: {
-      position: "bottom"
+      position: "right",
+      maxLines: 2,
+      textStyle: {
+        fontSize: 10
+
+      }
     },
     pieSliceText: 'value',
-    pieStartAngle: 90,
-    pieHole: 0.7
+    //pieStartAngle: 90,
+    //pieHole: 0.5,
+    sliceVisibilityThreshold: 0.00001,
+    slices: slices
   };
+
   var element = document.getElementById(graph)
   var chart = new google.visualization.PieChart(element);
   chart.draw(data, options);
+  /*
   google.visualization.events.addListener(chart, 'select', selectHandler);
   function selectHandler() {
     //alert(chart.getSelection()[0])
@@ -845,27 +1025,28 @@ function drawPieChart(params, graph, title, colors){
       }
     }else if (selectedType == 1){
       message = "<div class='breakout'>Invalid recipient numbers</div>"
-      for (var c of analyticsData.outboundFailureTypes.invalidRecipientNumbers){
-        message += `<div>${c}</div>`
-      }
+      message += `<p class='block_space'>Mobile carriers could not deliver your messages to these recipients. You should correct the numbers or remove them from the recipient list to improve the cost efficiency.</p>`
     }else if (selectedType == 2){
-      message = "<div class='breakout'>Opted out numbers</div>"
-      for (var c of analyticsData.outboundFailureTypes.optoutNumbers){
-        message += `<div class='block_space'>${c}</div>`
-      }
+      message = "<div class='breakout'>Opted out recipients</div>"
+      message += `<p class='block_space'>These recipients have opted out from your campaign. Sending messages to opted-out recipients is violating the CTIA regulation and as a result, mobile carrier may block your service number permanently. You must remove them from the recipient list to avoid getting low sending reputation and panelty.</p>`
     }else if (selectedType == 3){
       message = "<div class='breakout'>Blocked service numbers</div>"
       for (var c of analyticsData.outboundFailureTypes.blockedSenderNumbers){
         message += `<div class='block_space'>${c}</div>`
       }
     }else if (selectedType == 4){
+      message = "<div class='breakout'>Rejected phone numbers</div>"
+      message += `<p class='block_space'>We detected these phone numbers either are invalid or do not exist. You should correct the numbers or remove them from the recipient list to improve the sending efficiency.</p>`
+    }else if (selectedType == 5){
       message = "<div class='breakout'>Other unknown numbers</div>"
       for (var c of analyticsData.outboundFailureTypes.others.messages){
         message += `<div class='block_space'>${c}</div>`
       }
     }
+
     $("#text-column").html(message)
   }
+  */
 }
 
 function drawScatterChart(params, graph, title, vTitle, hTitle) {

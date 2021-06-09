@@ -8,6 +8,7 @@
     <script src="js/common.js" type="text/javascript"></script>
     <script src="js/analytics.js" type="text/javascript"></script>
     <script src="js/loadforms.js" type="text/javascript"></script>
+    <script src="js/wordcloud2.js" type="text/javascript"></script>
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
@@ -130,16 +131,18 @@
                   <option value="message-cost">Cost</option>
                 </select>
               </span>
-              <!--span id="failure-category" style="display:none">
+              <span id="failure-category" style="display:none">
                 <label for="my-numbers">by</label>
-                <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalytics()">
+                <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalyticsDetails()">
                   <option selected value="spam">Spam content</option>
-                  <option value="invalid-number">Invalid numbers</option>
-                  <option value="optedout-number">Opted-out numbers</option>
-                  <option value="blocked-number">Blocked numbers</option>
-                  <option value="others">Other unknown reasons</option>
+                  <option value="rejected-content">Rejected content</option>
+                  <option value="invalid-number">Invalid number</option>
+                  <option value="optout-number">Opted-out number</option>
+                  <option value="blocked-number">Blocked number</option>
+                  <option value="rejected-number">Rejected number</option>
+                  <option value="other-reason">Other reasons</option>
                 </select>
-              </span-->
+              </span>
             </div>
             <div class="row col-lg-12 block_space">
               <div class="col-lg-6" id="total-error-breakdowns"></div>
@@ -151,18 +154,12 @@
             <div id="analysis-title" class="breakout"></div>
             <div id="analysis"></div>
           </div>
-          <div class="col-lg-10" id="failure-category" style="display:none">
+          <div class="col-lg-10" id="failure-analytics" style="display:none">
             <div class='col-lg-4' id='graph-column'></div>
             <div class='col-lg-8'>
-              <!--label for="failure-types">Display reason</label>
-              <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalytics()">
-                <option selected value="spam">Spam content</option>
-                <option value="invalid-number">Invalid numbers</option>
-                <option value="optedout-number">Opted-out numbers</option>
-                <option value="blocked-number">Blocked numbers</option>
-                <option value="others">Other unknown reasons</option>
-              </select-->
-              <div id='text-column' class='failed-content-list'></div>
+              <div id='text-column' class=''>
+                <!--canvas id="my_canvas" class="canvas_container"></canvas-->
+              </div>
             </div>
           </div>
         </div>

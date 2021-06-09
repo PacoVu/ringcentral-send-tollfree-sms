@@ -38,6 +38,20 @@ function formatPhoneNumber(phoneNumberString, countryCode) {
   return phoneNumberString
 }
 
+function formatNumber(number) {
+  /*
+  var formatedNumber = ""
+  var numberStr = number.toString()
+  for (var i=0; i<numberStr.length; i++){
+    formatedNumber += numberStr[i]
+    if (i%3 == 0)
+      formatedNumber += ","
+  }
+  return formatedNumber
+  */
+  return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 function openWindow(){
   window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
 }
