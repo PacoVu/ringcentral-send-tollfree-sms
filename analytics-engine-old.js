@@ -2,11 +2,27 @@
 const keyword_extractor = require("keyword-extractor");
 
 function Analytics(){
+  this.failureDataAnalytics = {}
   this.analyticsData = undefined
 }
 
 var engine = Analytics.prototype = {
     resetAnalyticsData: function(){
+      this.failureDataAnalytics = {
+        contents: [], // classified by similar content
+        optoutCount: 0, // SMS-CAR-413 
+        optoutNumbers: [],
+        invalidNumberCount: 0, // SMS-UP-410, SMS-CAR-411, SMS-CAR-412
+        invalidNumbers: [],
+        invalidErrorCodes: [],
+        blacklistedCount: 0, //SMS-UP-431 	 Number blacklisted due to spam.
+        blacklistedServiceNumbers: [],
+        //blacklistedTargetedNumbers: [],
+        otherErrorCount: 0, //
+        otherErrorNumbers:[],
+        otherErrorCodes:[]
+      }
+
       this.analyticsData = {
         task: "Initiated",
         outboundCount: 0,
@@ -14,24 +30,30 @@ var engine = Analytics.prototype = {
         deliveredCount: 0,
         sendingFailedCount: 0,
         sendingFailedNumbers: [],
-        sendingFailedCost: 0.0,
         deliveryFailedCount: 0,
+        /*
+        deliveryFailures: [],
+        sendingFailures: [],
+        outboundFailureTypes: {
+          content: {
+            count: 0,
+            numbers: [],
+            messages: []
+          },
+          invalidRecipientNumbers: [],
+          blockedSenderNumbers: [],
+          optoutNumbers: [],
+          others: {
+            count: 0,
+            numbers:[],
+            messages: []
+          }
+        },
+        */
         sentMsgCost: 0.0,
         receivedMsgCost: 0.0,
         months: [],
-        phoneNumbers: [],
-        failureAnalysis: {
-          contents: [], // classified by similar content
-          optoutCount: 0, // SMS-CAR-413 
-          optoutNumbers: [],
-          invalidNumberCount: 0, // SMS-UP-410, SMS-CAR-411, SMS-CAR-412
-          invalidNumbers: [],
-          invalidErrorCodes: [],
-          blacklistedCount: 0, //SMS-UP-431 	 Number blacklisted due to spam.
-          blacklistedServiceNumbers: [],
-          otherErrorCount: 0, //
-          otherErrors:[]
-        }
+        phoneNumbers: []
       }
     },
     analyzeMessage: function(message){
@@ -212,14 +234,14 @@ var engine = Analytics.prototype = {
             if (code == "SMS-UP-410" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
               // Destination number invalid, unallocated, or does not support this kind of messaging.
               // Destination subscriber unavailable.
-              this.analyticsData.failureAnalysis.invalidNumberCount++
-              if (this.analyticsData.failureAnalysis.invalidNumbers.findIndex(n => n === toNumber) < 0)
-                this.analyticsData.failureAnalysis.invalidNumbers.push(toNumber)
-              if (this.analyticsData.failureAnalysis.invalidErrorCodes.findIndex(c => c === code) < 0)
-                this.analyticsData.failureAnalysis.invalidErrorCodes.push(code)
+              this.failureDataAnalytics.invalidNumberCount++
+              if (this.failureDataAnalytics.invalidNumbers.findIndex(n => n === toNumber) < 0)
+                this.failureDataAnalytics.invalidNumbers.push(toNumber)
+              if (this.failureDataAnalytics.invalidErrorCodes.findIndex(c => c === code) < 0)
+                this.failureDataAnalytics.invalidErrorCodes.push(code)
             }else if (code == "SMS-CAR-413"){  // opted out
-              this.analyticsData.failureAnalysis.optoutCount++
-              var sender = this.analyticsData.failureAnalysis.optoutNumbers.find(n => n.senderNumber === message.from)
+              this.failureDataAnalytics.optoutCount++
+              var sender = this.failureDataAnalytics.optoutNumbers.find(n => n.senderNumber === message.from)
               if (sender){
                 sender.count++
                 if (sender.recipientNumbers.findIndex(n => n === toNumber) < 0)
@@ -230,11 +252,17 @@ var engine = Analytics.prototype = {
                   senderNumber: message.from,
                   recipientNumbers: [toNumber]
                 }
-                this.analyticsData.failureAnalysis.optoutNumbers.push(item)
+                this.failureDataAnalytics.optoutNumbers.push(item)
               }
             }else if (code == "SMS-UP-431"){ // Number blacklisted due to spam.
-              this.analyticsData.failureAnalysis.blacklistedCount++
-              var serviceNumber = this.analyticsData.failureAnalysis.blacklistedServiceNumbers.find(o => o.serviceNumber === message.from)
+              this.failureDataAnalytics.blacklistedCount++
+              /*
+              if (this.failureDataAnalytics.blacklistedTargetedNumbers.findIndex(n => n === toNumber) < 0)
+                this.failureDataAnalytics.blacklistedTargetedNumbers.push(toNumber)
+              if (this.failureDataAnalytics.blacklistedServiceNumbers.findIndex(n => n === message.from) < 0)
+                this.failureDataAnalytics.blacklistedServiceNumbers.push(message.from)
+              */
+              var serviceNumber = this.failureDataAnalytics.blacklistedServiceNumbers.find(o => o.serviceNumber === message.from)
               if (serviceNumber){
                 serviceNumber.recipientNumbers.push(message.to[0])
               }else{
@@ -242,28 +270,17 @@ var engine = Analytics.prototype = {
                     serviceNumber: message.from,
                     recipientNumbers: [message.to[0]]
                   }
-                  this.analyticsData.failureAnalysis.blacklistedServiceNumbers.push(item)
+                  this.failureDataAnalytics.blacklistedServiceNumbers.push(item)
               }
             }else if (code == "SMS-UP-430" || code == "SMS-CAR-430" || code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){
-              // group by content for analysis
+              // content problem
               this.extractKeywords(message)
             }else{ // other errors
-              this.analyticsData.failureAnalysis.otherErrorCount++
-              var serviceNumber = this.analyticsData.failureAnalysis.otherErrors.find(o => o.serviceNumber === message.from)
-              if (serviceNumber){
-                //serviceNumber.recipientNumbers.push(message.to[0])
-                if (serviceNumber.recipientNumbers.findIndex(n => n === toNumber) < 0)
-                  serviceNumber.recipientNumbers.push(toNumber)
-                if (serviceNumber.errorCodes.findIndex(c => c === code) < 0)
-                  serviceNumber.errorCodes.push(code)
-              }else{
-                var item = {
-                    serviceNumber: message.from,
-                    recipientNumbers: [message.to[0]],
-                    errorCodes: [code]
-                  }
-                  this.analyticsData.failureAnalysis.otherErrors.push(item)
-              }
+              this.failureDataAnalytics.otherErrorCount++
+              if (this.failureDataAnalytics.otherErrorNumbers.findIndex(n => n === toNumber) < 0)
+                this.failureDataAnalytics.otherErrorNumbers.push(toNumber)
+              if (this.failureDataAnalytics.otherErrorCodes.findIndex(c => c === code) < 0)
+                this.failureDataAnalytics.otherErrorCodes.push(code)
             }
             break
           case "SendingFailed":
@@ -271,9 +288,6 @@ var engine = Analytics.prototype = {
             var toNumber = message.to[0]
             if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
               this.analyticsData.sendingFailedNumbers.push(toNumber)
-
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            this.analyticsData.sendingFailedCost += cost
             break;
           default:
             break
@@ -295,7 +309,7 @@ var engine = Analytics.prototype = {
       });
       var code = (message.errorCode != undefined) ? message.errorCode : "Others"
       var matchedCount = 0
-      for (var item of this.analyticsData.failureAnalysis.contents){
+      for (var item of this.failureDataAnalytics.contents){
         for (var kw of keywords){
           if (item.keywords.findIndex(o => o == kw) >= 0)
             matchedCount++
@@ -321,8 +335,10 @@ var engine = Analytics.prototype = {
               item.nonspams.push(obj)
             }
           }else{
-            if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // item content
+            if (code == "SMS-CAR-431" || code == "SMS-UP-430" || code == "SMS-CAR-430"){ // item content
               item.spamMsgCount++
+              //if (item.spamMsgNumbers.findIndex(n => n === toNumber) < 0)
+              //  item.spamMsgNumbers.push(toNumber)
               item.ignore = false
               var spam = item.spams.find(n => n.senderNumber === message.from)
               if (spam){
@@ -338,33 +354,16 @@ var engine = Analytics.prototype = {
                 }
                 item.spams.push(obj)
               }
-            }else if (code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
+            }else if (code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
               item.rejectedMsgCount++
               if (item.rejectedMsgNumbers.findIndex(n => n === toNumber) < 0)
                 item.rejectedMsgNumbers.push(toNumber)
               if (item.rejectedMsgErrorCodes.findIndex(c => c === code) < 0)
                 item.rejectedMsgErrorCodes.push(code)
               item.ignore = false
-              /*
-              item.invalidMsgCount++
-              item.ignore = false
-              var invalid = item.invalids.find(n => n.senderNumber === message.from)
-              if (spam){
-                spam.count++
-                if (spam.recipientNumbers.findIndex(n => n === toNumber) < 0){
-                  spam.recipientNumbers.push(toNumber)
-                }
-              }else{
-                var obj = {
-                  count: 1,
-                  senderNumber: message.from,
-                  recipientNumbers: [toNumber]
-                }
-                item.invalids.push(obj)
-              }
-              */
             }
           }
+          //console.log(this.failureDataAnalytics.contents)
           return
         }
         matchedCount = 0
@@ -375,12 +374,12 @@ var engine = Analytics.prototype = {
             message: message.text,
             keywords: keywords,
             acceptedMsgCount: 0,
+            //acceptedMsgNumbers: [],
             nonspams: [],
-            spamMsgCount: 0,
             spams: [],
-            //invalidMsgCount: 0,
-            //invalids: [],
-            rejectedMsgCount: 0, // SMS-CAR-432, SMS-CAR-433: rejected message issue
+            spamMsgCount: 0,
+            //spamMsgNumbers: [],
+            rejectedMsgCount: 0, // SMS-CAR-431, SMS-CAR-432, SMS-CAR-433: rejected message issue
             rejectedMsgNumbers: [],
             rejectedMsgErrorCodes: []
           }
@@ -397,7 +396,7 @@ var engine = Analytics.prototype = {
           item.nonspams.push(obj)
           item.ignore = true
         }else{
-          if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // spam message
+          if (code == "SMS-CAR-431" || code == "SMS-UP-430" || code == "SMS-CAR-430"){ // spam message
             item.spamMsgCount++
             //item.spamMsgNumbers.push(toNumber)
             var obj = {
@@ -406,23 +405,14 @@ var engine = Analytics.prototype = {
                 recipientNumbers: [toNumber]
             }
             item.spams.push(obj)
-          }else if (code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // rejected problem
+          }else if (code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // rejected problem
             item.rejectedMsgCount++
             item.rejectedMsgNumbers.push(toNumber)
             item.rejectedMsgErrorCodes.push(code)
-            /*
-            item.invalidMsgCount++
-            //item.spamMsgNumbers.push(toNumber)
-            var obj = {
-                count: 1,
-                senderNumber: message.from,
-                recipientNumbers: [toNumber]
-            }
-            item.invalids.push(obj)
-            */
           }
         }
-        this.analyticsData.failureAnalysis.contents.push(item)
+        this.failureDataAnalytics.contents.push(item)
+        //console.log(this.failureDataAnalytics.contents)
       }
     }
 };
@@ -803,7 +793,7 @@ extractKeywords_old: function(message){
   //console.log("---")
   var code = (message.errorCode != undefined) ? message.errorCode : "Others"
   var matchedCount = 0
-  for (var spam of this.analyticsData.failureAnalysis.contents){
+  for (var spam of this.failureDataAnalytics.contents){
     for (var kw of keywords){
       if (spam.keywords.findIndex(o => o == kw) >= 0)
         matchedCount++
@@ -846,7 +836,7 @@ extractKeywords_old: function(message){
             spam.unknownErrorCodes.push(code)
         }
       }
-      //console.log(this.analyticsData.failureAnalysis.contents)
+      //console.log(this.failureDataAnalytics.contents)
       return
     }
     matchedCount = 0
@@ -899,85 +889,8 @@ extractKeywords_old: function(message){
         item.unknownErrorCodes.push(code)
       }
     }
-    this.analyticsData.failureAnalysis.push(item)
-    //console.log(this.analyticsData.failureAnalysis)
+    this.failureDataAnalytics.push(item)
+    //console.log(this.failureDataAnalytics)
   }
 },
-
-// other analytics class
-segmentCounts: [],
-weekDays: [
-  {
-    wd: 'Mon',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Tue',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Wed',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Thu',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Fri',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sat',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sun',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  }
-],
-roundTheClock: [],
-
 */

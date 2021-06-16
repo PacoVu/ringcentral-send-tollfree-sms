@@ -39,17 +39,38 @@ function formatPhoneNumber(phoneNumberString, countryCode) {
 }
 
 function formatNumber(number) {
-  /*
-  var formatedNumber = ""
-  var numberStr = number.toString()
-  for (var i=0; i<numberStr.length; i++){
-    formatedNumber += numberStr[i]
-    if (i%3 == 0)
-      formatedNumber += ","
-  }
-  return formatedNumber
-  */
   return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+var errorCodes = {
+  "SMS-UP-410": "Destination number invalid, unallocated, or does not support this kind of messaging.",
+  "SMS-UP-430": "Spam content detected by SMS gateway.",
+  "SMS-UP-431": "Number blacklisted due to spam.",
+  "SMS-UP-500": "General SMS gateway error. Upstream is malfunctioning.",
+  "SMS-CAR-104": "Carrier has not reported delivery status.",
+  "SMS-CAR-199": "Carrier reports unknown message status.",
+  "SMS-CAR-400": "Carrier does not support this kind of messaging.",
+  "SMS-CAR-411": "Destination number invalid, unallocated, or does not support this kind of messaging.",
+  "SMS-CAR-412": "Destination subscriber unavailable.",
+  "SMS-CAR-413": "Destination subscriber opted out.",
+  "SMS-CAR-430": "Spam content detected by mobile carrier.",
+  "SMS-CAR-431": "Message rejected by carrier with no specific reason.",
+  "SMS-CAR-432": "Message is too long.",
+  "SMS-CAR-433": "Message is malformed for the carrier.",
+  "SMS-CAR-450": "P2P messaging volume violation.",
+  "SMS-CAR-460": "Destination rejected short code messaging.",
+  "SMS-CAR-500": "Carrier reported general service failure.",
+  "SMS-RC-500": "Please report this error to us.",
+  "SMS-RC-501": "Please report this error to us",
+  "SMS-RC-503": "Please report this error to us."
+}
+
+function getErrorDescription(errorCode){
+  for (var key of Object.keys(errorCodes)){
+    if (key == errorCode)
+      return errorCodes[key]
+  }
+  return ""
 }
 
 function openWindow(){

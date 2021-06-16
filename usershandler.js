@@ -272,10 +272,10 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: async function(req, res){
       // admin w/o number
-      /*
+
       if (this.adminUser){
-        if (this.phoneHVNumbers.length == 0 && this.phoneTFNumbers.length == 0){
-            // check if this account has any users who has V SMS numbers and ever used the app
+        if ((this.phoneHVNumbers.length == 0) && (this.phoneTFNumbers.length == 0)){
+            // check if this account has any users who has HV SMS numbers and ever used the app
             var query = `SELECT account_id FROM a2p_sms_users WHERE user_id='${this.accountId}'`
             pgdb.read(query, (err, result) => {
               if (!err && result.rows.length > 0){
@@ -296,7 +296,7 @@ var engine = User.prototype = {
             return
         }
       }
-      */
+
       // decide what page to load
       if (this.phoneHVNumbers.length > 0 && this.subscriptionId != ""){
         console.log("temp solution")
@@ -920,7 +920,6 @@ var engine = User.prototype = {
           totalRecipients = recipientArr.length
           for (var recipient of recipientArr){
             recipient = recipient.trim()
-            //recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
             recipient = this.validateRicipientNumber(recipient)
             var item = {
               to:[recipient]
@@ -1201,10 +1200,9 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       this._readCampaignSummary(res, batchId, batchReport, "")
-
-      //this._readCampaignSummary_v2(batchId)
+      //this._readCampaignSummary_v2(res, batchId, batchReport)
     },
-    _readCampaignSummary_v2: async function(batchId){
+    _readCampaignSummary_v2: async function(res, batchId, batchReport){
       console.log("_readCampaignSummary_v2")
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
       var params = {
@@ -1216,12 +1214,40 @@ var engine = User.prototype = {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
           console.log(jsonObj)
+          /*
+          {
+            queued: { count: 0 },
+            delivered: { count: 2 },
+            deliveryFailed: { count: 0, errorCodeCounts: {} },
+            sent: { count: 0 },
+            sendingFailed: { count: 0 }
+          }
+          */
+          batchReport.queuedCount = jsonObj.queued.count
+          batchReport.deliveredCount = jsonObj.delivered.count
+          batchReport.sentCount = jsonObj.sent.count
+          batchReport.unreachableCount = jsonObj.deliveryFailed.count
+          batchReport.unreachableCount += jsonObj.sendingFailed.count
+          res.send({
+            status: "ok",
+            batchReport: batchReport
+          })
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
           console.log('ERR ' + e.message);
+          res.send({
+            status: "failed",
+            message: e.message
+          })
         }
       }else{
         console.log("platform issue")
+        res.send({
+          status: "error",
+          message: "Platform error."
+        })
       }
     },
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
@@ -1480,8 +1506,8 @@ var engine = User.prototype = {
     pollAnalyticsResult: function (res){
       res.send({
           status: "ok",
-          result: this.analytics.analyticsData,
-          failureAnalysis: this.analytics.failureDataAnalytics
+          result: this.analytics.analyticsData
+          //failureAnalysis: this.analytics.analyticsData.failureAnalysis
       })
     },
     downloadAnalytics: function(req, res){
@@ -1489,11 +1515,10 @@ var engine = User.prototype = {
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
       }
-      var fullNamePath = dir //+ this.downloadFileName //this.getExtensionId()
+      var fullNamePath = `${dir}Statistics-${req.query.fileName}.csv`
       var fileContent = ""
-      fullNamePath += 'test_analytics.csv'
       // Total
-      fileContent = "Messaging statistics between 2021-03-07 and 2021-06-05"
+      fileContent = `Messaging statistics ${req.query.fileName}`
       fileContent += "\nTotal messages by direction"
       fileContent += `\n,Outbound,${this.analytics.analyticsData.outboundCount}`
       fileContent += `\n,Inbound,${this.analytics.analyticsData.inboundCount}`
@@ -1512,7 +1537,6 @@ var engine = User.prototype = {
 
       // Monthly
       fileContent += "\n\n# Messages by direction (per month)"
-      //fileContent += "\n,Month,Outbound # Messages,Inbound # Messages,Total # Messages,Response Rate"
 
       var monthlyData = this.analytics.analyticsData.months
 
@@ -1548,7 +1572,6 @@ var engine = User.prototype = {
         outboundMsg += `,${m.outboundCount}`
         totalMsg += `,${total}`
         responseRate += `,${rate.toFixed(2)}%`
-        //fileContent += `\n,${m.month},${m.outboundCount},${m.inboundCount},${total}, ${rate.toFixed(2)}%`
 
         // status
         total = m.deliveredCount + m.deliveryFailedCount + m.sendingFailedCount
@@ -1662,6 +1685,11 @@ var engine = User.prototype = {
           status:"ok",
           message:link
         })
+        // delete in 20 secs
+        var deleteFile = `./${fullNamePath}`
+        setTimeout(function(){
+          fs.unlinkSync(deleteFile)
+        }, 20000, deleteFile)
       }catch (e){
         console.log("cannot create report file")
         res.send({
@@ -1672,14 +1700,15 @@ var engine = User.prototype = {
     },
     getMessagingAnalytics: function (req, res){
       console.log("getMessagingAnalytics")
+      /*
       if (this.analytics.analyticsData != undefined){
         res.send({
             status: "ok",
-            result: this.analytics.analyticsData,
-            failureAnalysis: this.analytics.failureDataAnalytics
+            result: this.analytics.analyticsData
         })
         return
       }
+      */
       var timeOffset = 0 //parseInt(req.body.timeOffset)
       var ts = new Date(req.body.dateFrom).getTime()
       var dateFrom = new Date(ts - timeOffset).toISOString()
@@ -1697,122 +1726,14 @@ var engine = User.prototype = {
 
       if (req.body.pageToken)
           readParams['pageToken'] = req.body.pageToken
-/*
-      this.analyticsData = {
-        task: "Initiated",
-        outboundCount: 0,
-        inboundCount: 0,
-        deliveredCount: 0,
-        sendingFailedCount: 0,
-        deliveryFailedCount: 0,
-        deliveryFailures: [],
-        sendingFailures: [],
-        outboundFailureTypes: {
-          content: {
-            count: 0,
-            numbers: [],
-            messages: []
-          },
-          invalidRecipientNumbers: [],
-          blockedSenderNumbers: [],
-          optoutNumbers: [],
-          others: {
-            count: 0,
-            numbers:[],
-            messages: []
-          }
-        },
-        sentMsgCost: 0.0,
-        receivedMsgCost: 0.0,
-        optedOutCount: 0,
-        months: [],
-        phoneNumbers: []
-      }
-      */
-/*
-segmentCounts: [],
-weekDays: [
-  {
-    wd: 'Mon',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Tue',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Wed',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Thu',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Fri',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sat',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  },
-  {
-    wd: 'Sun',
-    outboundCount: 0,
-    inboundCount: 0,
-    deliveredCount: 0,
-    sendingFailedCount: 0,
-    deliveryFailedCount: 0,
-    sentMsgCost: 0.0,
-    receivedMsgCost: 0.0
-  }
-],
-roundTheClock: [],
-*/
+
       this.analytics.resetAnalyticsData()
       res.send({
           status: "ok",
-          result: this.analytics.analyticsData,
-          failureAnalysis: this.analytics.failureDataAnalytics
+          result: this.analytics.analyticsData
       })
-      //this._readMessageStoreForAnalytics(readParams, timeOffset)
-      this._readTestMessageStore(timeOffset)
+      this._readMessageStoreForAnalytics(readParams, timeOffset)
+      //this._readTestMessageStore(timeOffset)
 
     },
     _readMessageStoreForAnalytics: async function(readParams, timeOffset){
@@ -1837,24 +1758,26 @@ roundTheClock: [],
                 thisUser._readMessageStoreForAnalytics(readParams, timeOffset)
             }, 1200)
           }else{
-            //console.log(this.analytics.analyticsData.outboundFailureTypes.content.messages)
-            //console.log(this.analytics.analyticsData.outboundFailureTypes.content.numbers)
-            //console.log(this.analytics.analyticsData)
             // clean up
-            console.log(this.analytics.failureDataAnalytics.contents.length)
+            //console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
             var check = true
             while (check){
-              var index = this.analytics.failureDataAnalytics.contents.findIndex(o => o.ignore == true)
+              var index = this.analytics.analyticsData.failureAnalysis.contents.findIndex(o => o.ignore == true)
               if (index >= 0){
-                this.analytics.failureDataAnalytics.contents.splice(index, 1)
-                console.log("REMOVED")
+                this.analytics.analyticsData.failureAnalysis.contents.splice(index, 1)
+                //console.log("REMOVED")
               }else{
                 check = false
               }
             }
-
+            /*
             console.log("AFTER CLEAN UP")
-            console.log(this.analytics.failureDataAnalytics.contents.length)
+            console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
+            for (var item of this.analytics.analyticsData.failureAnalysis.contents){
+              console.log(item.spams)
+              console.log(item.nonspams)
+            }
+            */
             //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
             //this.analyticsData.segmentCounts.sort(sortSegmentCount)
             this.analytics.analyticsData.task = "Completed"
@@ -1871,11 +1794,10 @@ roundTheClock: [],
         console.log("Platform error")
       }
     },
-    _readTestMessageStore: async function (timeOffset){
+    _readTestMessageStore: function (timeOffset){
       console.log("_readTestMessageStore")
-      //fs.readFileSync('./tempFile/testData.json',)
       var resp = fs.readFileSync('./tempFile/testData_3.json', 'utf8');
-      var jsonObj = await JSON.parse(resp)
+      var jsonObj = JSON.parse(resp)
       var count = 0
       for (var message of jsonObj){
         this.analytics.analyzeMessage(message)
@@ -1888,13 +1810,13 @@ roundTheClock: [],
       }
 
       this.analytics.analyticsData.phoneNumbers.sort(sortbByNumber)
-      console.log(this.analytics.failureDataAnalytics.contents.length)
+      console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
       var check = true
 
       while (check){
-        var index = this.analytics.failureDataAnalytics.contents.findIndex(o => o.ignore == true)
+        var index = this.analytics.analyticsData.failureAnalysis.contents.findIndex(o => o.ignore == true)
         if (index >= 0){
-          this.analytics.failureDataAnalytics.contents.splice(index, 1)
+          this.analytics.analyticsData.failureAnalysis.contents.splice(index, 1)
           console.log("REMOVED")
         }else{
           check = false
@@ -1902,8 +1824,12 @@ roundTheClock: [],
       }
 
       console.log("AFTER CLEAN UP")
-      console.log(this.analytics.failureDataAnalytics.contents.length)
-      console.log(this.analytics.failureDataAnalytics)
+      console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
+      for (var item of this.analytics.analyticsData.failureAnalysis.contents){
+        console.log(item.spams)
+        console.log(item.nonspams)
+      }
+      //console.log(this.analytics.analyticsData.failureAnalysis.contents)
       this.analytics.analyticsData.task = "Completed"
     },
     // analytics end
@@ -2132,11 +2058,12 @@ roundTheClock: [],
       var fileContent = ""
       fullNamePath += '-campaign-report.csv'
       if (appendFile == false)
-        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Cost,Segment"
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Error Description,Cost,Segment"
         //fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Error Code,Cost,Segment"
       var timeOffset = parseInt(query.timeOffset)
       let dateOptions = { weekday: 'short' }
       for (var item of records){
+        console.log(item)
         var from = formatPhoneNumber(item.from)
         var to = formatPhoneNumber(item.to[0])
         var date = new Date(item.creationTime)
@@ -2152,13 +2079,15 @@ roundTheClock: [],
         updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
         updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
         var errorCode = ""
+        var errorDes = ""
         if (item.hasOwnProperty('errorCode')){
           errorCode = item.errorCode
+          errorDes = getErrorDescription(errorCode)
         }
         var cost = (item.cost) ? item.cost : 0.00
         var segmentCount = (item.segmentCount) ? item.segmentCount : 0
         fileContent += `\n${item.id},${from},${to},${createdDateStr},${updatedDateStr}`
-        fileContent +=  `,${item.messageStatus},${errorCode},${cost},${segmentCount}`
+        fileContent +=  `,${item.messageStatus},${errorCode},${errorDes},${cost},${segmentCount}`
       }
       try{
         if (appendFile == false){
@@ -2934,6 +2863,37 @@ roundTheClock: [],
 }
 module.exports = User;
 
+var errorCodes = {
+  "SMS-UP-410": "Destination number invalid, unallocated, or does not support this kind of messaging.",
+  "SMS-UP-430": "Spam content detected by SMS gateway.",
+  "SMS-UP-431": "Number blacklisted due to spam.",
+  "SMS-UP-500": "General SMS gateway error. Upstream is malfunctioning.",
+  "SMS-CAR-104": "Carrier has not reported delivery status.",
+  "SMS-CAR-199": "Carrier reports unknown message status.",
+  "SMS-CAR-400": "Carrier does not support this kind of messaging.",
+  "SMS-CAR-411": "Destination number invalid, unallocated, or does not support this kind of messaging.",
+  "SMS-CAR-412": "Destination subscriber unavailable.",
+  "SMS-CAR-413": "Destination subscriber opted out.",
+  "SMS-CAR-430": "Spam content detected by mobile carrier.",
+  "SMS-CAR-431": "Message rejected by carrier with no specific reason.",
+  "SMS-CAR-432": "Message is too long.",
+  "SMS-CAR-433": "Message is malformed for the carrier.",
+  "SMS-CAR-450": "P2P messaging volume violation.",
+  "SMS-CAR-460": "Destination rejected short code messaging.",
+  "SMS-CAR-500": "Carrier reported general service failure.",
+  "SMS-RC-500": "General/Unknown internal RingCentral error.",
+  "SMS-RC-501": "RingCentral is sending a bad upstream API call.",
+  "SMS-RC-503": "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
+}
+
+function getErrorDescription(errorCode){
+  for (var key of Object.keys(errorCodes)){
+    if (key == errorCode)
+      return errorCodes[key]
+  }
+  return ""
+}
+
 function detectAndHandleCommas(row){
   var startPos = 0
   var endPos = 0
@@ -3707,7 +3667,7 @@ async function _readMessageStore(readParams, timeOffset){
         console.log(this.analyticsData.outboundFailureTypes.content.messages)
         console.log(this.analyticsData.outboundFailureTypes.content.numbers)
         console.log(this.analyticsData)
-        console.log(this.analytics.failureDataAnalytics)
+        console.log(this.analytics.analyticsData.failureAnalysis)
         //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
         //this.analyticsData.segmentCounts.sort(sortSegmentCount)
         this.analyticsData.task = "Completed"

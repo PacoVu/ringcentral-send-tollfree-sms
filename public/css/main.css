@@ -637,12 +637,20 @@ a:hover, a:visited, a:link, a:active
   height: 400px;
   overflow: scroll;
   width: 100%;
+  padding-right: 10px;
+  border-top: 2px solid #7a8996;
   overflow-x: hidden;
+}
+
+.error-classification {
+  color: #ed7b09;
+  background-color: #ffffff;
+  padding: 15px;
 }
 
 .spam-message {
   width: auto;
-  color: white;
+  color: blue;
   background-color: #a3c1d1;
   border-radius: 8px;
   padding: 10px;

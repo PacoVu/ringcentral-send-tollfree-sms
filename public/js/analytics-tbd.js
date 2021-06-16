@@ -1,6 +1,6 @@
 var timeOffset = 0
 var analyticsData = undefined
-//var failureAnalysis = undefined
+var failureData = undefined
 var pageToken = undefined
 var pollingTimer = undefined
 
@@ -107,7 +107,7 @@ function pollAnalyticsResult(){
     if (res.status == "ok"){
       $("#options-bar").show()
       analyticsData = res.result
-      //analyticsData.failureAnalysis = res.failureAnalysis
+      failureData = res.failureAnalysis
       if (res.result.task != "Initiated")
         displayAnalytics()
       if (res.result.task == "Processing"){
@@ -269,25 +269,26 @@ function convertMonth(month){
 
 function showRateInfo(type){
   var infoText = [
-    "<p>Response rate is the percentage ratio of inbound messages over successfully delivered outbound messages. High response rate is the good health of your \
-    high volume SMS phone number. Especially, when you start using your phone number for the first time, high response rate would \
-    help warm up your phone number reputation. As a result, it would help prevent mobile carriers from blocking your text messages.</p>\
+    "<p>High response rate is the good health of your interactive text messaging with your customers. It would help prevent mobile carriers from blocking \
+    your text messages. Especially, when you start using your High Volume SMS phone number for the first time, as high response rate would help warm up your service phone number reputation.</p>\
     <br><b>Best practices to increase and maintain high response rate:</b>\
     <ul><li>Start your text messaging campaign by sending a brief message to ask if your customers would like to learn more about your sale or promo. \
     E.g. 'Reply YES for more info'. Treat the first message as an opt-in or opt-out choice for your customer.</li>\
     <li>Break a lengthy text message into multi-section messages, then send a brief message with response choices to receive the next messages.</li>\
     <li>If you send text messages to your customers repeatedly over a long period of time without requesting for response, send a survey message to \
     the customers periodically, to ask if they still want to receive your text messages.</li></ul>",
-    "<p>Delivery rate is the percentage ratio of successfully delivered message over delivery failed messages. The higher delivery rate the better!</p>\
+    "<p>The delivery rate indicates the percentage of your messages successfully delivered to your targeted recipients. The higher delivery rate the better, because it means your messages could reach most of your targeted recipients!</p>\
     <br><b>Here is a few tips for how to increase the delivery rate:</b>\
     <ul><li>Make sure your recipient phone number is in a correct format (E.164) with a country code followed by the area code and the local number without space, bracket or hyphen symbols.</li>\
     <li>Remove landline and invalid phone numbers from your recipient list as much as you can.</li>\
     <li>Download your campaign's report, copy the recipient phone number from any failed messages and remove them from your recipient list after sending every campaign.</li>\
-    <li>Regularly, read opted-out numbers and remove them from your recipient list.</li>",
+    <li>Regularly, read opted-out numbers and remove them from your recipient list.</li>\
+    <li>Follow the guidelines and best practices to avoid your messages get blocked as spam content.</li></ul>",
     "<p>Cost efficiency rate is calculated from the cost of successfully delivered messages and the cost of undeliverable messages. Keeping the cost \
     efficiency at a high rate will help you maximize the value of your text messaging spending.</p>\
     <br><b>Here is a few tips for how to increase cost efficiency rate:</b>\
     <ul><li>Regularly, read opted-out numbers and remove them from your recipient list.</li>\
+    <li>Follow the guidelines and best practices to avoid your messages get blocked as spam content.</li>\
     <li>Learn from your previous campaigns to avoid or to minimize the numbers of 'DeliveryFailed' incidents by modifying your message content if the message was flagged as spam content, or removing those recipients' phone number from the recipient list of your next campaigns.</li></ul>"
   ]
   var title = [
@@ -536,7 +537,7 @@ function displayMessageCost(breakout){
   var color = ['#178006']
   if (breakout == "monthly"){
     var monthlyData = analyticsData.months
-    var cost_params = [['Month', 'Succeeded Outbound', 'Failed Outbound', 'Inbound']];
+    var cost_params = [['Month', 'Outbound success', 'Outbound failure', 'Inbound']];
     var efficiency_params = [['Month', 'Efficiency rate']];
     for (var i=monthlyData.length-1; i>=0; i--) {
       var m =  monthlyData[i]
@@ -556,7 +557,7 @@ function displayMessageCost(breakout){
     drawComboChart(efficiency_params, "analysis", 'Outbound messaging cost efficiency (per month)', '%', 'Month', color)
   }else if (breakout == "bynumber"){
     var serviceNumberData = analyticsData.phoneNumbers
-    var cost_params = [[ 'Service Number', 'Succeeded Outbound', 'Failed Outbound', 'Inbound']];
+    var cost_params = [[ 'Service Number', 'Outbound success', 'Outbound failure', 'Inbound']];
     var efficiency_params = [[ 'Service Number', 'Efficiency rate' ]];
     for (var m of serviceNumberData) {
       var serviceNumber = formatPhoneNumber(m.number,false)
@@ -647,7 +648,7 @@ function displayMessageCostTable(breakout){
 
 function displayFailedAnalyticsDetails(){
   /*
-  for (var s of analyticsData.failureAnalysis.contents){
+  for (var s of failureData.contents){
     if (s.spamMsgCount > 0){
       subMsg  += `<p class="spam-message">${s.message}</p>`
       var rate = (s.spamMsgCount/(s.acceptedMsgCount+s.spamMsgCount)) * 100
@@ -665,18 +666,19 @@ function displayFailedAnalyticsDetails(){
   var message = ""
   if (type == "spam"){
     message = "<div class='breakout'>Spam message</div>"
-    message += `<p class='error-classification'>Different wireless carriers apply different anti-spam filtering techniques to protect their subscribers from unsolicited and \
-    harmful messages. Some carriers are stricter than others. If the message is innocuous and still gets flagged by a carrier, it is likely that the phone number \
+    message += `<p class='block_space'>Different wireless carriers apply different anti-spam filtering techniques to protect their subscribers from unsolicited and \
+    harmful messages. Some carriers are stricter than others. If the message is innocuous and still get flagged by a carrier, it is likely that the phone number \
     reputation score is low due to earlier violation or other types of messaging violations.</p>`
 
     var warning = `<p>We discover that some wireless carriers blocked your messages. We recommend you revise the message or remove the recipients \
     from the recipient list and stop sending messages to those recipient numbers to prevent your number from getting blacklisted by their carrier.</p>`
 
     var subMsg = ""
-    for (var s of analyticsData.failureAnalysis.contents){
+    for (var s of failureData.contents){
+      subMsg  += `<p class="spam-message">${s.message}</p>`
       if (s.spamMsgCount > 0){
-        subMsg  += `<p class="spam-message">${s.message}</p>`
         for (var item of s.spams){
+          //var rate = (item.count/(s.acceptedMsgCount+s.spamMsgCount)) * 100
           var nonspam = s.nonspams.find(o => o.senderNumber === item.senderNumber)
           var nonspamCount = 0
           if (nonspam)
@@ -703,6 +705,7 @@ function displayFailedAnalyticsDetails(){
         }
       }
     }
+
     if (subMsg != ""){
       message += warning
       message += "<div class='failed-content-list'>"
@@ -711,116 +714,124 @@ function displayFailedAnalyticsDetails(){
     }else{
       message += "<p>Excellent! All phone numbers have 0% spam blockage rate.</p>"
     }
+
     displayFailedAnalytics(0)
+  }else if (type == "rejected-content"){
+    message = "<div class='breakout'>Invalid message</div>"
+    message += `<p>Either the message is too long or the message is malformed for the carrier. Some wireless carriers do not support message segmentation, thus, sending \
+    a message longer than 160 characters will fail with 'invalid message'.`
+
+    //message += `<p>Some wireless carriers do not support message segmentation, they will reject if the message was too long or malformed and cannot \
+    //be handled by the carriers. You should correct the message or remove the recipient from the recipient list to improve the cost efficiency.</p>
+
+    var subMsg = ""
+    for (var s of failureData.contents){
+      if (s.rejectedMsgCount > 0){
+        subMsg  += `<p class="spam-message">${s.message}</p>`
+        var rate = (s.rejectedMsgCount/(s.acceptedMsgCount+s.rejectedMsgCount)) * 100
+        var rejectedNumbers = s.rejectedMsgNumbers.join(';')
+        subMsg += `<div># Rejected/Passed: ${formatNumber(s.rejectedMsgCount)}/${formatNumber(s.acceptedMsgCount)} => Rejected rate: ${rate.toFixed(2)} % - <a href="#" onclick="copyNumbersToClipboard('${rejectedNumbers}')">Copy recipient phone numbers</a></div>`
+      }
+    }
+    if (subMsg != ""){
+      message += `<div class='failed-content-list'>${subMsg}</div>`
+    }else{
+      message += `<p>Good news! There is no invalid message incident.</p>`
+    }
+    displayFailedAnalytics(1)
   }else if (type == "invalid-number"){
     //  Destination number invalid, unallocated, or does not support this kind of messaging.
     //  Destination subscriber unavailable.
     message = "<div class='breakout'>Invalid number</div>"
-    message += `<p class='error-classification'>Wireless carriers reject invalid numbers. This is because the recipient number is either unallocated, unavailable or not SMS enabled.`
-
-    if (analyticsData.failureAnalysis.invalidNumberCount > 0){
-      var numbers = analyticsData.failureAnalysis.invalidNumbers.join(';')
-      message += `<p>We found ${formatNumber(analyticsData.failureAnalysis.invalidNumbers.length)} invalid numbers. We recommend you <a href="#" onclick="copyNumbersToClipboard('${numbers}')">copy \
+    message += `<p>Recipient number is invalid, unallocated, or does not support this text messaging.`
+    // Some wireless carriers do not support text messaging could not deliver your messages to these recipients. You should correct the numbers or remove them from the recipient list to improve the cost efficiency.</p>`
+    //message += `<div>${failureData.invalidErrorCodes.join(" - ")}</div>`
+    //message += `<p class='block_space'>Wireless carriers could not deliver your messages to these recipients. You should correct the numbers or remove them from the recipient list to improve the cost efficiency.</p>`
+    if (failureData.invalidNumberCount > 0){
+      var numbers = failureData.invalidNumbers.join(';')
+      //message += `<div>Ratio: ${failureData.invalidNumberCount/failureData.invalidNumbers.length}</div>`
+      message += `<p>We found ${formatNumber(failureData.invalidNumbers.length)} invalid numbers. We recommend you <a href="#" onclick="copyNumbersToClipboard('${numbers}')">copy \
       invalid numbers</a> and remove them from the recipient list to increase the outbound throughput rate and improve your outbound message cost efficiency.`
-      var repeatRatio = analyticsData.failureAnalysis.invalidNumberCount/analyticsData.failureAnalysis.invalidNumbers.length
-      if (repeatRatio > 1.2){
-        message += `<div class='block_space'><b>Warning:</b> We detect that you sent messages to some these invalid numbers more than once. Take action to avoid paying \
-        for undelivered messages.</div>`
-      }
     }else{
       message += '<p>Good news. All recipient numbers seem to be valid.</p>'
-    }
-    displayFailedAnalytics(1)
-  }else if (type == "rejected-number"){
-    message = "<div class='breakout'>Rejected phone numbers</div>"
-    message += `<p class='error-classification'>When sending a message to a recipient's carrier, we strive to validate the recipient phone number and reject it if we detect that the number \
-    is invalid. Some common reasons are either a phone number without a country code, unsupported international number, wrong format or a registered opted-out number in our database.</p>`
-
-    if (analyticsData.sendingFailedCount > 0){
-      var numbers = analyticsData.sendingFailedNumbers.join(';')
-      message += `<p>There are ${formatNumber(analyticsData.sendingFailedNumbers.length)} rejected phone numbers. You should <a href="#" onclick="copyNumbersToClipboard('${numbers}')">copy these recipient numbers</a> and remove them from the \
-      recipient list to improve the outbound throughput rate.</p>`
-    }else{
-      if (analyticsData.outboundCount > 0)
-        message += "<div class='block_space'>Excellent! Your outbound throughput rate is 100% during this time.</div>"
     }
     displayFailedAnalytics(2)
   }else if (type == "optout-number"){
     message = "<div class='breakout'>Opt-out violation</div>"
-    message += `<p class='error-classification'>Sending a text message to an opted-out recipient is violating the text messaging compliance laws, and consequently, a recipient's \
-    carrier will block your message. Keep sending text messages to an opted-out recipient may trigger the recipient's carrier to block your phone number permanently.</p>`
+    message += `<p class='block_space'>Sending a text message to an opted-out recipient is violating the text messaging compliance laws, and as a consequence, a recipient's \
+    carrier will block your message. Keep sending text messages to an opted out recipient may trigger the recipient's carrier to block your phone number permanently.</p>`
 
-    if (analyticsData.failureAnalysis.optoutCount > 0){
+    if (failureData.optoutCount > 0){
       message += `<p>We discover that during this period of time, you've sent messages to recipients who opted out from your service number. We recommend \
       you stop sending messages to those recipients to prevent your phone number from getting blocked by their carrier.</p>`
 
-      for (var item of analyticsData.failureAnalysis.optoutNumbers){
+      for (var item of failureData.optoutNumbers){
         var numbers = item.recipientNumbers.join(';')
         message += `<div><a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy ${formatNumber(item.recipientNumbers.length)} recipients</a>, who opted-out from your \
         phone number <b>${formatPhoneNumber(item.senderNumber, false)}</b></div>`
 
+        //message += `<p><a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy ${formatNumber(item.recipientNumbers.length)} opted-out recipient numbers</a></div>`
         var repeatRatio = item.count / item.recipientNumbers.length
         if (repeatRatio > 1.2){
           message += `<div><b>Warning:</b> We detect that you sent messages to some opted-out recipients more than once. Take serious action before your number gets blacklisted by their carrier.</div>`
         }
+        /*
+        message += `<p>We discover that during this period of time, you sent messages to ${formatNumber(item.recipientNumbers.length)} recipients who \
+        opted out from this service number <b>${formatPhoneNumber(item.senderNumber, false)}</b>. We recommend you remove opted out recipients from the recipient list \
+        to prevent your phone number from getting blocked by their wireless carrier. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy opted-out recipient \
+        phone numbers.</a></p>`
+        //message += `<div>Ratio: ${failureData.optoutCount/failureData.optoutNumbers.length}</div>`
+        */
       }
     }else{
       if (analyticsData.outboundCount > 0)
         message += `<p class='block_space'>Excellent! There is no 'optout' violation during this time period.</p>`
     }
     displayFailedAnalytics(3)
-  }else if (type == "rejected-content"){
-    message = "<div class='breakout'>Invalid message</div>"
-    message += `<p class='error-classification'>Either the message is too long or the message contains invalid characters that are not supported by a carrier.`
-
-    var subMsg = ""
-    for (var s of analyticsData.failureAnalysis.contents){
-      if (s.invalidMsgCount > 0){
-        subMsg  += `<p class="spam-message">${s.message}</p>`
-        var rejectedMsgNumbers = s.rejectedMsgNumbers.join(';')
-        subMsg += `You should correct the message or <a href="#" onclick="copyNumbersToClipboard('${rejectedMsgNumbers}')">copy the recipient phone numbers</a> \
-        and remove them from the recipient list to improve the cost efficiency.`
-      }
-    }
-    if (subMsg != ""){
-      message += `<div class='failed-content-list'>${subMsg}</div>`
-    }else{
-      message += `<p>Good news! There is no failure due to invalid message.</p>`
-    }
-    displayFailedAnalytics(4)
   }else if (type == "blocked-number"){
     message = "<div class='breakout'>Service number in black list</div>"
-    message += "<p class='error-classification'>A service phone number will be blacklisted if it has been detected sending spam messages or involved in other type messaging violations repeatedly.</p>"
+    message += "<p>A service phone number will be blacklisted if it has been detected sending spam messages or involved in other type messaging violations repeatedly.</p>"
 
-    if (analyticsData.failureAnalysis.blacklistedCount > 0){
-      for (var n of analyticsData.failureAnalysis.blacklistedServiceNumbers){
+    if (failureData.blacklistedCount > 0){
+      for (var n of failureData.blacklistedServiceNumbers){
         message += `<p>The service number <b>${formatPhoneNumber(n.serviceNumber)}</b> is blacklisted due to spam violation.</p>`
       }
     }else{
       message += `<p>Excellent! None of your service numbers are in carriers' black list.</p>`
     }
+    //message += "<p class='block_space'>The folloing service number(s) was blocked by carriers due to spam content violation.</p>"
     // list service number and recipient numbers
+    displayFailedAnalytics(4)
+  }else if (type == "rejected-number"){
+    message = "<div class='breakout'>Rejected phone numbers</div>"
+    message += `<p class='block_space'>A recipient phone number without the country code, in wrong format, is a landline number or is not 'in operation' (non-exist or unallocated) will be rejected.</p>`
+
+    if (analyticsData.sendingFailedCount > 0){
+      var numbers = analyticsData.sendingFailedNumbers.join(';')
+      message += `<p>There are ${formatNumber(analyticsData.sendingFailedNumbers.length)} rejected phone numbers. You should <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy the numbers</a> and remove them from the \
+      recipient list to improve the outbound throughput rate.</p>`
+
+      //message += `<div>Ratio: ${analyticsData.sendingFailedCount/analyticsData.sendingFailedNumbers.length}</div>`
+      //message += `<div><a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy ${formatNumber(analyticsData.sendingFailedNumbers.length)} rejected phone numbers</a></div>`
+    }else{
+      if (analyticsData.outboundCount > 0)
+        message += "<div class='block_space'>Excellent! Your outbound throughput rate is 100% during this time.</div>"
+    }
+    //message += `<p class='failed-content-list'>${failureData.rejectedNumbers.join("\n")}</p>`
     displayFailedAnalytics(5)
   }else if (type == "other-reason"){
     message = "<div class='breakout'>Other reasons</div>"
-    message += `<p class='error-classification'>Some wireless carriers do not report a clear reason for failure.</p>`
+    message += `<p>Some wireless carriers do not report the reason of failure.</p>`
 
-    if (analyticsData.failureAnalysis.otherErrorCount > 0){
-      var errorCodes = []
-      for (var item of analyticsData.failureAnalysis.otherErrors){
-        var numbers = item.recipientNumbers.join(';')
-        message += `<p>There are ${formatNumber(item.recipientNumbers.length)} unreachable recipients from this phone number ${formatPhoneNumber(item.serviceNumber, false)}. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient phone numbers</a></p>`
-        for (var err of item.errorCodes){
-          if (errorCodes.findIndex(e => e === err) < 0)
-            errorCodes.push(err)
-        }
+    if (failureData.otherErrorCount > 0){
+      var numbers = failureData.otherErrorNumbers.join(';')
+      message += `<p>There are ${formatNumber(failureData.otherErrorNumbers.length)} unreachable recipients. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient phone numbers</a></p>`
+      var repeatRatio = failureData.otherErrorCount/failureData.otherErrorNumbers.length
+      if (repeatRatio > 1.2){
+        message += `<div><b>Warning:</b> We detect that you attempted to send messages to unreachable recipients more than once. Remove the unreachable recipients from your \
+        recipient list to increase the outbound throughput rate.</div>`
       }
-      for (var err of errorCodes){
-        if (err.indexOf('SMS-RC-503') >= 0){
-          message += `<div>Failure Code: ${err}. <a href='#' onclick='openFeedbackForm()'>Report this error and your phone number to us.</a></div>`
-        }else
-          message += `<div>Failure Code: ${err}: ${getErrorDescription(err)}</div>`
-      }
+      message += `<p>${failureData.otherErrorCodes.join(" - ")}</p>`
     }else{
       message += `<p>We found no outbound message with this status.</p>`
     }
@@ -844,12 +855,12 @@ function copyNumbersToClipboard (numbers) {
 }
 
 function displayFailedAnalytics(slice){
-  //console.log(analyticsData.failureAnalysis)
+  console.log(failureData)
   var spamMsgCount = 0
   var rejectedMsgCount = 0
-  for (var s of analyticsData.failureAnalysis.contents){
+  for (var s of failureData.contents){
     spamMsgCount += s.spamMsgCount
-    rejectedMsgCount += s.invalidMsgCount
+    rejectedMsgCount += s.rejectedMsgCount
   }
 
   if (mode == "graphics"){
@@ -858,44 +869,44 @@ function displayFailedAnalytics(slice){
     var item = [ "Spam message", spamMsgCount]
     error_params.push(item)
 
-    item = [ "Invalid number", analyticsData.failureAnalysis.invalidNumberCount]
+    item = [ "Invalid message", rejectedMsgCount]
+    error_params.push(item)
+
+    item = [ "Invalid number", failureData.invalidNumberCount]
+    error_params.push(item)
+
+    item = [ "Opt-out violation", failureData.optoutCount]
+    error_params.push(item)
+
+    item = [ "Blocked number", failureData.blacklistedCount]
     error_params.push(item)
 
     item = ["Rejected number", analyticsData.sendingFailedCount]
     error_params.push(item)
 
-    item = [ "Opt-out violation", analyticsData.failureAnalysis.optoutCount]
+    item = ["Other reasons", failureData.otherErrorCount]
     error_params.push(item)
-
-    item = [ "Invalid message", rejectedMsgCount]
-    error_params.push(item)
-
-    item = [ "Blocked number", analyticsData.failureAnalysis.blacklistedCount]
-    error_params.push(item)
-
-    item = ["Other reasons", analyticsData.failureAnalysis.otherErrorCount]
-    error_params.push(item)
-
+    console.log(spamMsgCount + rejectedMsgCount + failureData.invalidNumberCount + failureData.optoutCount + failureData.blacklistedCount + analyticsData.sendingFailedCount + failureData.otherErrorCount)
     var colors = {0:{color: '#3f3445'}, 1:{color: '#e88c02'}, 2:{color: '#ab6305'}, 3:{color: '#cc040e'}, 4:{color: 'red'}, 5:{color: '#0748a3'}, 6:{color: 'gray'}, 7:{color: '#59730a'}}
     drawPieChart(error_params, "graph-column", '', colors, slice)
   }else{
     var errorData = `<div class='breakout'>Error by types</div><table class='analytics-table'>`
     errorData += `<tr><td class='table-label'>Error Type</td><td class=''># Incidents</td></tr>`
     errorData += `<tr><td class='table-label'>Spam message</td><td class='table-data'>${formatNumber(spamMsgCount)}</td></tr>`
-    errorData += `<tr><td class='table-label'>Invalid number</td><td class='table-data'>${formatNumber(analyticsData.failureAnalysis.invalidNumberCount)}</td></tr>`
-    errorData += `<tr><td class='table-label'>Rejected number</td><td class='table-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
-    errorData += `<tr><td class='table-label'>Opt-out violation</td><td class='table-data'>${formatNumber(analyticsData.failureAnalysis.optoutCount)}</td></tr>`
     errorData += `<tr><td class='table-label'>Invalid message</td><td class='table-data'>${formatNumber(rejectedMsgCount)}</td></tr>`
-    errorData += `<tr><td class='table-label'>Blocked number</td><td class='table-data'>${formatNumber(analyticsData.failureAnalysis.blacklistedCount)}</td></tr>`
-    errorData += `<tr><td class='table-label'>Other reasons</td><td class='table-data'>${formatNumber(analyticsData.failureAnalysis.otherErrorCount)}</td></tr>`
-    var total = spamMsgCount + rejectedMsgCount + analyticsData.failureAnalysis.invalidNumberCount
-    total += analyticsData.failureAnalysis.optoutCount + analyticsData.failureAnalysis.blacklistedCount + analyticsData.sendingFailedCount + analyticsData.failureAnalysis.otherErrorCount
+    errorData += `<tr><td class='table-label'>Invalid number</td><td class='table-data'>${formatNumber(failureData.invalidNumberCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Opt-out violation</td><td class='table-data'>${formatNumber(failureData.optoutCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Blocked number</td><td class='table-data'>${formatNumber(failureData.blacklistedCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Rejected number</td><td class='table-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
+    errorData += `<tr><td class='table-label'>Other reasons</td><td class='table-data'>${formatNumber(failureData.otherErrorCount)}</td></tr>`
+    var total = spamMsgCount + rejectedMsgCount + failureData.invalidNumberCount
+    total += failureData.optoutCount + failureData.blacklistedCount + analyticsData.sendingFailedCount + failureData.otherErrorCount
     errorData += `<tr><td class='table-label'>Total</td><td class='table-data'>${formatNumber(total)}</td></tr>`
     errorData += "</table>"
     $("#graph-column").html(errorData)
 
   }
-  //drawKeywords(analyticsData.failureAnalysis[1].keywords)
+  //drawKeywords(failureData[1].keywords)
   //displayFailedAnalyticsDetails()
 }
 
@@ -1129,7 +1140,7 @@ function drawPieChart(params, graph, title, colors, slice){
     pieSliceText: 'value',
     //pieStartAngle: 90,
     //pieHole: 0.5,
-    sliceVisibilityThreshold: 0.0000,
+    sliceVisibilityThreshold: 0.00001,
     slices: slices
   };
 
@@ -1204,8 +1215,7 @@ function drawScatterChart(params, graph, title, vTitle, hTitle) {
 
 function downloadAnalytics(){
   var timeOffset = new Date().getTimezoneOffset()*60000;
-  var fileName = `${$("#fromdatepicker").val()}-${$("#todatepicker").val()}`
-  var url = `download-analytics?timeOffset=${timeOffset}&fileName=${fileName}`
+  var url = "download-analytics?timeOffset=" + timeOffset
   var getting = $.get( url );
   getting.done(function( res ) {
     if (res.status == "ok")
