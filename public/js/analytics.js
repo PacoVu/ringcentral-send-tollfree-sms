@@ -144,18 +144,18 @@ function readMessageStore(){
     timeOffset: timeOffset,
     phoneNumbers: `["${fromNumber}"]`
   }
-  //configs['mode'] = 'date'
-//  configs['dateFrom'] = dateFromStr
-//  configs['dateTo'] = dateToStr
-//  configs['timeOffset'] = timeOffset
-
-
-  //configs['phoneNumbers'] = `["${fromNumber}"]`
   $("#processing").show()
   $("#options-bar").hide()
   $("#by_direction").html("")
   $("#by_status").html("")
   $("#by_cost").html("")
+  $("#statistics-title").html("")
+  $("#statistics").html("")
+  $("#analysis-title").html("")
+  $("#analysis").html("")
+  $("#graph-column").html("")
+  $("#text-column").html("")
+
   var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
   $("#total-by-direction").html(readingAni)
   $("#total-by-cost").html(readingAni)
