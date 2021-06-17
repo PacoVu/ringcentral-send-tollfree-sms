@@ -199,11 +199,11 @@ var engine = Analytics.prototype = {
         switch (message.messageStatus) {
           case "Delivered":
             this.analyticsData.deliveredCount++
-            this.extractKeywords(message)
+            this.extractKeywords(message, '')
             break
           case "Sent":
             this.analyticsData.deliveredCount++
-            this.extractKeywords(message)
+            this.extractKeywords(message, '')
             break
           case "DeliveryFailed":
             this.analyticsData.deliveryFailedCount++
@@ -246,12 +246,11 @@ var engine = Analytics.prototype = {
               }
             }else if (code == "SMS-UP-430" || code == "SMS-CAR-430" || code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){
               // group by content for analysis
-              this.extractKeywords(message)
+              this.extractKeywords(message, code)
             }else{ // other errors
               this.analyticsData.failureAnalysis.otherErrorCount++
               var serviceNumber = this.analyticsData.failureAnalysis.otherErrors.find(o => o.serviceNumber === message.from)
               if (serviceNumber){
-                //serviceNumber.recipientNumbers.push(message.to[0])
                 if (serviceNumber.recipientNumbers.findIndex(n => n === toNumber) < 0)
                   serviceNumber.recipientNumbers.push(toNumber)
                 if (serviceNumber.errorCodes.findIndex(c => c === code) < 0)
@@ -262,7 +261,7 @@ var engine = Analytics.prototype = {
                     recipientNumbers: [message.to[0]],
                     errorCodes: [code]
                   }
-                  this.analyticsData.failureAnalysis.otherErrors.push(item)
+                this.analyticsData.failureAnalysis.otherErrors.push(item)
               }
             }
             break
@@ -286,14 +285,14 @@ var engine = Analytics.prototype = {
         this.analyticsData.receivedMsgCost += cost
       }
     },
-    extractKeywords: function(message){
+    extractKeywords: function(message, code){
       var keywords = keyword_extractor.extract(message.text, {
           language:"english",
           remove_digits: true,
           return_changed_case: false,
           remove_duplicates: true
       });
-      var code = (message.errorCode != undefined) ? message.errorCode : "Others"
+      //var code = (message.errorCode != undefined) ? message.errorCode : "Others"
       var matchedCount = 0
       for (var item of this.analyticsData.failureAnalysis.contents){
         for (var kw of keywords){
@@ -304,8 +303,6 @@ var engine = Analytics.prototype = {
           var toNumber = message.to[0]
           if (message.messageStatus == "Delivered" || message.messageStatus == "Sent"){
             item.acceptedMsgCount++
-            //if (item.acceptedMsgNumbers.findIndex(n => n === toNumber) < 0)
-            //  item.acceptedMsgNumbers.push(toNumber)
             var nonspam = item.nonspams.find(n => n.senderNumber === message.from)
             if (nonspam){
               nonspam.count++
@@ -321,7 +318,7 @@ var engine = Analytics.prototype = {
               item.nonspams.push(obj)
             }
           }else{
-            if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // item content
+            if (code == "SMS-CAR-431" || code == "SMS-UP-430" || code == "SMS-CAR-430"){ // item content
               item.spamMsgCount++
               item.ignore = false
               var spam = item.spams.find(n => n.senderNumber === message.from)
@@ -338,7 +335,7 @@ var engine = Analytics.prototype = {
                 }
                 item.spams.push(obj)
               }
-            }else if (code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
+            }else if (code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
               item.rejectedMsgCount++
               if (item.rejectedMsgNumbers.findIndex(n => n === toNumber) < 0)
                 item.rejectedMsgNumbers.push(toNumber)
@@ -397,16 +394,15 @@ var engine = Analytics.prototype = {
           item.nonspams.push(obj)
           item.ignore = true
         }else{
-          if (code == "SMS-UP-430" || code == "SMS-CAR-430"){ // spam message
+          if (code == "SMS-CAR-431" || code == "SMS-UP-430" || code == "SMS-CAR-430"){ // spam message
             item.spamMsgCount++
-            //item.spamMsgNumbers.push(toNumber)
             var obj = {
                 count: 1,
                 senderNumber: message.from,
                 recipientNumbers: [toNumber]
             }
             item.spams.push(obj)
-          }else if (code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // rejected problem
+          }else if (code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // rejected problem
             item.rejectedMsgCount++
             item.rejectedMsgNumbers.push(toNumber)
             item.rejectedMsgErrorCodes.push(code)

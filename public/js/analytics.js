@@ -1,4 +1,5 @@
 var timeOffset = 0
+var campaignList = undefined
 var analyticsData = undefined
 //var failureAnalysis = undefined
 var pageToken = undefined
@@ -39,7 +40,92 @@ function setElementsHeight(){
 
 }
 
-function readMessageStore(token){
+function changeAnalyticsBase(elm){
+  var option = $(elm).val()
+  if (option == 'date-range'){
+    $("#date-range").show()
+    $("#campaign-range").hide()
+  }else{
+    $("#campaign-range").show()
+    $("#date-range").hide()
+    if (campaignList == undefined)
+      readCampaigns()
+  }
+}
+
+function readCampaigns(){
+  var url = "/read-campaigns"
+  var getting = $.get( url );
+  getting.done(function( res ) {
+    if (res.status == "ok"){
+      campaignList = res.campaigns
+      var campaigns = ''
+      //alert(campaignList)
+      for (var c of campaignList){
+        if (c.type == "tollfree") continue
+        campaigns += `<option value="${c.batchId}">${c.campaignName}</option>`
+      }
+      $("#my-campaigns").html(campaigns)
+      $('#my-campaigns').selectpicker('refresh');
+    }else if (res.status == "error"){
+      _alert(res.message)
+    }else{
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
+}
+function readMessageStoreCampaign(){
+  var campaigns = $("#my-campaigns").val()
+  var configs = {
+    mode: 'campaigns',
+    campaignIds: JSON.stringify(campaigns)
+  }
+  alert(configs.campaignIds)
+  $("#processing").show()
+  $("#options-bar").hide()
+  $("#by_direction").html("")
+  $("#by_status").html("")
+  $("#by_cost").html("")
+  var readingAni = "<img src='./img/logging.gif' style='width:50px;height:50px;display: block;margin:auto;'></img>"
+  $("#total-by-direction").html(readingAni)
+  $("#total-by-cost").html(readingAni)
+  $("#total-by-status").html(readingAni)
+  $("#downloads").hide()
+  var url = "create-messaging-analytics"
+  var posting = $.post( url, configs );
+  posting.done(function( res ) {
+    if (res.status == "ok") {
+      $("#total-title").html(`Messaging statistics of selected campaigns`)
+      pollingTimer = window.setTimeout(function(){
+          pollAnalyticsResult()
+      },3000)
+    }else if (res.status == "error"){
+      $("#processing").hide()
+      $("#by_direction").html("")
+      _alert(res.message)
+    }else{
+      $("#processing").hide()
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
+      window.setTimeout(function(){
+        window.location.href = "/relogin"
+      },8000)
+    }
+  });
+  posting.fail(function(response){
+    alert(response.statusText);
+  });
+}
+
+function readMessageStore(){
   var dateFromStr = ""
   var timestamp = new Date().getTime()
   var dateToStr = new Date(timestamp).toISOString()
@@ -50,18 +136,21 @@ function readMessageStore(token){
   tempDate = new Date($("#todatepicker").val() + "T23:59:59.999Z")
   tempTime = tempDate.getTime()
   dateToStr = new Date(tempTime).toISOString()
-
-  var configs = {}
-  configs['dateFrom'] = dateFromStr
-  configs['dateTo'] = dateToStr
-  configs['timeOffset'] = timeOffset
-  if (token){
-    configs['pageToken'] = token
-    pageToken = token
-  }
-
   var fromNumber = $('#my-numbers').val()
-  configs['phoneNumbers'] = `["${fromNumber}"]`
+  var configs = {
+    mode: 'date',
+    dateFrom: dateFromStr,
+    dateTo: dateToStr,
+    timeOffset: timeOffset,
+    phoneNumbers: `["${fromNumber}"]`
+  }
+  //configs['mode'] = 'date'
+//  configs['dateFrom'] = dateFromStr
+//  configs['dateTo'] = dateToStr
+//  configs['timeOffset'] = timeOffset
+
+
+  //configs['phoneNumbers'] = `["${fromNumber}"]`
   $("#processing").show()
   $("#options-bar").hide()
   $("#by_direction").html("")
@@ -775,11 +864,12 @@ function displayFailedAnalyticsDetails(){
 
     var subMsg = ""
     for (var s of analyticsData.failureAnalysis.contents){
-      if (s.invalidMsgCount > 0){
+      if (s.rejectedMsgCount > 0){
         subMsg  += `<p class="spam-message">${s.message}</p>`
         var rejectedMsgNumbers = s.rejectedMsgNumbers.join(';')
         subMsg += `You should correct the message or <a href="#" onclick="copyNumbersToClipboard('${rejectedMsgNumbers}')">copy the recipient phone numbers</a> \
         and remove them from the recipient list to improve the cost efficiency.`
+        //subMsg += `<div>${s.rejectedMsgErrorCodes.join(" - ")}</div>`
       }
     }
     if (subMsg != ""){
@@ -807,7 +897,9 @@ function displayFailedAnalyticsDetails(){
 
     if (analyticsData.failureAnalysis.otherErrorCount > 0){
       var errorCodes = []
+      var serviceNumbers = []
       for (var item of analyticsData.failureAnalysis.otherErrors){
+        serviceNumbers.push(formatPhoneNumber(item.serviceNumber,true))
         var numbers = item.recipientNumbers.join(';')
         message += `<p>There are ${formatNumber(item.recipientNumbers.length)} unreachable recipients from this phone number ${formatPhoneNumber(item.serviceNumber, false)}. <a href="#" onclick="copyNumbersToClipboard('${numbers}')">Copy recipient phone numbers</a></p>`
         for (var err of item.errorCodes){
@@ -817,9 +909,10 @@ function displayFailedAnalyticsDetails(){
       }
       for (var err of errorCodes){
         if (err.indexOf('SMS-RC-503') >= 0){
-          message += `<div>Failure Code: ${err}. <a href='#' onclick='openFeedbackForm()'>Report this error and your phone number to us.</a></div>`
-        }else
-          message += `<div>Failure Code: ${err}: ${getErrorDescription(err)}</div>`
+          var text = `Please help us investigate this error ${err}. Phone number(s) ${serviceNumbers.join('; ')}.`
+          message += `<div><b>Error Code '${err}'</b> - <a href='#' onclick='openFeedbackForm("${text}")'>Report this error to RingCentral support team.</a></div>`
+        }else //if (err != 'Others')
+          message += `<div><b>Error Code '${err}'</b> - ${getErrorDescription(err)}</div>`
       }
     }else{
       message += `<p>We found no outbound message with this status.</p>`
@@ -849,7 +942,7 @@ function displayFailedAnalytics(slice){
   var rejectedMsgCount = 0
   for (var s of analyticsData.failureAnalysis.contents){
     spamMsgCount += s.spamMsgCount
-    rejectedMsgCount += s.invalidMsgCount
+    rejectedMsgCount += s.rejectedMsgCount
   }
 
   if (mode == "graphics"){

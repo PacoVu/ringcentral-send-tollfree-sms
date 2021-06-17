@@ -76,8 +76,12 @@ function getErrorDescription(errorCode){
 function openWindow(){
   window.open("https://github.com/PacoVu/ringcentral-send-tollfree-sms/issues")
 }
-function openFeedbackForm(){
+function openFeedbackForm(preFilledText){
   var message = $('#send_feedback_form');
+  $("#free_text").html('')
+  if (preFilledText != undefined){
+    $("#free_text").html(preFilledText)
+  }
   BootstrapDialog.show({
       title: '<div style="font-size:1.2em;font-weight:bold;">Send us your feedback!</div><div>Do you have a suggestion or found some bugs? Let us know in the field below:</div>',
       message: message,

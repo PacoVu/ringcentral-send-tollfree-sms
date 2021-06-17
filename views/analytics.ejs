@@ -66,26 +66,41 @@
       <% } %>
       <div id="control-list-col" class="col-lg-2" style="width:340px">
         <div id="col2-header" class="form-inline read-message-input-block">
-          <div class="block_space">
-            <label class="label-input" for="my-numbers">Date from</label>
-            <input type="text" id="fromdatepicker" size="10" class="form-control text-input"></input>
+        <!--
+          <label class="label-input" for="analytics-choices">Choices</label>
+          <select id="analytics-choices" class="selectpicker filter-select" data-width="150" onchange="changeAnalyticsBase(this)">
+            <option selected value="date-range">Date range</option>
+            <option value="campaign-range">Campaigns</option>
+          </select>
+          <hr style="margin: 2px !important;border: 2px solid white"></hr>
+        -->
+          <div id="date-range" class="block_space">
+            <div class="block_space">
+              <label class="label-input" for="my-numbers">Date from</label>
+              <input type="text" id="fromdatepicker" size="10" class="form-control text-input"></input>
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="my-numbers">Date to</label>
+              <input type="text" id="todatepicker" size="10" class="form-control text-input"></input>
+            </div>
+            <div class="block_space">
+              <label class="label-input" for="my-numbers">From number</label>
+              <select id="my-numbers" class="selectpicker filter-select" data-width="150" title="my numbers">
+                <option selected value="all">All numbers</option>
+                <% for (var item of phoneNumbers) { %>
+                <option value="<%- item.number %>"><%= item.format %></option>
+                <% } %>
+              </select>
+            </div>
+            <button class="btn-rc inline" onclick="readMessageStore()">Read</button>
           </div>
-          <div class="block_space">
-            <label class="label-input" for="my-numbers">Date to</label>
-            <input type="text" id="todatepicker" size="10" class="form-control text-input"></input>
-          </div>
-
-          <div class="block_space">
-            <label class="label-input" for="my-numbers">From number</label>
-            <select id="my-numbers" class="selectpicker filter-select" data-width="150" title="my numbers">
-              <option selected value="all">All numbers</option>
-              <% for (var item of phoneNumbers) { %>
-              <option value="<%- item.number %>"><%= item.format %></option>
-              <% } %>
+        <!--
+          <div id="campaign-range" class="block_space" style="display: none;">
+            <select id="my-campaigns" class="selectpicker filter-select" multiple data-width="150" title="my campaigns">
             </select>
+            <button class="btn-rc inline" onclick="readMessageStoreCampaign()">Read</button>
           </div>
-
-          <button class="btn-rc inline" onclick="readMessageStore()">Read</button>
+        -->
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
         <div id="processing" style='display:none'>

@@ -1700,6 +1700,7 @@ var engine = User.prototype = {
     },
     getMessagingAnalytics: function (req, res){
       console.log("getMessagingAnalytics")
+      // REMOVE WHEN COMMIT
       /*
       if (this.analytics.analyticsData != undefined){
         res.send({
@@ -1709,32 +1710,111 @@ var engine = User.prototype = {
         return
       }
       */
-      var timeOffset = 0 //parseInt(req.body.timeOffset)
-      var ts = new Date(req.body.dateFrom).getTime()
-      var dateFrom = new Date(ts - timeOffset).toISOString()
-      ts = new Date(req.body.dateTo).getTime()
-      var dateTo = new Date(ts - timeOffset).toISOString()
-      var readParams = {
-        view: "Detailed",
-        dateFrom: dateFrom,
-        dateTo: dateTo,
-        perPage: 1000
-      }
-      var phoneNumbers = JSON.parse(req.body.phoneNumbers)
-      if (phoneNumbers[0] != "all")
-        readParams['phoneNumber'] = phoneNumbers
-
-      if (req.body.pageToken)
-          readParams['pageToken'] = req.body.pageToken
-
       this.analytics.resetAnalyticsData()
       res.send({
           status: "ok",
           result: this.analytics.analyticsData
       })
-      this._readMessageStoreForAnalytics(readParams, timeOffset)
-      //this._readTestMessageStore(timeOffset)
 
+      if (req.body.mode == 'date'){
+        var timeOffset = 0 //parseInt(req.body.timeOffset)
+        var ts = new Date(req.body.dateFrom).getTime()
+        var dateFrom = new Date(ts - timeOffset).toISOString()
+        ts = new Date(req.body.dateTo).getTime()
+        var dateTo = new Date(ts - timeOffset).toISOString()
+        var readParams = {
+          view: "Detailed",
+          dateFrom: dateFrom,
+          dateTo: dateTo,
+          perPage: 1000
+        }
+        var phoneNumbers = JSON.parse(req.body.phoneNumbers)
+        if (phoneNumbers[0] != "all")
+          readParams['phoneNumber'] = phoneNumbers
+
+        if (req.body.pageToken)
+            readParams['pageToken'] = ""
+
+        this._readMessageStoreForAnalytics(readParams, timeOffset)
+      }else{
+        //this._readTestMessageStore(timeOffset)
+        var campaignIds = JSON.parse(req.body.campaignIds)
+        console.log(campaignIds)
+        this._readMessageStoreByCampaign(campaignIds, "", 0)
+      }
+    },
+    _readMessageStoreByCampaign: async function(campaignIds, pageToken, index){
+      console.log("_readMessageStoreByCampaign")
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: campaignIds[index],
+        view: 'Detailed',
+        perPage: 1000
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+      console.log(index)
+      console.log(JSON.stringify(params))
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          console.log(jsonObj)
+          for (var message of jsonObj.records){
+            this.analytics.analyzeMessage(message)
+          }
+          //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
+          //this.analyticsData.segmentCounts.sort(sortSegmentCount)
+          this.analytics.analyticsData.phoneNumbers.sort(sortbByNumber)
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            this.analytics.analyticsData.task = "Processing"
+            var thisUser = this
+            setTimeout(function(){
+                //readParams['pageToken'] = jsonObj.paging.nextPageToken
+                thisUser._readMessageStoreByCampaign(campaignIds, jsonObj.paging.nextPageToken, index)
+            }, 1200)
+          }else{
+            index++
+            if (index < campaignIds.length){
+              this._readMessageStoreByCampaign(campaignIds, "", index)
+            }else{
+              // clean up
+              //console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
+              var check = true
+              while (check){
+                var index = this.analytics.analyticsData.failureAnalysis.contents.findIndex(o => o.ignore == true)
+                if (index >= 0){
+                  this.analytics.analyticsData.failureAnalysis.contents.splice(index, 1)
+                  //console.log("REMOVED")
+                }else{
+                  check = false
+                }
+              }
+              /*
+              console.log("AFTER CLEAN UP")
+              console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
+              for (var item of this.analytics.analyticsData.failureAnalysis.contents){
+                console.log(item.spams)
+                console.log(item.nonspams)
+              }
+              */
+              //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
+              //this.analyticsData.segmentCounts.sort(sortSegmentCount)
+              this.analytics.analyticsData.task = "Completed"
+            }
+          }
+        } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log('ERR ' + e.message);
+          console.log(e.response.headers)
+          this.analytics.analyticsData.task = "Interrupted"
+        }
+      }else{
+        this.analytics.analyticsData.task = "Interrupted"
+        console.log("Platform error")
+      }
     },
     _readMessageStoreForAnalytics: async function(readParams, timeOffset){
       console.log("_readMessageStoreForAnalytics")
@@ -1796,7 +1876,7 @@ var engine = User.prototype = {
     },
     _readTestMessageStore: function (timeOffset){
       console.log("_readTestMessageStore")
-      var resp = fs.readFileSync('./tempFile/testData_3.json', 'utf8');
+      var resp = fs.readFileSync('./tempFile/testData_4.json', 'utf8');
       var jsonObj = JSON.parse(resp)
       var count = 0
       for (var message of jsonObj){
@@ -1817,7 +1897,7 @@ var engine = User.prototype = {
         var index = this.analytics.analyticsData.failureAnalysis.contents.findIndex(o => o.ignore == true)
         if (index >= 0){
           this.analytics.analyticsData.failureAnalysis.contents.splice(index, 1)
-          console.log("REMOVED")
+          //console.log("REMOVED")
         }else{
           check = false
         }
@@ -1826,16 +1906,15 @@ var engine = User.prototype = {
       console.log("AFTER CLEAN UP")
       console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
       for (var item of this.analytics.analyticsData.failureAnalysis.contents){
-        console.log(item.spams)
-        console.log(item.nonspams)
+        console.log(item.message)
+        console.log(item.spamMsgCount)
+        //console.log(item.nonspams)
       }
       //console.log(this.analytics.analyticsData.failureAnalysis.contents)
       this.analytics.analyticsData.task = "Completed"
     },
     // analytics end
     downloadHVMessageStore: function(req, res){
-      this.getMessagingAnalytics(req, res)
-      //
       var dir = "reports/"
       if(!fs.existsSync(dir)){
         fs.mkdirSync(dir)
@@ -1853,8 +1932,10 @@ var engine = User.prototype = {
         for (var item of this.batchFullReport){
           var from = formatPhoneNumber(item.from)
           var to = formatPhoneNumber(item.to[0])
+          var cost = (item.hasOwnProperty('cost')) ? item.cost : 0.0
+          var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : 0
           fileContent += "\n" + item.id + "," + from + "," + to + "," + item.creationTime + "," + item.lastModifiedTime
-          fileContent +=  "," + item.messageStatus + "," + item.cost + "," + item.segmentCount
+          fileContent +=  "," + item.messageStatus + "," + cost + "," + segmentCount
           fileContent +=  "," + item.direction + ',"' + item.text + '"'
         }
       }
