@@ -299,7 +299,7 @@ var engine = Analytics.prototype = {
           if (item.keywords.findIndex(o => o == kw) >= 0)
             matchedCount++
         }
-        if ((matchedCount > 0) && (matchedCount >= (item.keywords.length-2))){
+        if ((matchedCount > 0) && (matchedCount >= (keywords.length-2))){
           var toNumber = message.to[0]
           if (message.messageStatus == "Delivered" || message.messageStatus == "Sent"){
             item.acceptedMsgCount++

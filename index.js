@@ -243,24 +243,7 @@ app.get('/get-standard-sms-result', function (req, res) {
     res.render('index')
   }
 })
-/*
-app.get('/getvoteresult', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.getVoteResult(req, res)
-  else{
-    res.render('index')
-  }
-})
-*/
-/*
-app.get('/getbatchreport', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.getBatchReport(req, res)
-  else{
-    res.render('index')
-  }
-})
-*/
+
 app.get('/get-batch-result', function (req, res) {
   if (req.session.extensionId != 0)
     router.getBatchResult(req, res)
@@ -308,17 +291,6 @@ app.get('/delete-campaign-result', function (req, res) {
     res.render('index')
   }
 })
-
-/*
-app.get('/downloadvotereport', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.downloadVoteReport(req, res)
-  else{
-    res.render('index')
-  }
-})
-*/
-
 
 app.get('/download-analytics', function (req, res) {
   if (req.session.extensionId != 0)

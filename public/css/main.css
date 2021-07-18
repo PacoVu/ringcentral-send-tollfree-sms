@@ -634,7 +634,7 @@ a:hover, a:visited, a:link, a:active
 }
 
 .failed-content-list{
-  height: 400px;
+  height: 320px;
   overflow: scroll;
   width: 100%;
   padding-right: 10px;

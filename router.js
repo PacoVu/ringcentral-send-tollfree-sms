@@ -342,7 +342,7 @@ var router = module.exports = {
     var index = getUserIndex(req.session.userId)
     if (index < 0)
       return this.forceLogin(req, res)
-    users[index].readCampaignSummary(res, req.query.batchId)
+    users[index].readCampaignSummary(res, req.query.batchId, req.query.ts)
   },
   readCampaignDetails: function(req, res){
     var index = getUserIndex(req.session.userId)

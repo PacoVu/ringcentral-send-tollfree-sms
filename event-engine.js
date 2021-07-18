@@ -178,7 +178,6 @@ var engine = ActiveUser.prototype = {
     processNotification: function(jsonObj){
       //console.log(jsonObj)
       var body = jsonObj.body
-      var notFound = true
       // seach for the "from" number within those campaigns
       for (var campaign of this.voteCampaignArr){
         if (campaign.serviceNumber != body.to[0]){
@@ -192,7 +191,6 @@ var engine = ActiveUser.prototype = {
             if (campaign.status == "Completed" /*&& !campaign.allowCorrection*/){
               continue
             }else{
-              notFound = false
               // process this vote campaign
               console.log("Processing response")
               if (this.processThisCampaign(campaign, voter, body)){
@@ -301,14 +299,16 @@ var engine = ActiveUser.prototype = {
           console.log(campaign)
           console.log("======")
         }
-        if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
-          campaign.status = "Completed"
-          needUpdateDd = true
-          var postData = {
-            dataType: "Survey_Result",
-            result: campaign
+        if (campaign.voteCounts.Delivered > 0){
+          if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
+            campaign.status = "Completed"
+            needUpdateDd = true
+            var postData = {
+              dataType: "Survey_Result",
+              result: campaign
+            }
+            this.postResults(postData)
           }
-          this.postResults(postData)
         }
         if (needUpdateDd)
           this.updateVoteDataInDB((err, res) => {

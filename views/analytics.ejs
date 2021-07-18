@@ -64,7 +64,7 @@
           </ul>
         </div>
       <% } %>
-      <div id="control-list-col" class="col-lg-2" style="width:340px">
+      <div id="control-list-col" class="col-lg-2" style="width:306px">
         <div id="col2-header" class="form-inline read-message-input-block">
         <!--
           <label class="label-input" for="analytics-choices">Choices</label>
@@ -85,7 +85,7 @@
             </div>
             <div class="block_space">
               <label class="label-input" for="my-numbers">From number</label>
-              <select id="my-numbers" class="selectpicker filter-select" data-width="150" title="my numbers">
+              <select id="my-numbers" class="selectpicker filter-select" data-width="120" title="my numbers">
                 <option selected value="all">All numbers</option>
                 <% for (var item of phoneNumbers) { %>
                 <option value="<%- item.number %>"><%= item.format %></option>
@@ -104,7 +104,7 @@
         </div>
         <hr style="margin: 2px !important;border: 2px solid white"></hr>
         <div id="processing" style='display:none'>
-          <img src='./img/processing-indicator.gif' style='width:300px;height:200px;display: block;margin:auto;'></img>
+          <img src='./img/processing-indicator.gif' style='width:280px;height:200px;display: block;margin:auto;'></img>
           <div style='width:100%; margin-left: 100px;font-size: 1.2em'>Processing ...</div>
         </div>
       </div>
@@ -148,7 +148,7 @@
               </span>
               <span id="failure-category" style="display:none">
                 <label for="my-numbers">by</label>
-                <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailedAnalyticsDetails()">
+                <select id="failure-types" class="selectpicker filter-select" data-width="220" title="Display mode" onchange="displayFailureAnalyticsDetails()">
                   <option selected value="spam">Spam message</option>
                   <option value="invalid-number">Invalid number</option>
                   <option value="rejected-number">Rejected number</option>

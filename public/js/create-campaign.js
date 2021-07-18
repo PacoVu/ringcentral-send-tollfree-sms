@@ -3,7 +3,9 @@ var currentBatchId = ""
 var isPolling = false
 const SMS_COST = 0.007
 const SMS_SEGMENT_LEN = 153
+const SMS_SEGMENT_LEN_EMOJI = 70
 const SMS_MAX_LEN = 160
+var hasEmojiChar = false
 var totalRecipients = 0
 var recipientsFromFile = []
 var totalMessageSegments = 0
@@ -759,13 +761,30 @@ function updateSampleMessage(){
   }
 
   $("#charcount").html("SMS length: " + msg.length + " chars.")
+  hasEmojiChar = false
+  for (var i=0; i<msg.length; i++){
+    if (msg[i].codePointAt(0).toString(16).length > 2){
+      hasEmojiChar = true
+      break
+    }
+  }
 
   totalMessageSegments = 1
-  if (msg.length > SMS_MAX_LEN){
-    totalMessageSegments = msg.length / SMS_SEGMENT_LEN
-    totalMessageSegments = Math.ceil(totalMessageSegments)
-  }else if (msg.length == 0)
-    totalMessageSegments = 0
+  if (hasEmojiChar){
+    if (msg.length > SMS_SEGMENT_LEN_EMOJI){
+      totalMessageSegments = msg.length / SMS_SEGMENT_LEN_EMOJI
+      totalMessageSegments = Math.ceil(totalMessageSegments)
+    }else if (msg.length == 0){
+      totalMessageSegments = 0
+    }
+  }else{
+    if (msg.length > SMS_MAX_LEN){
+      totalMessageSegments = msg.length / SMS_SEGMENT_LEN
+      totalMessageSegments = Math.ceil(totalMessageSegments)
+    }else if (msg.length == 0){
+      totalMessageSegments = 0
+    }
+  }
   totalMessageSegments *= totalRecipients
   calculateEstimatedCost()
 }
@@ -1261,8 +1280,6 @@ function readTemplates(){
             signatureList.push(item)
         }
       }
-      console.log(templateList)
-      console.log(signatureList)
     }else if (res.status == "error"){
       _alert(res.message)
     }else{

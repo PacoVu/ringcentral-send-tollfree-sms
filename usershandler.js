@@ -43,6 +43,7 @@ function User(id) {
   }
 
   // High Volume SMS Result
+  /*
   this.batchResult = {
     id:"",
     batchSize: 0,
@@ -52,7 +53,7 @@ function User(id) {
     status:"Completed",
     batchType: "group"
   }
-
+  */
   this.downloadLink = ""
   this.batchFullReport = []
   this.processingBatches = []
@@ -272,7 +273,6 @@ var engine = User.prototype = {
     },
     readA2PSMSPhoneNumber: async function(req, res){
       // admin w/o number
-
       if (this.adminUser){
         if ((this.phoneHVNumbers.length == 0) && (this.phoneTFNumbers.length == 0)){
             // check if this account has any users who has HV SMS numbers and ever used the app
@@ -296,7 +296,6 @@ var engine = User.prototype = {
             return
         }
       }
-
       // decide what page to load
       if (this.phoneHVNumbers.length > 0 && this.subscriptionId != ""){
         console.log("temp solution")
@@ -1076,7 +1075,6 @@ var engine = User.prototype = {
     },
     processBatchEventNotication: function(eventObj){
       console.log("Batch completed")
-      // find the batch
       //console.log(eventObj)
       this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
         if (batch){
@@ -1085,6 +1083,11 @@ var engine = User.prototype = {
             var index = this.processingBatches.findIndex(o => o == eventObj.body.id)
             if (index >= 0)
               this.processingBatches.splice(index, 1)
+            batch.queuedCount = 0
+            batch.deliveredCount = 0
+            batch.sentCount = 0
+            batch.unreachableCount = 0
+            batch.totalCost = 0.0
             this._postBatchReport(batch, 1, "")
           }
           // check status to deal with the future when deletion is supported
@@ -1168,6 +1171,8 @@ var engine = User.prototype = {
             if (vote)
               this.eventEngine.setCampainByBatchId(batch.batchId, vote)
             // update local db
+            console.log("from notification")
+            console.log(batch)
             this._updateCampaignDB(batch, (err, result) => {
               console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
               var postData = {
@@ -1189,10 +1194,11 @@ var engine = User.prototype = {
         console.log("platform issue")
       }
     },
-    readCampaignSummary: function(res, batchId){
-      //console.log("readCampaignSummary - sendCount > 0")
+    readCampaignSummary: async function(res, batchId, timeStamp){
+      console.log("readCampaignSummary - sendCount > 0")
+      /*
       var batchReport = {
-        batchId: batchId,
+        batchId: req.query.batchId,
         queuedCount: 0,
         deliveredCount: 0,
         sentCount: 0,
@@ -1200,10 +1206,7 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       this._readCampaignSummary(res, batchId, batchReport, "")
-      //this._readCampaignSummary_v2(res, batchId, batchReport)
-    },
-    _readCampaignSummary_v2: async function(res, batchId, batchReport){
-      console.log("_readCampaignSummary_v2")
+      */
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
       var params = {
         batchId: batchId
@@ -1213,25 +1216,37 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, params)
           var jsonObj = await resp.json()
-          console.log(jsonObj)
-          /*
-          {
-            queued: { count: 0 },
-            delivered: { count: 2 },
-            deliveryFailed: { count: 0, errorCodeCounts: {} },
-            sent: { count: 0 },
-            sendingFailed: { count: 0 }
+          //console.log(jsonObj)
+          var unreachableCount = jsonObj.deliveryFailed.count
+          unreachableCount += jsonObj.sendingFailed.count
+          var batchReport = {
+            batchId: batchId,
+            queuedCount: jsonObj.queued.count,
+            deliveredCount: jsonObj.delivered.count,
+            sentCount: jsonObj.sent.count,
+            unreachableCount: unreachableCount,
+            totalCost: 0.0
           }
-          */
-          batchReport.queuedCount = jsonObj.queued.count
-          batchReport.deliveredCount = jsonObj.delivered.count
-          batchReport.sentCount = jsonObj.sent.count
-          batchReport.unreachableCount = jsonObj.deliveryFailed.count
-          batchReport.unreachableCount += jsonObj.sendingFailed.count
+          // read batches to get cost
+          endpoint = `/restapi/v1.0/account/~/a2p-sms/batches/${batchId}`
+          resp = await p.get(endpoint)
+          jsonObj = await resp.json()
+          //console.log(jsonObj)
+          batchReport.totalCost = jsonObj.cost
+          //console.log(batchReport)
           res.send({
             status: "ok",
             batchReport: batchReport
           })
+
+          var now = new Date().getTime()
+          if ((now - timeStamp) > 86400000){
+            this._updateCampaignDB(batchReport, (err, result) => {
+              console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
+            })
+          }else{
+            console.log("DONT UPDATE CAMPAIGN DB!")
+          }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
           console.log('Params: ' + JSON.stringify(params))
@@ -1250,6 +1265,7 @@ var engine = User.prototype = {
         })
       }
     },
+    // retire this method after get statuses bug is fixed
     _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
       console.log("_readCampaignSummary")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1294,11 +1310,11 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             // don't update db. Taken care by notification path
-            /*
+            console.log("from polling")
+            console.log(batchReport)
             this._updateCampaignDB(batchReport, (err, result) => {
-              console.log("DONE READ BATCH REPORT")
+              console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
             })
-            */
             res.send({
               status: "ok",
               batchReport: batchReport
@@ -1504,6 +1520,7 @@ var engine = User.prototype = {
     },
     // analytics
     pollAnalyticsResult: function (res){
+      console.log("poll analytics")
       res.send({
           status: "ok",
           result: this.analytics.analyticsData
@@ -1734,7 +1751,7 @@ var engine = User.prototype = {
 
         if (req.body.pageToken)
             readParams['pageToken'] = ""
-
+        //this._readTestMessageStore(timeOffset)
         this._readMessageStoreForAnalytics(readParams, timeOffset)
       }else{
         //this._readTestMessageStore(timeOffset)
@@ -1824,6 +1841,7 @@ var engine = User.prototype = {
         try {
           var resp = await p.get(endpoint, readParams)
           var jsonObj = await resp.json()
+          //console.log(jsonObj)
           for (var message of jsonObj.records){
             this.analytics.analyzeMessage(message)
           }
@@ -1860,6 +1878,7 @@ var engine = User.prototype = {
             */
             //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
             //this.analyticsData.segmentCounts.sort(sortSegmentCount)
+            console.log("done analytics")
             this.analytics.analyticsData.task = "Completed"
           }
         } catch (e) {
@@ -1876,7 +1895,7 @@ var engine = User.prototype = {
     },
     _readTestMessageStore: function (timeOffset){
       console.log("_readTestMessageStore")
-      var resp = fs.readFileSync('./tempFile/testData_4.json', 'utf8');
+      var resp = fs.readFileSync('./tempFile/testData_3.json', 'utf8');
       var jsonObj = JSON.parse(resp)
       var count = 0
       for (var message of jsonObj){
@@ -2358,7 +2377,7 @@ var engine = User.prototype = {
             expiresIn: process.env.WEBHOOK_EXPIRES_IN
           })
           var jsonObj = await resp.json()
-          console.log("Ready to receive telephonyStatus notification via WebHook.")
+          console.log("Ready to receive HV SMS notification via WebHook.")
           this.subscriptionId = jsonObj.id
           //thisUser.eventEngine.subscriptionId = thisUser.subscriptionId
           console.log("Subscription created")

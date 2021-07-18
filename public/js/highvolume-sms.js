@@ -100,8 +100,14 @@ function readCampaignById(elm, batchId){
 function readCampaignFromServer(campaign){
   if (pollingBatchReportTimer)
     window.clearTimeout(pollingBatchReportTimer)
-  var url = `read-campaign-summary?batchId=${campaign.batchId}`
-  var getting = $.get( url );
+
+  var url = 'read-campaign-summary'
+  var params = {
+    batchId: campaign.batchId,
+    ts: campaign.creationTime
+  }
+
+  var getting = $.get( url, params );
   getting.done(function( res ) {
       if (res.status == "ok"){
         var batchReport = res.batchReport
@@ -247,7 +253,6 @@ function updateThisCampaign(campaign){
   // mashup with vote result
   var found = false
   var cost = campaign.totalCost
-  console.log("batch cost " + campaign.totalCost)
   for (var vote of voteReportList){
     if (vote.batchId == campaign.batchId){
       html += `<div class="col-lg-2">${vote.status}</div>`
@@ -268,7 +273,6 @@ function updateThisCampaign(campaign){
       html += `<div class="col-lg-2">--</div>`
   }
 
-  console.log("total Cost " + cost)
   if (cost < 1.00)
     cost = cost.toFixed(3)
   else if (cost < 10.00)
@@ -282,7 +286,6 @@ function updateThisCampaign(campaign){
     console.log("adjusted")
     console.log(campaign)
     total = campaign.totalCount
-    //campaign.unreachableCount = total
   }
 
   var progress = (campaign.deliveredCount/total) * 100

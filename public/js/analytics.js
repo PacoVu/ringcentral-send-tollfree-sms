@@ -86,7 +86,7 @@ function readMessageStoreCampaign(){
     mode: 'campaigns',
     campaignIds: JSON.stringify(campaigns)
   }
-  alert(configs.campaignIds)
+
   $("#processing").show()
   $("#options-bar").hide()
   $("#by_direction").html("")
@@ -207,6 +207,8 @@ function pollAnalyticsResult(){
         if (res.result.task == "Completed")
           $("#downloads").show()
         $("#processing").hide()
+        console.log(JSON.stringify(analyticsData))
+        displayAnalytics()
       }
     }else{
       $("#processing").hide()
@@ -242,8 +244,7 @@ function displayAnalytics(){
     $("#graphs").hide()
     $("#failure-category").show()
     $("#failure-analytics").show()
-    //displayFailedAnalytics(0)
-    displayFailedAnalyticsDetails()
+    displayFailureAnalyticsDetails()
   }else{
     $("#sub-category").show()
     $("#graphs").show()
@@ -318,10 +319,11 @@ function displayAnalyticsTotalTable(){
   var byStatus = `<div class='analytics-header'># Messages by status</div><table class='analytics-table'>`
   byStatus += "<tr><td class='table-label'>Status</td><td class='table-label'># Messages</td></tr>"
   byStatus += `<tr><td class='table-label'>Delivered</td><td>${formatNumber(analyticsData.deliveredCount)}</td></tr>`
-  byStatus += `<tr><td class='table-label'>Sending failed</td><td class='bad-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
-  byStatus += `<tr><td class='table-label'>Delivery failed</td><td class='bad-data'>${formatNumber(analyticsData.deliveryFailedCount)}</td></tr>`
   var totalFailed = analyticsData.deliveryFailedCount + analyticsData.sendingFailedCount
-  byStatus += `<tr><td class='table-label'>Total failed</td><td class='bad-data'>${formatNumber(totalFailed)}</td></tr></table>`
+  byStatus += `<tr><td class='table-label'>Failed</td><td class='bad-data'>${formatNumber(totalFailed)}</td></tr>`
+  byStatus += `<tr><td class=''>&nbsp;&nbsp;- Sending failed</td><td class='bad-data'>${formatNumber(analyticsData.sendingFailedCount)}</td></tr>`
+  byStatus += `<tr><td class=''>&nbsp;&nbsp;- Delivery failed</td><td class='bad-data'>${formatNumber(analyticsData.deliveryFailedCount)}</td></tr></table>`
+
 
   var byCost = `<div class='analytics-header'>Cost by direction</div><table class='analytics-table'>`
   byCost += "<tr><td class='table-label'>Direction</td><td class='table-label'>USD</td></tr>"
@@ -734,7 +736,7 @@ function displayMessageCostTable(breakout){
   $("#analysis").html(byCostEfficiency)
 }
 
-function displayFailedAnalyticsDetails(){
+function displayFailureAnalyticsDetails(){
   /*
   for (var s of analyticsData.failureAnalysis.contents){
     if (s.spamMsgCount > 0){
@@ -794,7 +796,7 @@ function displayFailedAnalyticsDetails(){
     }
     if (subMsg != ""){
       message += warning
-      message += "<div class='failed-content-list'>"
+      message += "<div id='failed-content-list' class='failed-content-list'>"
       message += subMsg
       message += "</div>"
     }else{
@@ -873,7 +875,7 @@ function displayFailedAnalyticsDetails(){
       }
     }
     if (subMsg != ""){
-      message += `<div class='failed-content-list'>${subMsg}</div>`
+      message += `<div id='failed-content-list' class='failed-content-list'>${subMsg}</div>`
     }else{
       message += `<p>Good news! There is no failure due to invalid message.</p>`
     }
@@ -969,7 +971,8 @@ function displayFailedAnalytics(slice){
     item = ["Other reasons", analyticsData.failureAnalysis.otherErrorCount]
     error_params.push(item)
 
-    var colors = {0:{color: '#3f3445'}, 1:{color: '#e88c02'}, 2:{color: '#ab6305'}, 3:{color: '#cc040e'}, 4:{color: 'red'}, 5:{color: '#0748a3'}, 6:{color: 'gray'}, 7:{color: '#59730a'}}
+    //var colors = {0:{color: '#3f3445'}, 1:{color: '#e88c02'}, 2:{color: '#ab6305'}, 3:{color: '#fc6603'}, 4:{color: 'red'}, 5:{color: '#0748a3'}, 6:{color: '#59730a'}}
+    var colors = ['#910608', '#d43306', '#f29a02', '#fc6603', '#0850d4', '#1c222e', '#e66a05']
     drawPieChart(error_params, "graph-column", '', colors, slice)
   }else{
     var errorData = `<div class='breakout'>Error by types</div><table class='analytics-table'>`
@@ -989,7 +992,7 @@ function displayFailedAnalytics(slice){
 
   }
   //drawKeywords(analyticsData.failureAnalysis[1].keywords)
-  //displayFailedAnalyticsDetails()
+  //displayFailureAnalyticsDetails()
 }
 
 function drawKeywords(keywords){
@@ -1003,7 +1006,7 @@ function drawKeywords(keywords){
       kw.push(3)
       list.push(kw)
   }
-  alert(JSON.stringify(list))
+
   var options = {
     list : list,
     gridSize: 5,
@@ -1017,79 +1020,6 @@ function drawKeywords(keywords){
   }
   WordCloud(document.getElementById('my_canvas'), options );
   //WordCloud(document.getElementById('my_canvas'), { list: list } );
-}
-
-function displayFailedAnalytics_old(){
-
-  /*
-  var error_params = [['Error Type', '# Count', { role: "style" } ]];
-  //alert(error_params)
-  var item = [ "Spam Content", analyticsData.outboundFailureTypes.content.count, '#e88c02' ]
-  error_params.push(item)
-  item = [ "Invalid Number", analyticsData.outboundFailureTypes.invalidRecipientNumbers.length, '#ab6305']
-  error_params.push(item)
-  item = [ "Opted-Out Number", analyticsData.outboundFailureTypes.optoutNumbers.length, '#cc040e' ]
-  error_params.push(item)
-  item = [ "Blocked Number", analyticsData.outboundFailureTypes.blockedSenderNumbers.length, '#ab6305' ]
-  error_params.push(item)
-  item = ["Others", analyticsData.outboundFailureTypes.others.count + analyticsData.sendingFailedCount, "#0748a3"]
-  error_params.push(item)
-
-  writeTitle("statistics-title", "Outbound failure by reason")
-  var block = `<div class='row col-lg-12'>`
-  block += "<div class='col-lg-4' id='graph-column'></div>"
-  block += "<div class='col-lg-8' id='text-column'></div>"
-  block += '</div>'
-  $("#statistics").html(block)
-  */
-  //drawColumnChart(error_params, "graph-column", '', "")
-  var error_params = [['Error Type', '# Count']];
-  //alert(error_params)
-  var item = [ "Spam Content", analyticsData.outboundFailureTypes.content.count]
-  error_params.push(item)
-  item = [ "Invalid Number", analyticsData.outboundFailureTypes.invalidRecipientNumbers.length]
-  error_params.push(item)
-  item = [ "Opted-Out Number", analyticsData.outboundFailureTypes.optoutNumbers.length]
-  error_params.push(item)
-  item = [ "Blocked Number", analyticsData.outboundFailureTypes.blockedSenderNumbers.length]
-  error_params.push(item)
-  item = ["Others", analyticsData.outboundFailureTypes.others.count + analyticsData.sendingFailedCount]
-  error_params.push(item)
-  var colors = {0:{color: '#e88c02'}, 1:{color: '#ab6305'}, 2:{color: '#cc040e'}, 3:{color: '#ab6305'}, 4:{color: '#0748a3'}}
-  drawPieChart(error_params, "graph-column", '', colors)
-  /*
-  var selectedType = $("#failure-types").val()
-  var message = ""
-  if (selectedType == "spam"){
-    message = "<div class='breakout'>Suspected spam content</div>"
-    for (var c of analyticsData.outboundFailureTypes.content.messages){
-      message += `<div class='block_space'>${c}</div>`
-    }
-  }else if (selectedType == "invalid-number"){
-    message = "<div class='breakout'>Invalid recipient numbers</div>"
-    for (var c of analyticsData.outboundFailureTypes.invalidRecipientNumbers){
-      message += `<div>${c}</div>`
-    }
-  }else if (selectedType == "optedout-number"){
-    message = "<div class='breakout'>Opted out numbers</div>"
-    for (var c of analyticsData.outboundFailureTypes.optoutNumbers){
-      message += `<div class='block_space'>${c}</div>`
-    }
-  }else if (selectedType == "blocked-number"){
-    message = "<div class='breakout'>Blocked service numbers</div>"
-    for (var c of analyticsData.outboundFailureTypes.blockedSenderNumbers){
-      message += `<div class='block_space'>${c}</div>`
-    }
-  }else if (selectedType == "others"){
-    message = "<div class='breakout'>Other unknown numbers</div>"
-    for (var c of analyticsData.outboundFailureTypes.others.messages){
-      message += `<div class='block_space'>${c}</div>`
-    }
-  }
-  $("#text-column").html(message)
-  */
-  $("#analysis-title").html("")
-  $("#analysis").html("")
 }
 
 function drawComboChart(params, graph, title, vTitle, hTitle, colors, format){
@@ -1114,12 +1044,12 @@ function drawComboChart(params, graph, title, vTitle, hTitle, colors, format){
   view.setColumns(columns);
   var options = {
           //title : title,
-          width: "100%",
-          height: 220,
+          width: "98%",
+          height: 210,
           //vAxis: {minValue: 0, title: `${vTitle}`},{vAxis: {format:'#%'}
           //hAxis: {title: `${hTitle}`, format: 0},
           vAxis: { minValue: 0, title: `${vTitle}` },
-          //hAxis: {format: 0},
+          hAxis: {minValue: 0, format: 0},
           seriesType: 'bars',
           bar: {groupWidth: "60%"},
           legend: { position: "top" },
@@ -1146,9 +1076,9 @@ function drawColumnChart(params, graph, title, vTitle){
       title: title,
       vAxis: {minValue: 0, title: `${vTitle}`},
       //hAxis: {format: 0},
-      width: 360,
-      height: 220,
-      bar: {groupWidth: "90%"},
+      width: 320,
+      height: 210,
+      bar: {groupWidth: "80%"},
       legend: { position: "none" },
     };
 
@@ -1206,9 +1136,9 @@ function drawPieChart(params, graph, title, colors, slice){
 
   var options = {
     title: title,
-    width: 320,
-    height: 320,
-    slices: colors,
+    width: 300,
+    height: 300,
+    colors: colors,
     backgroundColor: 'transparent',
     chartArea:{left:0,top:20,bottom:0,width:'100%',height:'100%'},
     legend: {
@@ -1222,7 +1152,7 @@ function drawPieChart(params, graph, title, colors, slice){
     pieSliceText: 'value',
     //pieStartAngle: 90,
     //pieHole: 0.5,
-    sliceVisibilityThreshold: 0.0000,
+    sliceVisibilityThreshold: 0.0001,
     slices: slices
   };
 
