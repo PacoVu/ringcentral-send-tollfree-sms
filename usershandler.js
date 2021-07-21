@@ -1196,17 +1196,17 @@ var engine = User.prototype = {
     },
     readCampaignSummary: async function(res, batchId, timeStamp){
       console.log("readCampaignSummary - sendCount > 0")
-      /*
+
       var batchReport = {
-        batchId: req.query.batchId,
+        batchId: batchId,
         queuedCount: 0,
         deliveredCount: 0,
         sentCount: 0,
         unreachableCount: 0,
         totalCost: 0.0
       }
-      this._readCampaignSummary(res, batchId, batchReport, "")
-      */
+      this._readCampaignSummary(res, batchId, timeStamp, batchReport, "")
+      /* enable when /statuses is fixed
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
       var params = {
         batchId: batchId
@@ -1264,9 +1264,10 @@ var engine = User.prototype = {
           message: "Platform error."
         })
       }
+      */
     },
     // retire this method after get statuses bug is fixed
-    _readCampaignSummary: async function(res, batchId, batchReport, pageToken){
+    _readCampaignSummary: async function(res, batchId, timeStamp, batchReport, pageToken){
       console.log("_readCampaignSummary")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
@@ -1306,19 +1307,23 @@ var engine = User.prototype = {
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
             console.log("has nextPageToken")
             setTimeout(function(){
-              thisUser._readCampaignSummary(res, batchId, batchReport, jsonObj.paging.nextPageToken)
+              thisUser._readCampaignSummary(res, batchId, timeStamp, batchReport, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
             // don't update db. Taken care by notification path
             console.log("from polling")
-            console.log(batchReport)
-            this._updateCampaignDB(batchReport, (err, result) => {
-              console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
-            })
             res.send({
               status: "ok",
               batchReport: batchReport
             })
+            var now = new Date().getTime()
+            if ((now - timeStamp) > 86400000){
+              this._updateCampaignDB(batchReport, (err, result) => {
+                console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
+              })
+            }else{
+              console.log("DONT UPDATE CAMPAIGN DB!")
+            }
           }
         } catch (e) {
           console.log('Endpoint: GET ' + endpoint)
@@ -2163,7 +2168,7 @@ var engine = User.prototype = {
       var timeOffset = parseInt(query.timeOffset)
       let dateOptions = { weekday: 'short' }
       for (var item of records){
-        console.log(item)
+        //console.log(item)
         var from = formatPhoneNumber(item.from)
         var to = formatPhoneNumber(item.to[0])
         var date = new Date(item.creationTime)
