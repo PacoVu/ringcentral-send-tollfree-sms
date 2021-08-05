@@ -1196,7 +1196,7 @@ var engine = User.prototype = {
     },
     readCampaignSummary: async function(res, batchId, timeStamp){
       console.log("readCampaignSummary - sendCount > 0")
-
+      /*
       var batchReport = {
         batchId: batchId,
         queuedCount: 0,
@@ -1206,7 +1206,8 @@ var engine = User.prototype = {
         totalCost: 0.0
       }
       this._readCampaignSummary(res, batchId, timeStamp, batchReport, "")
-      /* enable when /statuses is fixed
+      */
+      // enable when /statuses is fixed
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
       var params = {
         batchId: batchId
@@ -1264,7 +1265,7 @@ var engine = User.prototype = {
           message: "Platform error."
         })
       }
-      */
+
     },
     // retire this method after get statuses bug is fixed
     _readCampaignSummary: async function(res, batchId, timeStamp, batchReport, pageToken){
@@ -2164,7 +2165,6 @@ var engine = User.prototype = {
       fullNamePath += '-campaign-report.csv'
       if (appendFile == false)
         fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Error Description,Cost,Segment"
-        //fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Error Code,Cost,Segment"
       var timeOffset = parseInt(query.timeOffset)
       let dateOptions = { weekday: 'short' }
       for (var item of records){
@@ -2192,7 +2192,7 @@ var engine = User.prototype = {
         var cost = (item.cost) ? item.cost : 0.00
         var segmentCount = (item.segmentCount) ? item.segmentCount : 0
         fileContent += `\n${item.id},${from},${to},${createdDateStr},${updatedDateStr}`
-        fileContent +=  `,${item.messageStatus},${errorCode},${errorDes},${cost},${segmentCount}`
+        fileContent +=  `,${item.messageStatus},${errorCode},"${errorDes}",${cost},${segmentCount}`
       }
       try{
         if (appendFile == false){

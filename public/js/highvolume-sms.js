@@ -161,12 +161,12 @@ function listAllCampaigns(recentBatch){
     // mashup with vote result
     var found = false
     var cost = item.totalCost
-    console.log("batch cost " + item.totalCost)
+    //console.log("batch cost " + item.totalCost)
     for (var vote of voteReportList){
       if (vote.batchId == item.batchId){
         html += `<div class="col-lg-2">${vote.status}</div>`
         cost += vote.voteCounts.Cost
-        console.log("vote Cost " + vote.voteCounts.Cost)
+        //console.log("vote Cost " + vote.voteCounts.Cost)
         found = true
         break
       }
@@ -182,7 +182,7 @@ function listAllCampaigns(recentBatch){
         html += `<div class="col-lg-2">--</div>`
     }
 
-    console.log("total Cost " + cost)
+    //console.log("total Cost " + cost)
     if (cost < 1.00)
       cost = cost.toFixed(3)
     else if (cost < 10.00)
@@ -193,8 +193,8 @@ function listAllCampaigns(recentBatch){
     var total = item.queuedCount + item.sentCount + item.deliveredCount + item.unreachableCount
 
     if (total == 0){
-      console.log("adjusted")
-      console.log(item)
+      //console.log("adjusted")
+      //console.log(item)
       total = item.totalCount
       //item.unreachableCount = total
     }
@@ -535,6 +535,7 @@ function isAnyLiveCampaign(){
       }else{
         if (campaign.message != ""){
           var total = campaign.queuedCount + campaign.sentCount + campaign.deliveredCount + campaign.unreachableCount
+          //console.log("isAnyLiveCampaign Total: " + total)
           if (total == 0)
             return campaign
         }

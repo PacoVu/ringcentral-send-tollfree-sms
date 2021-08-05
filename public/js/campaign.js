@@ -95,7 +95,7 @@ function listAllCampaigns(){
     html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign('${item.batchId}', '')">${item.campaignName}</div>`
   }
   $("#campaign-list").html(html)
-  console.log(campaignList[0])
+  //console.log(campaignList[0])
   var batchId = campaignList[0].batchId
   //readCampaign($(`#${batchId}`), batchId, "")
   readCampaign(batchId, "")
@@ -143,7 +143,7 @@ function readCampaign(batchId, pageToken){
       }
       if (html != ""){
         html += '</div>'
-        console.log(html)
+        //console.log(html)
         $("#pages").show()
         $("#pages").html(html)
       }
