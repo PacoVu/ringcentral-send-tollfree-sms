@@ -60,8 +60,8 @@ RCPlatform.prototype = {
       callback(null, "Auto login ok")
     }else{
       console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED")
-      console.log("CAN'T REFRESH: " + e.message)
-      callback(e.message, "Auto login Failed")
+      console.log("CAN'T REFRESH")
+      callback('failed', "Auto login Failed")
     }
   },
   logout: async function(){
