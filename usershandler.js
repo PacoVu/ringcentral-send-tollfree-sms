@@ -20,7 +20,7 @@ function User(id) {
   this.eventEngine = undefined
   this.rc_platform = new RCPlatform(id)
   this.analytics = new Analytics()
-  //this.sendVote = false
+
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
 
@@ -42,19 +42,9 @@ function User(id) {
     totalCost: 0.0
   }
 
-  // High Volume SMS Result
-  /*
-  this.batchResult = {
-    id:"",
-    batchSize: 0,
-    processedCount: 0,
-    rejectedCount: 0,
-    rejectedNumbers: [],
-    status:"Completed",
-    batchType: "group"
-  }
-  */
   this.downloadLink = ""
+  this.downloadBatchId = ""
+  this.createReportStatus = "idle"
   this.batchFullReport = []
   this.processingBatches = []
   this.mainCompanyNumber = ""
@@ -1196,18 +1186,6 @@ var engine = User.prototype = {
     },
     readCampaignSummary: async function(res, batchId, timeStamp){
       console.log("readCampaignSummary - sendCount > 0")
-      /*
-      var batchReport = {
-        batchId: batchId,
-        queuedCount: 0,
-        deliveredCount: 0,
-        sentCount: 0,
-        unreachableCount: 0,
-        totalCost: 0.0
-      }
-      this._readCampaignSummary(res, batchId, timeStamp, batchReport, "")
-      */
-      // enable when /statuses is fixed
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
       var params = {
         batchId: batchId
@@ -1220,21 +1198,26 @@ var engine = User.prototype = {
           //console.log(jsonObj)
           var unreachableCount = jsonObj.deliveryFailed.count
           unreachableCount += jsonObj.sendingFailed.count
+
+          var totalCost = 0.0
+          if (jsonObj.delivered.hasOwnProperty('cost'))
+            totalCost += jsonObj.delivered.cost
+          if (jsonObj.deliveryFailed.hasOwnProperty('cost'))
+            totalCost += jsonObj.deliveryFailed.cost
+          if (jsonObj.sent.hasOwnProperty('cost'))
+            totalCost += jsonObj.sent.cost
+          if (jsonObj.sendingFailed.hasOwnProperty('cost'))
+            totalCost += jsonObj.sendingFailed.cost
+
           var batchReport = {
             batchId: batchId,
             queuedCount: jsonObj.queued.count,
             deliveredCount: jsonObj.delivered.count,
             sentCount: jsonObj.sent.count,
             unreachableCount: unreachableCount,
-            totalCost: 0.0
+            totalCost: totalCost
           }
-          // read batches to get cost
-          endpoint = `/restapi/v1.0/account/~/a2p-sms/batches/${batchId}`
-          resp = await p.get(endpoint)
-          jsonObj = await resp.json()
-          //console.log(jsonObj)
-          batchReport.totalCost = jsonObj.cost
-          //console.log(batchReport)
+
           res.send({
             status: "ok",
             batchReport: batchReport
@@ -2116,6 +2099,7 @@ var engine = User.prototype = {
         }
       })
     },
+    /*
     _createReportFile: async function(query, pageToken, callback){
       console.log("_createReportFile")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -2141,6 +2125,7 @@ var engine = User.prototype = {
               thisUser._createReportFile(query, jsonObj.paging.nextPageToken, callback)
             }, 1200)
           }else{
+            downloadLink = link
             callback(null, link)
           }
         } catch (e) {
@@ -2203,28 +2188,170 @@ var engine = User.prototype = {
       }catch(e){
           console.log("cannot create report file")
       }
-      //downloadLink = "/downloads?filename=" + fullNamePath
+      //downloadLink = `/downloads?filename=${fullNamePath}`
+      return "/downloads?filename=" + fullNamePath
+    },
+    */
+    _createReportFile: async function(query, pageToken){
+      console.log("_createReportFile")
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: query.batchId,
+        perPage: 1000
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          var appendFile = (pageToken == "") ? false : true
+          var link = this.writeToFile(query, jsonObj.records, appendFile)
+
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            console.log("Read next page")
+            var thisUser = this
+            setTimeout(function(){
+              thisUser._createReportFile(query, jsonObj.paging.nextPageToken)
+            }, 1200)
+          }else{
+            console.log("No next page => create report done")
+            this.downloadLink = link
+            this.createReportStatus = 'done'
+            //callback(null, link)
+          }
+        } catch (e) {
+          console.log('Endpoint: GET ' + endpoint)
+          console.log('Params: ' + JSON.stringify(params))
+          console.log(e.response.headers)
+          console.log('ERR ' + e.message);
+          this.createReportStatus = 'error'
+        }
+      }else{
+        console.log("create report failed")
+        this.createReportStatus = 'failed'
+      }
+    },
+    writeToFile: function(query, records, appendFile){
+      var dir = "reports/"
+      if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir)
+      }
+      var name = decodeURIComponent(query.campaignName).replace(/#/g, "")
+      var fullNamePath = dir + name.replace(/\s/g, "-")
+      var fileContent = ""
+      fullNamePath += '-campaign-report.csv'
+      if (appendFile == false)
+        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Error Description,Cost,Segment"
+      var timeOffset = parseInt(query.timeOffset)
+      let dateOptions = { weekday: 'short' }
+      for (var item of records){
+        //console.log(item)
+        var from = formatPhoneNumber(item.from)
+        var to = formatPhoneNumber(item.to[0])
+        var date = new Date(item.creationTime)
+        var timestamp = date.getTime() - timeOffset
+        var createdDate = new Date (timestamp)
+        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
+        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        date = new Date(item.lastModifiedTime)
+        var timestamp = date.getTime() - timeOffset
+        var updatedDate = new Date (timestamp)
+        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
+        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
+        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
+        var errorCode = ""
+        var errorDes = ""
+        if (item.hasOwnProperty('errorCode')){
+          errorCode = item.errorCode
+          errorDes = getErrorDescription(errorCode)
+        }
+        var cost = (item.cost) ? item.cost : 0.00
+        var segmentCount = (item.segmentCount) ? item.segmentCount : 0
+        fileContent += `\n${item.id},${from},${to},${createdDateStr},${updatedDateStr}`
+        fileContent +=  `,${item.messageStatus},${errorCode},"${errorDes}",${cost},${segmentCount}`
+      }
+      try{
+        if (appendFile == false){
+          fs.writeFileSync('./'+ fullNamePath, fileContent)
+        }else{
+          fs.appendFileSync('./'+ fullNamePath, fileContent)
+        }
+      }catch(e){
+          console.log("cannot create report file")
+      }
+      //downloadLink = `/downloads?filename=${fullNamePath}`
       return "/downloads?filename=" + fullNamePath
     },
     downloadBatchReport: function(req, res){
       console.log("downloadBatchReport")
-      this._createReportFile(req.query, "", (err, link) => {
-        if (!err){
-          console.log("file is ready for download")
-          res.send({"status":"ok","message": link})
-        }else{
-          if (err == "error")
-            res.send({
-              status: "error",
-              message: "Failed to read campaign report. Please retry!"
-            })
-          else
-            res.send({
-              status: "failed",
-              message: "You have been logged out. Please login again."
-            })
+      if (this.createReportStatus != 'idle'){
+        var response = {
+          status: 'reading',
+          message: ''
         }
-      })
+        if (this.createReportStatus == 'done'){
+          response.status = 'ok'
+          response.message = this.downloadLink
+          this.createReportStatus = 'idle'
+          this.downloadBatchId = ''
+        }else if (this.createReportStatus == 'error'){
+          response.status = 'error'
+          response.message = 'Failed to read campaign report. Please retry!'
+          this.createReportStatus = 'idle'
+          this.downloadBatchId = ''
+        }else if (this.createReportStatus == 'failed'){
+          response.status = 'failed'
+          response.message = 'You have been logged out. Please login again.'
+          this.createReportStatus = 'idle'
+          this.downloadBatchId = ''
+        }
+        console.log(response.message)
+        res.send(response)
+      }else{
+        if (this.downloadBatchId == ''){
+          this.downloadBatchId = req.query.batchId
+          this.createReportStatus = 'reading'
+          this.downloadLink = ''
+          this._createReportFile(req.query, "")
+          var response = {
+            status: 'reading',
+            message: ''
+          }
+          res.send(response)
+        }else{
+          // cancel previous reading
+          console.log('previous report is pending')
+          var response = {
+            status: 'error',
+            message: 'Busy'
+          }
+          res.send(response)
+        }
+
+          /*
+          , (err, link) => {
+            if (!err){
+              console.log("file is ready for download")
+              res.send({"status":"ok","message": link})
+            }else{
+              if (err == "error")
+                res.send({
+                  status: "error",
+                  message: "Failed to read campaign report. Please retry!"
+                })
+              else
+                res.send({
+                  status: "failed",
+                  message: "You have been logged out. Please login again."
+                })
+            }
+          })
+          */
+      }
     },
     deleteCampaignResult: function(req, res){
       var thisUser = this

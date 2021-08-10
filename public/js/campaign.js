@@ -261,7 +261,12 @@ function downloadBatchReport(batchId, name){
     if (res.status == "ok"){
       $("#download-indicator").hide()
       window.location.href = res.message
-    }else if (res.status == "error"){
+    }else if (res.status == "reading"){
+      window.setTimeout(function(){
+        downloadBatchReport(batchId, name)
+      },2000)
+    }
+    else if (res.status == "error"){
       $("#download-indicator").hide()
       _alert(res.message)
     }else{
