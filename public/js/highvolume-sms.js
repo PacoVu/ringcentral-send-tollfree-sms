@@ -116,7 +116,7 @@ function readCampaignFromServer(campaign){
         campaign.sentCount = batchReport.sentCount
         campaign.unreachableCount = batchReport.unreachableCount
         campaign.totalCost = batchReport.totalCost
-        //listAllCampaigns(undefined)
+        //console.log(campaign)
         updateThisCampaign(campaign)
       }else if (res.status == "error"){
         _alert(res.message)
@@ -161,7 +161,6 @@ function listAllCampaigns(recentBatch){
     // mashup with vote result
     var found = false
     var cost = item.totalCost
-    //console.log("batch cost " + item.totalCost)
     for (var vote of voteReportList){
       if (vote.batchId == item.batchId){
         html += `<div class="col-lg-2">${vote.status}</div>`
@@ -284,7 +283,7 @@ function updateThisCampaign(campaign){
 
   if (total == 0){
     console.log("adjusted")
-    console.log(campaign)
+    //console.log(campaign)
     total = campaign.totalCount
   }
 

@@ -1,3 +1,4 @@
+/*
 var errorCodes = {}
 errorCodes["SMS-UP-410"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
 errorCodes["SMS-UP-430"] = "Spam content detected by SMS gateway."
@@ -16,10 +17,14 @@ errorCodes["SMS-CAR-433"] = "Message is malformed for the carrier."
 errorCodes["SMS-CAR-450"] = "P2P messaging volume violation."
 errorCodes["SMS-CAR-460"] = "Destination rejected short code messaging."
 errorCodes["SMS-CAR-500"] = "Carrier reported general service failure."
+errorCodes["SMS-RC-410"] = "Destination number unsupported"
+errorCodes["SMS-RC-413"] = "Destination subscriber opted out"
 errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
 errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
 errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
 errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
+*/
+
 var loaded = 0
 var campaignList = []
 function init(){

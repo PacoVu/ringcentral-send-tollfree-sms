@@ -266,14 +266,59 @@ var engine = Analytics.prototype = {
             }
             break
           case "SendingFailed":
+          var toNumber = message.to[0]
+          /*
+          this.analyticsData.sendingFailedCount++
+          if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
+            this.analyticsData.sendingFailedNumbers.push(toNumber)
+          */
+          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+          this.analyticsData.sendingFailedCost += cost
+
+          // new code to handle sending failed error code
+          var code = (message.errorCode != undefined) ? message.errorCode : "Others"
+          if (code == "SMS-RC-410" || code == "SMS-RC-411" || code == "SMS-RC-412"){
+            // Destination number invalid, unallocated, or does not support this kind of messaging.
+            // Destination subscriber unavailable.
+            this.analyticsData.failureAnalysis.invalidNumberCount++
+            if (this.analyticsData.failureAnalysis.invalidNumbers.findIndex(n => n === toNumber) < 0)
+              this.analyticsData.failureAnalysis.invalidNumbers.push(toNumber)
+            if (this.analyticsData.failureAnalysis.invalidErrorCodes.findIndex(c => c === code) < 0)
+              this.analyticsData.failureAnalysis.invalidErrorCodes.push(code)
+          }else if (code == "SMS-RC-413"){  // opted out
+            this.analyticsData.failureAnalysis.optoutCount++
+            var sender = this.analyticsData.failureAnalysis.optoutNumbers.find(n => n.senderNumber === message.from)
+            if (sender){
+              sender.count++
+              if (sender.recipientNumbers.findIndex(n => n === toNumber) < 0)
+                sender.recipientNumbers.push(toNumber)
+            }else{
+              var item = {
+                count: 1,
+                senderNumber: message.from,
+                recipientNumbers: [toNumber]
+              }
+              this.analyticsData.failureAnalysis.optoutNumbers.push(item)
+            }
+          }else if (code == "SMS-UP-431"){ // Number blacklisted due to spam.
+            this.analyticsData.failureAnalysis.blacklistedCount++
+            var serviceNumber = this.analyticsData.failureAnalysis.blacklistedServiceNumbers.find(o => o.serviceNumber === message.from)
+            if (serviceNumber){
+              serviceNumber.recipientNumbers.push(message.to[0])
+            }else{
+              var item = {
+                  serviceNumber: message.from,
+                  recipientNumbers: [message.to[0]]
+                }
+                this.analyticsData.failureAnalysis.blacklistedServiceNumbers.push(item)
+            }
+          }else{
             this.analyticsData.sendingFailedCount++
-            var toNumber = message.to[0]
             if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
               this.analyticsData.sendingFailedNumbers.push(toNumber)
-
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            this.analyticsData.sendingFailedCost += cost
-            break;
+          }
+          // end
+          break;
           default:
             break
         }
@@ -442,8 +487,8 @@ function detectPhoneNumber(message){
 }
 
 const spamContentCodes = ["SMS-UP-430","SMS-CAR-430","SMS-CAR-431","SMS-CAR-432","SMS-CAR-433"]
-const invalidNumberCodes = ["SMS-UP-420","SMS-CAR-411","SMS-CAR-412","SMS-UP-410"]
-const optoutNumberCodes = ["SMS-CAR-413"]
+const invalidNumberCodes = ["SMS-UP-420","SMS-CAR-411","SMS-CAR-412","SMS-UP-410","SMS-RC-410"]
+const optoutNumberCodes = ["SMS-CAR-413","SMS-RC-413"]
 const blockedNumberCodes = ["SMS-UP-431"]
 function failureAnalysis(message){
   var code = (message.errorCode != undefined) ? message.errorCode : "Others"

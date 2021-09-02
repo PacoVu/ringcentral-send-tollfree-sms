@@ -668,7 +668,7 @@ var engine = User.prototype = {
       //console.log(JSON.stringify(requestBody))
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
-        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch"
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batches"
         try {
           var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
@@ -1008,7 +1008,7 @@ var engine = User.prototype = {
     sendBatchMessage: async function(res, requestBody, voteInfo){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
-        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batch"
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batches"
         try {
           var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
@@ -1217,16 +1217,27 @@ var engine = User.prototype = {
             unreachableCount: unreachableCount,
             totalCost: totalCost
           }
+          // quick fix for old batches which still have sent message status
+          var now = new Date().getTime()
+          if ((now - timeStamp) > 86400000){
+            if (batchReport.sentCount > 0){
+              batchReport.unreachableCount += batchReport.sentCount
+              batchReport.sentCount = 0
+              console.log("Fixed old batches which still have sent message status")
+            }
+          }
 
+          //console.log(batchReport)
           res.send({
             status: "ok",
             batchReport: batchReport
           })
 
-          var now = new Date().getTime()
+          //var now = new Date().getTime()
           if ((now - timeStamp) > 86400000){
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
+              console.log("Batch id: " + batchReport.batchId)
             })
           }else{
             console.log("DONT UPDATE CAMPAIGN DB!")
@@ -1934,7 +1945,7 @@ var engine = User.prototype = {
         fileContent = JSON.stringify(this.batchFullReport)
       }else{
         fullNamePath += '_messages.csv'
-        fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Cost,Segment,Direction,Text"
+        fileContent = "Id,From,To,Creation Time (UTC),Last Updated Time (UTC),Message Status,Error Code, Error Description, Cost,Segment,Direction,Text"
         var timeOffset = parseInt(req.query.timeOffset)
         let dateOptions = { weekday: 'short' }
         for (var item of this.batchFullReport){
@@ -1942,9 +1953,15 @@ var engine = User.prototype = {
           var to = formatPhoneNumber(item.to[0])
           var cost = (item.hasOwnProperty('cost')) ? item.cost : 0.0
           var segmentCount = (item.hasOwnProperty('segmentCount')) ? item.segmentCount : 0
-          fileContent += "\n" + item.id + "," + from + "," + to + "," + item.creationTime + "," + item.lastModifiedTime
-          fileContent +=  "," + item.messageStatus + "," + cost + "," + segmentCount
-          fileContent +=  "," + item.direction + ',"' + item.text + '"'
+          var errorCode = "-"
+          var errorDes = "-"
+          if (item.hasOwnProperty('errorCode')){
+            errorCode = item.errorCode
+            errorDes = getErrorDescription(errorCode)
+          }
+          fileContent += `\n${item.id},${from},${to},${item.creationTime},${item.lastModifiedTime}`
+          fileContent += `,${item.messageStatus},${errorCode},"${errorDes}",${cost},${segmentCount}`
+          fileContent += `,${item.direction},"${item.text}"`
         }
       }
       try{
@@ -2399,8 +2416,7 @@ var engine = User.prototype = {
         fullNamePath += '.csv'
         fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
         for (var item of this.detailedReport){
-          fileContent += "\n"
-          fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
+          fileContent += `\n${item.id},${item.uri},${item.creationTime},${item.from},${item.status},${item.smsSendingAttemptsCount},${item.to}`
         }
       }else{
         fullNamePath += '_BatchReport.json'
@@ -2496,7 +2512,7 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
           eventFilters.push(filter)
         }
         try {
@@ -2570,7 +2586,7 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batch/${batchId}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/batches/${batchId}`
           eventFilters.push(filter)
         }
 
@@ -2612,7 +2628,7 @@ var engine = User.prototype = {
             filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
             eventFilters.push(filter)
           }else{
-            filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
+            filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
             eventFilters.push(filter)
           }
         }
@@ -2958,6 +2974,7 @@ var engine = User.prototype = {
             var batchesStr = JSON.stringify(batches)
             batchesStr = batchesStr.replace(/'/g, "''")
             var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+
             pgdb.update(query, (err, result) =>  {
               if (err){
                 console.error(err.message);
@@ -3113,6 +3130,8 @@ var errorCodes = {
   "SMS-CAR-450": "P2P messaging volume violation.",
   "SMS-CAR-460": "Destination rejected short code messaging.",
   "SMS-CAR-500": "Carrier reported general service failure.",
+  "SMS-RC-410": "Destination number unsupported",
+  "SMS-RC-413": "Destination subscriber opted out",
   "SMS-RC-500": "General/Unknown internal RingCentral error.",
   "SMS-RC-501": "RingCentral is sending a bad upstream API call.",
   "SMS-RC-503": "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."

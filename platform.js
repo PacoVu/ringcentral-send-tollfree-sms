@@ -59,8 +59,7 @@ RCPlatform.prototype = {
       console.log("Auto login ok")
       callback(null, "Auto login ok")
     }else{
-      console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED")
-      console.log("CAN'T REFRESH")
+      console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED => Relogin required.")
       callback('failed', "Auto login Failed")
     }
   },
