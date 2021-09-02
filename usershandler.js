@@ -2512,7 +2512,7 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
           eventFilters.push(filter)
         }
         try {
@@ -2586,7 +2586,7 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batches/${batchId}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/batch/${batchId}`
           eventFilters.push(filter)
         }
 
@@ -2628,7 +2628,7 @@ var engine = User.prototype = {
             filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
             eventFilters.push(filter)
           }else{
-            filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+            filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
             eventFilters.push(filter)
           }
         }
