@@ -201,7 +201,7 @@ function createNewCampaign(){
   $('#block_1').show()
 
   showBlock("preview")
-
+  $("#submit").prop('disabled', false);
   $("#submit").hide()
   $("#prevBtn").hide()
   $("#nextBtn").show()
@@ -967,7 +967,8 @@ function canSendMessages() {
 
   var form = $("#sms-form");
   var formData = new FormData(form[0]);
-
+  // need to disable the submit button immediately
+  $("#submit").prop('disabled', true);
   $.ajax({
       url: "/sendhvmessages",
       type: 'POST',
