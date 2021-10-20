@@ -23,6 +23,7 @@ function User(id) {
 
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
+  this.reputationScore = 0
 
   // High Volume SMS Report
   this.batchSummaryReport = {
@@ -85,6 +86,14 @@ var engine = User.prototype = {
       return this.rc_platform.getSDKPlatform()
     },
     loadOptionPage: function(req, res){
+      // check blacklisted
+      /*
+      if (this.reputationScore <= 0){
+          return res.render('block', {
+            userName: this.getUserName()
+          })
+      }
+      */
       this.readA2PSMSPhoneNumber(req, res)
     },
     loadStandardSMSPage: function(res){
@@ -186,6 +195,7 @@ var engine = User.prototype = {
         if (extensionId){
           this.extensionId = extensionId
           req.session.extensionId = extensionId;
+          // check blacklisted
 
           //thisUser.deleteAllRegisteredWebHookSubscriptions()
           var p = await this.rc_platform.getPlatform(this.extensionId)
@@ -209,6 +219,13 @@ var engine = User.prototype = {
             await this._readA2PSMSPhoneNumber(p)
             callback(null, extensionId)
             res.send('login success');
+            this._readReputationScrore((err, result) => {
+              if (this.reputationScore <= 0){
+                console.log("Block this user temporarily and ask to contact via feedback")
+                //return
+              }
+            })
+
             // only customers with A2P SMS would be able to subscribe for notification
             if (this.phoneHVNumbers.length){
               this.eventEngine = router.getActiveUsers().find(o => o.extensionId.toString() === this.extensionId.toString())
@@ -693,6 +710,11 @@ var engine = User.prototype = {
       }
     },
     sendHighVolumeMessage: function (req, res){
+      // check reputation
+      if (this.reputationScore <= 0){
+        res.send({status:'blocked',message:'Your phone number is temporarily blocked from sending SMS. Please contact us using the feedback form for resolution.'})
+        return
+      }
       // batchFullReport could take lots of memory
       // reset it to release memory
       this.batchFullReport = []
@@ -1078,13 +1100,13 @@ var engine = User.prototype = {
             batch.sentCount = 0
             batch.unreachableCount = 0
             batch.totalCost = 0.0
-            this._postBatchReport(batch, 1, "")
+            this._postBatchReport(batch, 1, 0, "")
           }
           // check status to deal with the future when deletion is supported
         }
       })
     },
-    _postBatchReport: async function(batch, page, pageToken){
+    _postBatchReport: async function(batch, page, spamMsgCount, pageToken){
       console.log("_postBatchReport")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
@@ -1131,6 +1153,10 @@ var engine = User.prototype = {
                 break;
               case "DeliveryFailed":
               case "SendingFailed":
+                // detect spam to block user
+                if ( message.errorCode == 'SMS-UP-430' || message.errorCode == 'SMS-UP-431' ||
+                     message.errorCode == 'SMS-CAR-430' || message.errorCode == 'SMS-CAR-431')
+                     spamMsgCount++
                 batch.unreachableCount++
                 if (vote)
                   vote.voteCounts.Unreachable++
@@ -1155,7 +1181,7 @@ var engine = User.prototype = {
             console.log("has nextPageToken, get it after 1.2 secs")
             page++
             setTimeout(function(){
-              thisUser._postBatchReport(batch, page, jsonObj.paging.nextPageToken)
+              thisUser._postBatchReport(batch, page, spamMsgCount, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
             if (vote)
@@ -1163,6 +1189,15 @@ var engine = User.prototype = {
             // update local db
             console.log("from notification")
             console.log(batch)
+            // for test simulation
+            //spamMsgCount = 400
+            this.reputationScore -= spamMsgCount
+            console.log(`User reputation score: ${this.reputationScore}`)
+            /*
+            var spamRate = (spamMsgCount / batch.deliveredCount) * 100
+            if (spamRate > 1.5)
+              console.log("Report spam and block this user")
+            */
             this._updateCampaignDB(batch, (err, result) => {
               console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
               var postData = {
@@ -1232,9 +1267,36 @@ var engine = User.prototype = {
             status: "ok",
             batchReport: batchReport
           })
-
+          /*
+          "deliveryFailed":{
+            "count":3180,
+            "cost":7.294,
+            "errorCodeCounts":{
+              "SMS-CAR-411":280,
+              "SMS-UP-410":2138,
+               "SMS-CAR-430":477,
+          */
+          var spamMsgCount = 0
+          var deliveryFailed = jsonObj.deliveryFailed
+          if (deliveryFailed.count > 0){
+            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-CAR-430'))
+              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-CAR-430']
+            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-CAR-431'))
+              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-CAR-431']
+            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-UP-430'))
+              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-UP-430']
+            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-UP-431'))
+              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-UP-431']
+          }
+          /*
+          var spamRate = (spamMsgCount / batchReport.deliveredCount) * 100
+          if (spamRate > 1.5)
+            console.log("Report spam and block this user")
+          */
           //var now = new Date().getTime()
           if ((now - timeStamp) > 86400000){
+            this.reputationScore -= spamMsgCount
+            console.log(`User reputation score: ${this.reputationScore}`)
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
               console.log("Batch id: " + batchReport.batchId)
@@ -1262,6 +1324,7 @@ var engine = User.prototype = {
 
     },
     // retire this method after get statuses bug is fixed
+    /*
     _readCampaignSummary: async function(res, batchId, timeStamp, batchReport, pageToken){
       console.log("_readCampaignSummary")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1338,6 +1401,7 @@ var engine = User.prototype = {
         })
       }
     },
+    */
     readCampaignDetails: async function(res, batchId, pageToken){
       // Read single page only
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -2932,9 +2996,9 @@ var engine = User.prototype = {
           var batches = [thisUser.batchSummaryReport]
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]"]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]",1000]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2943,6 +3007,20 @@ var engine = User.prototype = {
             console.log("stored batch in to db")
           })
         }
+      })
+    },
+    _readReputationScrore: function(callback){
+      var thisUser = this
+      var query = `SELECT reputation_score FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          thisUser.reputationScore = parseInt(result.rows[0].reputation_score)
+          console.log(`User reputation score: ${thisUser.reputationScore}`)
+        }
+        callback(null, "ok")
       })
     },
     _updateCampaignDB: function(batchReport, callback){
@@ -2973,7 +3051,7 @@ var engine = User.prototype = {
             query += ` WHERE user_id='${thisUser.extensionId}'`
             var batchesStr = JSON.stringify(batches)
             batchesStr = batchesStr.replace(/'/g, "''")
-            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}', reputation_score=${thisUser.reputationScore} WHERE user_id='${thisUser.extensionId}'`
 
             pgdb.update(query, (err, result) =>  {
               if (err){
@@ -3248,7 +3326,7 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
-    "title": "SMS Toll-Free app user feedback - " + params.type,
+    "title": "High Volume SMS app user feedback - " + params.type,
     "body": message
   }
   var post_options = {

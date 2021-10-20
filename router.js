@@ -23,7 +23,7 @@ function createUsersAdditionalDataTable() {
 
 function createUserTable() {
   var query = 'CREATE TABLE IF NOT EXISTS a2p_sms_users '
-  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]')"
+  query += "(user_id VARCHAR(16) PRIMARY KEY, account_id VARCHAR(16) NOT NULL, batches TEXT DEFAULT '[]', contacts TEXT DEFAULT '[]', subscription_id VARCHAR(64), webhooks TEXT, access_tokens TEXT, templates TEXT DEFAULT '[]', reputation_score INT DEFAULT 1000)"
   pgdb.create_table(query, (err, res) => {
     if (err) {
       console.log(err.message)

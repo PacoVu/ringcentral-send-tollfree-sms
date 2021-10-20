@@ -120,7 +120,7 @@ function submitFeedback(params){
   var url = "sendfeedback"
   var posting = $.post( url, params );
   posting.done(function( res ) {
-    alert(res.message)
+    _alert(res.message)
   });
   return true
 }

@@ -980,6 +980,10 @@ function canSendMessages() {
             parseResultResponse(res)
           }else if (res.status == "error"){
             _alert(res.message)
+          }else if (res.status == "blocked"){
+            openFeedbackForm("My high volume SMS number is temporarily blocked. Please contact me at [your email address] or call me [your phone number].");
+            _alert(res.message, 'Stop')
+            showBlock('history')
           }else{
             if (res.message)
               _alert(res.message)
