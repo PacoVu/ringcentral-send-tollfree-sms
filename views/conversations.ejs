@@ -39,6 +39,7 @@
     <script src="./assets/js/main.js"></script>
     <!-- test emoji end -->
     <script>
+      window.userName = '<%- userName %>'
       window.phoneNumbers = '<%- JSON.stringify(phoneNumbers) %>'
       $(document).ready(function(){
           $('[data-toggle="popover"]').popover();

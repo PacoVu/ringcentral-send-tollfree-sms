@@ -64,10 +64,10 @@ function openReplyForm(toNumber, fromNumber){
         action: function(dialog) {
           dialog.close();
         }
-      }, {
+      },
+      {
         label: 'Send',
         cssClass: 'btn btn-primary',
-
         action: function(dialog) {
           var params = {
             from: fromNumber,
@@ -112,8 +112,8 @@ function addToRecipient(elm){
 }
 
 function openSendNewText(){
+  $("#contacts-block").show()
   if (contactList.length > 0){
-    $("#contacts-block").show()
     if ($("#contact-list").val() == ""){
       var contacts = ""
       for (var contact of contactList){

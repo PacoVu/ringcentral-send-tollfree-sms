@@ -35,6 +35,7 @@
   	<script src="http://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     -->
     <script>
+      window.userName = '<%- userName %>'
       window.phoneNumbers = '<%- JSON.stringify(phoneNumbers) %>'
       $(document).ready(function(){
           $('[data-toggle="popover"]').popover();

@@ -214,26 +214,26 @@ function createNewCampaign(){
 function showBlock(block){
   switch (block){
     case "result":
-    $("#preview-block").hide();
-    $("#sms-form").hide();
-    $("#result-block").show();
-    break
+      $("#preview-block").hide();
+      $("#sms-form").hide();
+      $("#result-block").show();
+      break
     case "preview":
-    $("#result-block").hide();
-    $("#sms-form").show();
-    $("#preview-block").show();
-    if (contactList.length == 0)
-    readContacts()
-    if (templateList.length == 0)
-    readTemplates()
-    break
+      $("#result-block").hide();
+      $("#sms-form").show();
+      $("#preview-block").show();
+      if (contactList.length == 0)
+        readContacts()
+      if (templateList.length == 0)
+        readTemplates()
+        break
     case "history":
-    $('#create').hide()
-    $('#history').show()
-    break
+      $('#create').hide()
+      $('#history').show()
+      break
     default:
-    $("#control-block").hide()
-    break
+      $("#control-block").hide()
+      break
   }
 }
 
@@ -982,7 +982,7 @@ function canSendMessages() {
             _alert(res.message)
           }else if (res.status == "blocked"){
             openFeedbackForm("My high volume SMS number is temporarily blocked. Please contact me at [your email address] or call me [your phone number].");
-            _alert(res.message, 'Stop')
+            _alert(res.message, 'Attention!')
             showBlock('history')
           }else{
             if (res.message)

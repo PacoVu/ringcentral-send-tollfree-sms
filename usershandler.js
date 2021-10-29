@@ -86,14 +86,6 @@ var engine = User.prototype = {
       return this.rc_platform.getSDKPlatform()
     },
     loadOptionPage: function(req, res){
-      // check blacklisted
-      /*
-      if (this.reputationScore <= 0){
-          return res.render('block', {
-            userName: this.getUserName()
-          })
-      }
-      */
       this.readA2PSMSPhoneNumber(req, res)
     },
     loadStandardSMSPage: function(res){
@@ -219,7 +211,7 @@ var engine = User.prototype = {
             await this._readA2PSMSPhoneNumber(p)
             callback(null, extensionId)
             res.send('login success');
-            this._readReputationScrore((err, result) => {
+            this._readReputationScore((err, result) => {
               if (this.reputationScore <= 0){
                 console.log("Block this user temporarily and ask to contact via feedback")
                 //return
@@ -1185,20 +1177,24 @@ var engine = User.prototype = {
             }, 1200)
           }else{
             if (vote)
-              this.eventEngine.setCampainByBatchId(batch.batchId, vote)
+              thisUser.eventEngine.setCampainByBatchId(batch.batchId, vote)
             // update local db
             console.log("from notification")
             console.log(batch)
             // for test simulation
             //spamMsgCount = 400
-            this.reputationScore -= spamMsgCount
-            console.log(`User reputation score: ${this.reputationScore}`)
+            thisUser.reputationScore -= spamMsgCount
+            console.log(`User reputation score: ${thisUser.reputationScore}`)
+            // alert monitor if user reputation is low
+            if (thisUser.reputationScore <= 100){
+              post_alert_to_group(thisUser)
+            }
             /*
             var spamRate = (spamMsgCount / batch.deliveredCount) * 100
             if (spamRate > 1.5)
               console.log("Report spam and block this user")
             */
-            this._updateCampaignDB(batch, (err, result) => {
+            thisUser._updateCampaignDB(batch, (err, result) => {
               console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
               var postData = {
                 dataType: "Campaign_Summary",
@@ -1253,6 +1249,7 @@ var engine = User.prototype = {
             totalCost: totalCost
           }
           // quick fix for old batches which still have sent message status
+/*
           var now = new Date().getTime()
           if ((now - timeStamp) > 86400000){
             if (batchReport.sentCount > 0){
@@ -1261,21 +1258,12 @@ var engine = User.prototype = {
               console.log("Fixed old batches which still have sent message status")
             }
           }
-
-          //console.log(batchReport)
+*/
           res.send({
             status: "ok",
             batchReport: batchReport
           })
-          /*
-          "deliveryFailed":{
-            "count":3180,
-            "cost":7.294,
-            "errorCodeCounts":{
-              "SMS-CAR-411":280,
-              "SMS-UP-410":2138,
-               "SMS-CAR-430":477,
-          */
+
           var spamMsgCount = 0
           var deliveryFailed = jsonObj.deliveryFailed
           if (deliveryFailed.count > 0){
@@ -1293,10 +1281,15 @@ var engine = User.prototype = {
           if (spamRate > 1.5)
             console.log("Report spam and block this user")
           */
-          //var now = new Date().getTime()
+
+          var now = new Date().getTime()
           if ((now - timeStamp) > 86400000){
             this.reputationScore -= spamMsgCount
             console.log(`User reputation score: ${this.reputationScore}`)
+            // alert monitor if user reputation is low
+            if (this.reputationScore <= 100){
+              post_alert_to_group(this)
+            }
             this._updateCampaignDB(batchReport, (err, result) => {
               console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
               console.log("Batch id: " + batchReport.batchId)
@@ -2998,7 +2991,7 @@ var engine = User.prototype = {
           batchesStr = batchesStr.replace(/'/g, "''")
           var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
           query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]",1000]
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","","","","","[]",1000]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -3009,7 +3002,7 @@ var engine = User.prototype = {
         }
       })
     },
-    _readReputationScrore: function(callback){
+    _readReputationScore: function(callback){
       var thisUser = this
       var query = `SELECT reputation_score FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -3332,6 +3325,47 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   var post_options = {
       host: "hooks.glip.com",
       path: `/webhook/${process.env.INBOUND_WEBHOOK}`,
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json'
+      }
+  }
+  var post_req = https.request(post_options, function(res) {
+      var response = ""
+      res.on('data', function (chunk) {
+          response += chunk
+      });
+      res.on("end", function(){
+        console.log(response)
+      });
+  });
+
+  post_req.write(JSON.stringify(body));
+  post_req.end();
+}
+
+//https://hooks.ringcentral.com/webhook/
+function post_alert_to_group(thisUser){
+  var https = require('https');
+  var message = `User main company number: ${thisUser.mainCompanyNumber}`
+  message += `\nHV SMS number(s): `
+  for (var hvSMSNum of thisUser.phoneHVNumbers)
+    message += `\n  ${hvSMSNum.format}`
+  message += `\nReputation score: ${thisUser.reputationScore}`
+  message += `\nAccount Id: ${thisUser.accountId} - Extension Id: ${thisUser.extensionId}`
+  message += `\nUser contact email: ${thisUser.userEmail}`
+  message += `\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=${thisUser.accountId}`
+  message += `\nAI admin lookup: https://admin.ringcentral.com/userinfo/csaccount.asp?user=XPDBID++++++++++${thisUser.accountId}User`
+
+  var body = {
+    "icon": "http://www.qcalendar.com/icons/alert.png",
+    "activity": "High Volume SMS spammer alert",
+    "title": `User name: ${thisUser.userName}`,
+    "body": message
+  }
+  var post_options = {
+      host: "hooks.ringcentral.com",
+      path: `/webhook/${process.env.ABUSED_INBOUND_WEBHOOK}`,
       method: "POST",
       headers: {
         'Content-Type': 'application/json'
