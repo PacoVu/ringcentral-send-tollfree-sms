@@ -68,16 +68,6 @@ RCPlatform.prototype = {
     await this.platform.logout()
   },
   getPlatform: async function(extId){
-    /*
-    var tokenObj = await this.platform.auth().data()
-    if (extId  ==  tokenObj.owner_id)
-      console.log (`requester: ${extId}  ==  owner: ${tokenObj.owner_id}`)
-    else{
-      console.log (`requester: ${extId}  !=  owner: ${tokenObj.owner_id}`)
-      console.log("If this ever happens => SERIOUS PROBLEM. Need to check and fix!")
-      return null
-    }
-    */
     if (extId  ==  this.extensionId)
       console.log (`requester: ${extId}  ==  owner: ${this.extensionId}`)
     else{
@@ -104,8 +94,6 @@ RCPlatform.prototype = {
     console.log("updateUserAccessTokens")
     var tokenObj = await this.platform.auth().data()
     var tokenStr = JSON.stringify(tokenObj)
-    //console.log(tokenStr)
-    //console.log("===== check token end =====")
     var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
     query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"
     var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr, "[]", 1000]
@@ -141,5 +129,5 @@ RCPlatform.prototype = {
     console.log("Error " + e.message)
   }
 }
-//module.exports = new (require('./platform.js'))();
+
 module.exports = RCPlatform;
