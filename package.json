@@ -12,7 +12,7 @@
   "author": "Paco-Vu",
   "license": "MIT",
   "dependencies": {
-    "async": "^2.6.0",
+    "async": "^3.2.2",
     "body-parser": "^1.17.2",
     "dotenv": "^4.0.0",
     "ejs": "^2.5.6",
