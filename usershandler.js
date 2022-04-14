@@ -230,6 +230,7 @@ var engine = User.prototype = {
         if (extensionId){
           this.extensionId = extensionId
           req.session.extensionId = extensionId;
+          /*
           var admins = process.env.ADMINS.split(',')
           for (var adminId of admins){
             if (this.extensionId == adminId){
@@ -237,6 +238,7 @@ var engine = User.prototype = {
               break
             }
           }
+          */
           //thisUser.deleteAllRegisteredWebHookSubscriptions()
 
           var p = await this.rc_platform.getPlatform(this.extensionId)
