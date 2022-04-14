@@ -841,6 +841,7 @@ var engine = User.prototype = {
     },
     sendHighVolumeMessage: function (req, res){
       // check reputation
+      console.log("sendHighVolumeMessage")
       var checkNumber = this.numberReputation.find(o => o.number == req.body.from_number)
       if (checkNumber){
         if (checkNumber.score <= 0){
@@ -2742,9 +2743,9 @@ var engine = User.prototype = {
           var batches = [thisUser.batchSummaryReport]
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]"]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]","[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -2891,9 +2892,9 @@ var engine = User.prototype = {
     },
     updateActiveUserSubscription: function() {
       console.log("updateActiveUserSubscription")
-      var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
-      query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"
-      var values = [this.extensionId, this.accountId, "[]", "[]", this.subscriptionId, "", "", "[]"]
+      var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
+      query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"
+      var values = [this.extensionId, this.accountId, "[]", "[]", this.subscriptionId,"","","[]","[]"]
 
       query += ` ON CONFLICT (user_id) DO UPDATE SET account_id='${this.accountId}', subscription_id='${this.subscriptionId}'`
 
@@ -2948,11 +2949,11 @@ var engine = User.prototype = {
           })
         }else{ // add new to db
           var batches = [newBatch]
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8)  ON CONFLICT DO NOTHING"
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)  ON CONFLICT DO NOTHING"
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var values = [thisUser.extensionId, thisUser.accountId, batchesStr, "[]", "[]", "", "", "[]"]
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr, "[]", "[]", "", "", "[]","[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
