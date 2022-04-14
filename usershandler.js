@@ -2398,8 +2398,6 @@ var engine = User.prototype = {
           var eventFilters = []
           var filter = ""
           for (var item of this.phoneHVNumbers){
-            filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
-            eventFilters.push(filter)
             filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
             eventFilters.push(filter)
           }
@@ -2418,28 +2416,8 @@ var engine = User.prototype = {
       if (p){
         var eventFilters = []
         for (var item of this.phoneHVNumbers){
-          var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
-          eventFilters.push(filter)
           filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
           eventFilters.push(filter)
-          if (outbound){
-            filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
-            eventFilters.push(filter)
-            /*
-            // keep subscribe for batch if there is/are pending campaigns
-            if (this.processingBatches.length){
-              console.log('keep batch notification')
-              filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
-              eventFilters.push(filter)
-            }
-            */
-          }
-          /*
-          else{
-            filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
-            eventFilters.push(filter)
-          }
-          */
         }
 
         var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
