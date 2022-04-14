@@ -2334,16 +2334,7 @@ var engine = User.prototype = {
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         var endpoint = '/restapi/v1.0/subscription'
-        /*
-        var eventFilters = []
-        var filter = ""
-        for (var item of this.phoneHVNumbers){
-          filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
-          eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
-          eventFilters.push(filter)
-        }
-        */
+        console.log(process.env.WEBHOOK_DELIVERY_ADDRESS)
         try {
           var resp = await p.post('/restapi/v1.0/subscription', {
             eventFilters: eventFilters,
