@@ -3,6 +3,8 @@ var async = require("async");
 const RCPlatform = require('./platform.js')
 const pgdb = require('./db')
 var router = require('./router');
+const logger = require('./write-log')
+const database = require('./write-database')
 const ActiveUser = require('./event-engine.js')
 const Analytics = require('./analytics-engine.js')
 require('dotenv').load()
@@ -10,24 +12,27 @@ require('dotenv').load()
 const MASK = "#!#"
 
 function User(id) {
-  this.id = id;
+  this.userId = id;
   this.extensionId = 0;
   this.accountId = 0;
   this.adminUser = false
+  this.monitor = false
   this.userEmail = "" // for feedback only
   this.userName = ""
   this.subscriptionId = ""
   this.eventEngine = undefined
   this.rc_platform = new RCPlatform(id)
   this.analytics = new Analytics()
-
+  this.autoDelele = false
   this.phoneHVNumbers = []
   this.phoneTFNumbers = []
   this.reputationScore = 0
+  this.numberReputation = []
 
   // High Volume SMS Report
   this.batchSummaryReport = {
-    //pending: true,
+    scheduled: false,
+    sendAt: 0,
     campaignName: "",
     creationTime: 0,
     type: "",
@@ -46,12 +51,14 @@ function User(id) {
   this.downloadLink = ""
   this.downloadBatchId = ""
   this.createReportStatus = "idle"
+
   this.batchFullReport = []
   this.processingBatches = []
   this.mainCompanyNumber = ""
   this.downloadFileName = ""
   this.analyticsData = {}
 
+  this.userActivities = {}
   // Classic SMS
   this.detailedReport = []
   this.recipientArr = []
@@ -74,7 +81,7 @@ function User(id) {
 
 var engine = User.prototype = {
     getUserId: function(){
-      return this.id
+      return this.userId
     },
     getExtensionId: function(){
       return this.extensionId
@@ -85,13 +92,20 @@ var engine = User.prototype = {
     getPlatform: function(){
       return this.rc_platform.getSDKPlatform()
     },
-    loadOptionPage: function(req, res){
-      this.readA2PSMSPhoneNumber(req, res)
+    loadOptionPage: async function(res){
+      console.log("loadOptionPage")
+      var ret = await this.readA2PSMSPhoneNumber(res)
+      return ret
     },
-    loadStandardSMSPage: function(res){
-      this.updateNotification(false, (err, result) => {
-        console.log("Stop getting outbound notification")
-      })
+    loadStandardSMSPage: async function(res){
+      //logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nOpen Standard SMS page`)
+      //check login
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
+      this.userActivities.currentPresence = 'standard-sms'
       var enableHVSMS = (this.phoneHVNumbers.length) ? false : true
       res.render('standard-sms', {
         userName: this.getUserName(),
@@ -99,8 +113,24 @@ var engine = User.prototype = {
         sendReport: this.sendReport,
         enableHighVolumeSMS: enableHVSMS
       })
+      return true
     },
-    loadSettingsPage: function(res, pageToken){
+    loadHelpPage: function(res){
+      this.userActivities.currentPresence = 'help'
+      this.userActivities.helps++
+      console.log(this.userActivities)
+      database.updateUserMonitorActivities(this.extensionId, this.userActivities)
+      res.render('about')
+      return true
+    },
+    loadSettingsPage: async function(res){
+      //logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nOpen Settings page`)
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
+      this.userActivities.currentPresence = 'settings'
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -109,8 +139,9 @@ var engine = User.prototype = {
         lowVolume: lowVolume,
         phoneNumbers: this.phoneHVNumbers
       })
+      return true
     },
-    getContacts: function(res, pageToken){
+    getContacts: function(res){
       this.readContactsFromDataInDB((err, contacts) => {
         res.send({
           status: "ok",
@@ -118,7 +149,7 @@ var engine = User.prototype = {
         })
       })
     },
-    readTemplates: function(res, pageToken){
+    readTemplates: function(res){
       this.readTemplatesFromDataInDB((err, templates) => {
         res.send({
           status: "ok",
@@ -126,22 +157,14 @@ var engine = User.prototype = {
         })
       })
     },
-    loadMessageStorePage: function(res){
-      if (this.eventEngine)
-        this.eventEngine.logNewMessage = true
-      this.updateNotification(true, (err, result) => {
-        console.log("Start getting outbound/inbound notification")
-      })
-      var lowVolume = false
-      if (this.phoneTFNumbers.length)
-        lowVolume = true
-      res.render('conversations', {
-        userName: this.getUserName(),
-        phoneNumbers: this.phoneHVNumbers,
-        lowVolume: lowVolume
-      })
-    },
-    loadAnalyticsPage: function(res){
+    loadAnalyticsPage: async function(res){
+      //logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nOpen Analytics page`)
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
+      this.userActivities.currentPresence = 'analytics'
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -150,11 +173,25 @@ var engine = User.prototype = {
         phoneNumbers: this.phoneHVNumbers,
         lowVolume: lowVolume
       })
+      return true
     },
-    loadCampaignHistoryPage: function(res){
-      this.updateNotification(false, (err, result) => {
-        console.log("Stop getting outbound notification")
-      })
+    loadMonitorPage: function(res){
+      if (this.monitor){
+        res.render('monitor', {
+          userName: this.getUserName(),
+          activeUsers: activeUsers
+        })
+      }else
+        this.loadHelpPage(res)
+    },
+    loadCampaignHistoryPage: async function(res){
+      //logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nOpen Logs page`)
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
+      this.userActivities.currentPresence = 'logs'
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -162,12 +199,18 @@ var engine = User.prototype = {
         userName: this.getUserName(),
         lowVolume: lowVolume
       })
+      return true
     },
-    loadHVSMSPage: function(res){
-      this.eventEngine.logNewMessage = false
-      this.updateNotification(false, (err, result) => {
-        console.log("Stop getting outbound notification")
-      })
+    loadHVSMSPage: async function(res){
+      //logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nOpen Campaigns page`)
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
+      if (this.eventEngine)
+        this.eventEngine.logNewMessage = false
+      this.userActivities.currentPresence = 'campaigns'
       var lowVolume = false
       if (this.phoneTFNumbers.length)
         lowVolume = true
@@ -175,10 +218,10 @@ var engine = User.prototype = {
       res.render('highvolume-sms', {
         userName: this.getUserName(),
         phoneNumbers: this.phoneHVNumbers,
-        //smsBatchIds: this.smsBatchIds,
-        //batchResult: this.batchResult,
-        lowVolume: lowVolume
+        lowVolume: lowVolume,
+        monitor: this.monitor
       })
+      return true
     },
     login: async function(req, res, callback){
       if (req.query.code) {
@@ -187,9 +230,15 @@ var engine = User.prototype = {
         if (extensionId){
           this.extensionId = extensionId
           req.session.extensionId = extensionId;
-          // check blacklisted
-
+          var admins = process.env.ADMINS.split(',')
+          for (var adminId of admins){
+            if (this.extensionId == adminId){
+              this.monitor = true
+              break
+            }
+          }
           //thisUser.deleteAllRegisteredWebHookSubscriptions()
+
           var p = await this.rc_platform.getPlatform(this.extensionId)
           if (p){
             try {
@@ -205,47 +254,72 @@ var engine = User.prototype = {
               this.userName = fullName
 
             } catch (e) {
-              console.log("Failed")
+              console.log("login() - Failed")
               console.error(e.message);
             }
+            // read monitor data
+            database.readMonitorDB(this.extensionId, function(err, result){
+              thisUser.userActivities = result
+              //console.log(thisUser.userActivities)
+              thisUser.updateUserMonitorLastSeen()
+            })
+            logger.writeLog(this.extensionId, `------------\r\nUser login at ${new Date().toISOString()}\r\nEmail: ${this.userEmail} - Account id: ${this.accountId}`)
             await this._readA2PSMSPhoneNumber(p)
-            callback(null, extensionId)
-            res.send('login success');
+
+            this.userActivities.currentPresence = 'campaigns'
+
             this._readReputationScore((err, result) => {
-              if (this.reputationScore <= 0){
-                console.log("Block this user temporarily and ask to contact via feedback")
-                //return
+              for (var number of thisUser.numberReputation){
+                if (number.score <= 0){
+                  console.log("This number score is low: " + number.number)
+                  //return
+                }
               }
             })
-
             // only customers with A2P SMS would be able to subscribe for notification
             if (this.phoneHVNumbers.length){
               this.eventEngine = router.getActiveUsers().find(o => o.extensionId.toString() === this.extensionId.toString())
               if (this.eventEngine){
                 this.eventEngine.setPlatform(this.rc_platform)
+                this.eventEngine.changeOwner("user")
                 this.subscriptionId = this.eventEngine.subscriptionId
+                // copy active campaigns if any
+                //this.processingBatches = this.eventEngine.processingBatches
+                //console.log("Copied processingBatches")
+                //console.log(this.processingBatches)
                 if (this.subscriptionId == ""){
                   console.log(`user ${this.extensionId} has no subscription => create a new one`)
-                  this.subscribeForNotification((err, subscriptionId) => {
-                    if (!err){
-                      thisUser.eventEngine.subscriptionId = subscriptionId
-                    }
+                  var eventFilters = []
+                  var filter = ""
+                  for (var item of this.phoneHVNumbers){
+                    filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+                    eventFilters.push(filter)
+                  }
+                  this.subscribeForNotification(eventFilters, (err, subscriptionId) => {
                     console.log("new subscriptionId: " + subscriptionId)
                   })
                 }else{
                   console.log(`user ${this.extensionId} has existing subscription => check to renew it`)
                   this.renewNotification((err, subscriptionId) => {
                     if (!err){
-                      console.log("SUB ID: " + subscriptionId)
+                      console.log("RENEW SUB ID: " + subscriptionId)
                       thisUser.eventEngine.subscriptionId = subscriptionId
                       thisUser.subscriptionId = subscriptionId
                     }
                   })
                 }
+                callback(null, extensionId)
+                res.send('login success');
               }else{ // should subscribe for notification and create eventEngine by default
                 console.log(`user ${this.extensionId} was not in the active user list => create a object`)
-                this.subscribeForNotification((err, subscriptionId) => {
-                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId)
+                var eventFilters = []
+                var filter = ""
+                for (var item of this.phoneHVNumbers){
+                  filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+                  eventFilters.push(filter)
+                }
+                this.subscribeForNotification(eventFilters, (err, subscriptionId) => {
+                  thisUser.eventEngine = new ActiveUser(thisUser.extensionId, subscriptionId, "user")
                   // must push to router's activeUser list in order to receive routed subscription
                   router.getActiveUsers().push(thisUser.eventEngine)
                   thisUser.eventEngine.setup(thisUser.rc_platform, (err, result) => {
@@ -253,8 +327,13 @@ var engine = User.prototype = {
                       console.log("eventEngine is set")
                     }
                   })
+                  callback(null, extensionId)
+                  res.send('login success');
                 })
               }
+            }else{
+              callback(null, extensionId)
+              res.send('login success');
             }
           }else{
             console.log('login failed: no platform object')
@@ -270,55 +349,129 @@ var engine = User.prototype = {
         callback("error", null)
       }
     },
-    readA2PSMSPhoneNumber: async function(req, res){
-      // admin w/o number
+    readMonitorDB: function(callback){
+      var thisUser = this
+      var query = `SELECT * FROM a2p_sms_users_monitor WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        if (!err && result.rows.length > 0){
+          thisUser.userActivities = JSON.parse(result.rows[0].activities)
+        }else{ // no activities
+          thisUser.userActivities = {
+            currentPresence: 'offline',
+            standard_sms: { count: 0, total_messages: 0, download_count: 0, ts: 0 },
+            campaign_broadcast: { count: 0, total_messages: 0, ts: 0 },
+            campaign_personalized: { count: 0, total_message: 0, ts: 0 },
+            campaigns_logs: { view_count: 0, delete_count: 0, download_count: 0, total_delivered: 0, total_failed: 0, ts: 0 },
+            message_store_downloads: { count: 0, ts: 0 },
+            analytics: { view_count: 0, download_count: 0, ts: 0 },
+            settings: { webhook: 0, contacts: 0, opt_out: 0, ts: 0 },
+            helps: 0
+          }
+        }
+        callback(null, "ok")
+      })
+    },
+    updateUserMonitorLastSeen: function(){
+      var query = "INSERT INTO a2p_sms_users_monitor (user_id, full_name, email, activities, last_seen)"
+      query += " VALUES ($1,$2,$3,$4,$5)"
+      var now = new Date().getTime()
+      var activities = JSON.stringify(this.userActivities)
+      var values = [this.extensionId, this.userName, this.userEmail, activities, now]
+      query += ` ON CONFLICT (user_id) DO UPDATE SET full_name='${this.userName}', email='${this.userEmail}', last_seen=${now}`
+      pgdb.insert(query, values, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+          console.log("QUERY: " + query)
+        }else{
+          console.log("updateUserMonitorActivities DONE");
+        }
+      })
+    },
+    readA2PSMSPhoneNumber: async function(res){
+      console.log("readA2PSMSPhoneNumber")
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (!p){
+        logger.writeLog(this.extensionId, "Tokens expired => force relogin")
+        return false
+      }
       if (this.adminUser){
+        // admin w/o number
+        console.log("checking")
         if ((this.phoneHVNumbers.length == 0) && (this.phoneTFNumbers.length == 0)){
             // check if this account has any users who has HV SMS numbers and ever used the app
             var query = `SELECT account_id FROM a2p_sms_users WHERE user_id='${this.accountId}'`
+            console.log(query)
             pgdb.read(query, (err, result) => {
-              if (!err && result.rows.length > 0){
-                console.log(result.rows)
-                res.render('analytics', {
-                  userName: this.getUserName(),
-                  phoneNumbers: this.phoneHVNumbers,
-                  lowVolume: false,
-                })
-              }else{ // no history
+              console.log("Found?", err)
+              console.log(result.rows)
+              if (err){
                 res.render('main', {
                   userName: this.userName,
                   lowVolume: false,
                   highVolume: false
                 })
+              }else{
+                if (result.rows.length > 0 && result.rows[0].account_id != ''){
+                  console.log(result.rows)
+                  res.render('analytics', {
+                    userName: this.getUserName(),
+                    phoneNumbers: this.phoneHVNumbers,
+                    lowVolume: false,
+                  })
+                }else{ // no history
+                  res.render('main', {
+                    userName: this.userName,
+                    lowVolume: false,
+                    highVolume: false
+                  })
+                }
               }
             })
-            return
+            return true
         }
       }
       // decide what page to load
       if (this.phoneHVNumbers.length > 0 && this.subscriptionId != ""){
         console.log("temp solution")
-        this.updateNotification(false, (err, result) => {
-          console.log("Stop getting outbound notification")
+        var thisUser = this
+        this.updateNotification(false, (err, eventFilters) => {
+          logger.writeLog(thisUser.extensionId, "readA2PSMSPhoneNumber => Stop getting outbound notification")
+          if (err){
+            if (eventFilters){
+              logger.writeLog(thisUser.extensionId, "updateNotification failed => resubscribe for notification")
+              thisUser.subscribeForNotification(eventFilters, (err, subscriptionId) => {
+                if (!err)
+                  logger.writeLog(thisUser.extensionId, `subscribeForNotification => resubscribe for notification subId ${subscriptionId}`);
+                else{
+                  logger.writeLog(thisUser.extensionId, `subscribeForNotification failed`);
+                }
+              })
+            }else{
+              // force login
+              logger.writeLog(thisUser.extensionId, "updateNotification failed => Tokens expired. Force relogin ")
+              return false
+            }
+          }
         })
       }
-
+      //console.log(this.phoneHVNumbers)
       if (this.phoneHVNumbers.length > 0 && this.phoneTFNumbers.length > 0){
         // launch option page
         res.render('highvolume-sms', {
           userName: this.getUserName(),
           phoneNumbers: this.phoneHVNumbers,
-          //smsBatchIds: this.smsBatchIds,
-          //batchResult: this.batchResult,
-          lowVolume: true
+          lowVolume: true,
+          monitor: this.monitor
         })
       }else if (this.phoneHVNumbers.length > 0){
         // launch high volume page
         res.render('highvolume-sms', {
           userName: this.userName,
           phoneNumbers: this.phoneHVNumbers,
-          //smsBatchIds: this.smsBatchIds,
-          //batchResult: this.batchResult
+          monitor: this.monitor
         })
       }else if (this.phoneTFNumbers.length > 0){
         res.render('main', {
@@ -334,6 +487,7 @@ var engine = User.prototype = {
           highVolume: false
         })
       }
+      return true
     },
     _readA2PSMSPhoneNumber: async function(p){
       console.log("_readA2PSMSPhoneNumber")
@@ -347,6 +501,8 @@ var engine = User.prototype = {
         var jsonObj = await resp.json()
         var count = jsonObj.records.length
         for (var record of jsonObj.records){
+          //console.log(record)
+          //console.log("==")
           for (var feature of record.features){
             if (feature == "A2PSmsSender"){
               var item = {
@@ -376,8 +532,9 @@ var engine = User.prototype = {
             this.mainCompanyNumber = formatPhoneNumber(record.phoneNumber)
           }
         }
+        //console.log(this.phoneHVNumbers)
       } catch (e) {
-        console.log("Cannot read phone numbers!!!")
+        console.log("_readA2PSMSPhoneNumber() - Cannot read phone numbers!!!")
         console.error(e.message);
       }
     },
@@ -405,6 +562,10 @@ var engine = User.prototype = {
           message: ""
         })
       })
+      this.userActivities.settings.webhook++
+      this.userActivities.settings.ts = new Date().getTime()
+      //this.updateUserMonitorActivities()
+      database.updateUserMonitorActivities(this.extensionId, this.userActivities)
     },
     saveTemplate: function (req, res){
       this.readTemplatesFromDataInDB((err, templates) => {
@@ -528,9 +689,9 @@ var engine = User.prototype = {
       var body = req.body
       if (req.files != undefined){
         var contactList = []
+        var currentFolder = process.cwd();
         for (var f of req.files){
-          var currentFolder = process.cwd();
-          var tempFile = currentFolder + "/uploads/" + f.filename
+          var tempFile = `${currentFolder}/uploads/${f.filename}`
           var content = fs.readFileSync(tempFile, 'utf8');
           var contactsFromFile = content.trim().split("\r\n")
           var header = contactsFromFile[0]
@@ -543,9 +704,13 @@ var engine = User.prototype = {
           contactsFromFile.shift() // remove the first row which is the header
 
           for (var row of contactsFromFile){
+            row = detectAndHandleCommas(row)
             var columns = row.trim().split(",")
             var contactNumber = columns[csvColumnIndex[body.number_column]]
-            contactNumber = (contactNumber[0] != "+") ? `+${contactNumber}` : contactNumber
+            if (contactNumber && contactNumber.length > 0)
+              contactNumber = (contactNumber[0] != "+") ? `+${contactNumber}` : contactNumber
+            else
+              contactNumber = ""
             var contactFirstName = ""
             var contactLastName = ""
             if (body.fname_column)
@@ -560,9 +725,8 @@ var engine = User.prototype = {
             contactList.push(contact)
           }
         }
-        var currentFolder = process.cwd();
         for (var file of req.files){
-          var tempFile = currentFolder + "/uploads/" + file.filename
+          var tempFile = `${currentFolder}/uploads/${file.filename}`
           fs.unlinkSync(tempFile);
         }
         // read contacts from db
@@ -573,28 +737,34 @@ var engine = User.prototype = {
               contactList: newContactList
             })
           else
-          res.send({
-            status: "failed",
-            message: "Cannot update contacts"
-          })
+            res.send({
+              status: "error",
+              message: "Cannot update contacts"
+            })
         })
+        this.userActivities.settings.contacts++
+        this.userActivities.settings.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
       }
     },
     deleteContacts: function (req, res){
       var body = req.body
       this.readContactsFromDataInDB((err, savedContacts) => {
         var index = savedContacts.findIndex(o => o.groupName === body.groupName)
-        var savedGroup = savedContacts[index]
-        if (body.removeGroup == 'true'){
-          savedContacts.splice(index, 1)
-          savedGroup.contacts = []
-        }else{
-          if (savedGroup){
-            var deleteContactList = JSON.parse(body.phoneNumber)
-            for (var phoneNumber of deleteContactList){
-              var contactIndex = savedGroup.contacts.findIndex(o => o.phoneNumber === phoneNumber)
-              if (contactIndex >= 0){
-                savedGroup.contacts.splice(contactIndex, 1)
+        if (index >= 0){
+          var savedGroup = savedContacts[index]
+          if (body.removeGroup == 'true'){
+            savedContacts.splice(index, 1)
+            if (savedGroup)
+              savedGroup.contacts = []
+          }else{
+            if (savedGroup){
+              var deleteContactList = JSON.parse(body.phoneNumber)
+              for (var phoneNumber of deleteContactList){
+                var contactIndex = savedGroup.contacts.findIndex(o => o.phoneNumber === phoneNumber)
+                if (contactIndex >= 0){
+                  savedGroup.contacts.splice(contactIndex, 1)
+                }
               }
             }
           }
@@ -667,241 +837,20 @@ var engine = User.prototype = {
         }
       })
     },
-    sendIndividualMessage: async function(req, res){
-      var body = req.body
-      var requestBody = {
-          from: body.from,
-          text: body.message,
-          messages: [{to:[body.to]}]
-      }
-      //console.log(JSON.stringify(requestBody))
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batches"
-        try {
-          var resp = await p.post(endpoint, requestBody)
-          var jsonObj = await resp.json()
-          res.send({
-              status:"ok",
-              message: body.message
-          })
-        } catch (e) {
-          console.log("Endpoint POST: " + endpoint)
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
-          res.send({
-              status:"error",
-              message: e.message
-          })
-        }
-      }else{
-        res.send({
-          status: "failed",
-          message: "You have been logged out. Please login again."
-        })
-      }
-    },
     sendHighVolumeMessage: function (req, res){
       // check reputation
-      if (this.reputationScore <= 0){
-        res.send({status:'blocked',message:'Your phone number is temporarily blocked from sending SMS. Please contact us using the feedback form for resolution.'})
-        return
+      var checkNumber = this.numberReputation.find(o => o.number == req.body.from_number)
+      if (checkNumber){
+        if (checkNumber.score <= 0){
+          res.send({status:'blocked',message:'Your phone number is temporarily blocked from sending SMS. Please contact us using the feedback form for resolution.'})
+          return
+        }
       }
       // batchFullReport could take lots of memory
       // reset it to release memory
       this.batchFullReport = []
       var body = req.body
-      if (body.expect_response){
-        this._sendVoteMessage(req, res)
-      }else{
-        this._sendTailoredMessage(req, res)
-      }
-    },
-    _sendVoteMessage: function (req, res){
-      console.log("_sendVoteMessage")
-      var body = req.body
-      var expire = parseInt(body.expire) * 3600000
-      var startTime = new Date().getTime()
-      var allowCorrection = (body.allowed_correction == undefined) ? false : true
-      var voteInfo = {
-        campaignName: body.campaign_name,
-        serviceNumber: body.from_number,
-        startDateTime: startTime,
-        endDateTime: startTime + expire,
-        status: "Active",
-        batchId: "",
-        message: "",
-        voteResults: {},
-        autoReplyMessages: {},
-        autoReply: false,
-        allowCorrection: allowCorrection,
-        voteCommands: [],
-        voteCounts:{
-          Cost: 0,
-          Total: 0,
-          Delivered: 0,
-          Unreachable: 0,
-          Replied: 0
-        },
-        voterList: []
-      }
-      var command = ""
-      if (body.command_1 != null && body.command_1 != ""){
-        command = body.command_1.trim()
-        voteInfo.voteCommands.push(command)
-        voteInfo.voteResults[command] = 0
-      }
-      if (body.command_2 != null && body.command_2 != ""){
-        command = body.command_2.trim()
-        voteInfo.voteCommands.push(command)
-        voteInfo.voteResults[command] = 0
-      }
-      if (body.command_3 != null && body.command_3 != ""){
-        command = body.command_3.trim()
-        voteInfo.voteCommands.push(command)
-        voteInfo.voteResults[command] = 0
-      }
-
-      // auto reply
-      if (body.reply_1_message != null && body.reply_1_message != ""){
-        command = body.command_1.trim()
-        voteInfo.autoReplyMessages[command] = body.reply_1_message
-        voteInfo.autoReply = true
-      }
-      if (body.reply_2_message  != null && body.reply_2_message != ""){
-        command = body.command_2.trim()
-        voteInfo.autoReplyMessages[command] = body.reply_2_message
-          voteInfo.autoReply = true
-      }
-      if (body.reply_3_message != null && body.reply_3_message != ""){
-        command = body.command_3.trim()
-        voteInfo.autoReplyMessages[command] = body.reply_3_message
-        voteInfo.autoReply = true
-      }
-      console.log(voteInfo)
-      var requestBody = {
-          from: body.from_number,
-          messages: []
-      }
-      var totalRecipients = 0
-      var sampleMessage = ""
-      if (body.enable_manual_input == "manual"){
-        var recipients = body.recipients.trim()
-        if (recipients != ""){
-          var recipientArr = recipients.split("\n")
-          var message = body.message
-          voteInfo.voteCounts.Total = recipientArr.length
-          requestBody['text'] = message
-          totalRecipients = recipientArr.length
-          for (var recipient of recipientArr){
-            recipient = recipient.trim()
-            //recipient = (recipient[0] == "+") ? recipient : `+${recipient}`
-            recipient = this.validateRicipientNumber(recipient)
-            var item = {
-              to:[recipient]
-            }
-            requestBody.messages.push(item)
-
-            var voter = {
-                id: "",
-                phoneNumber: recipient,
-                isReplied: false,
-                repliedMessage: "",
-                repliedTime: 0,
-                sentMessage: message,
-                isSent: false
-              }
-            voteInfo.voterList.push(voter)
-          }
-          //console.log(JSON.stringify(requestBody))
-        }
-      }else{
-        var csvColumnIndex = {}
-        if (req.files != undefined){
-          for (var f of req.files){
-            var currentFolder = process.cwd();
-            var tempFile = currentFolder + "/uploads/" + f.filename
-            var content = fs.readFileSync(tempFile, 'utf8');
-            var recipientsFromFile = content.trim().split("\r\n")
-            var header = recipientsFromFile[0]
-            var columns = header.trim().split(",")
-            for (var i=0; i<columns.length; i++){
-              csvColumnIndex[columns[i]] = i
-            }
-            var message = body.message
-            var toNumberColumnName = body.to_number_column
-            recipientsFromFile.shift() // remove the first row which is the header
-            totalRecipients = recipientsFromFile.length
-            voteInfo.voteCounts.Total = recipientsFromFile.length
-
-            var arr = message.match(/{([^}]*)}/g)
-            if (!arr){ // no template => set common text message
-              requestBody['text'] = message
-            }
-            var msg = message
-            for (var row of recipientsFromFile){
-              row = detectAndHandleCommas(row)
-              var columns = row.trim().split(",")
-              var recipient = columns[csvColumnIndex[toNumberColumnName]]
-              //toNumber = (toNumber[0] != "+") ? `+${toNumber}` : toNumber
-              recipient = this.validateRicipientNumber(recipient)
-              if (arr){
-                msg = resembleMessage(message, columns, csvColumnIndex)
-                if (sampleMessage == "")
-                  sampleMessage = msg
-                var group = {
-                    to: [recipient],
-                    text: msg
-                }
-                requestBody.messages.push(group)
-              }else{ // no template => text is common to all recipients
-                var item = {
-                    to: [recipient]
-                }
-                requestBody.messages.push(item)
-              }
-
-              var voter = {
-                id: "",
-                phoneNumber: recipient,
-                isReplied: false,
-                repliedMessage: "",
-                repliedTime: 0,
-                sentMessage: msg,
-                isSent: false
-              }
-              voteInfo.voterList.push(voter)
-            }
-          }
-
-          var currentFolder = process.cwd();
-          for (var file of req.files){
-            var tempFile = currentFolder + "/uploads/" + file.filename
-            fs.unlinkSync(tempFile);
-          }
-        }
-      }
-      if (sampleMessage == "")
-        sampleMessage = body.message
-      sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
-      voteInfo.message = sampleMessage
-      this.batchSummaryReport = {
-        //pending: true,
-        campaignName: body.campaign_name,
-        creationTime: new Date().getTime(),
-        type: "vote",
-        serviceNumber: body.from_number,
-        message: sampleMessage,
-        totalCount: totalRecipients,
-        batchId: "",
-        queuedCount: 0,
-        deliveredCount: 0,
-        sentCount: 0,
-        unreachableCount: 0,
-        rejectedCount: 0,
-        totalCost: 0.0
-      }
-      this.sendBatchMessage(res, requestBody, voteInfo)
+      this._sendTailoredMessage(req, res)
     },
     _sendTailoredMessage: function(req, res){
       console.log("_sendTailoredMessage")
@@ -918,8 +867,8 @@ var engine = User.prototype = {
         var recipients = body.recipients.trim()
         if (recipients != ""){
           var recipientArr = recipients.split("\n")
-          var message = body.message
-          requestBody['text'] = message
+          //var message = body.message.trim()
+          requestBody['text'] = body.message.trim()
           totalRecipients = recipientArr.length
           for (var recipient of recipientArr){
             recipient = recipient.trim()
@@ -945,7 +894,7 @@ var engine = User.prototype = {
             for (var i=0; i<columns.length; i++){
               csvColumnIndex[columns[i]] = i
             }
-            var message = body.message
+            var message = body.message.trim()
             var toNumberColumnName = body.to_number_column
             recipientsFromFile.shift() // remove the first row which is the header
             totalRecipients = recipientsFromFile.length
@@ -984,15 +933,14 @@ var engine = User.prototype = {
             var tempFile = currentFolder + "/uploads/" + file.filename
             fs.unlinkSync(tempFile);
           }
-          //this.sendVote = false
-          //this.sendBatchMessage(res, requestBody, body.campaign_name, sendMode, null)
         }
       }
       if (sampleMessage == "")
-        sampleMessage = body.message
+        sampleMessage = body.message.trim()
       sampleMessage = (sampleMessage.length > 50) ? (sampleMessage.substring(0, 50) + "...") : sampleMessage
       this.batchSummaryReport = {
-        //pending: true,
+        scheduled: false,
+        sendAt: 0,
         campaignName: body.campaign_name,
         creationTime: new Date().getTime(),
         type: sendMode,
@@ -1007,7 +955,42 @@ var engine = User.prototype = {
         rejectedCount: 0,
         totalCost: 0.0
       }
-      this.sendBatchMessage(res, requestBody, null)
+      if (req.body.scheduled){
+        this.batchSummaryReport.scheduled = true
+        console.log(req.body.send_at)
+        var currentTime = new Date().getTime()
+        var sendAt = currentTime + parseInt(req.body.send_at)
+        this.batchSummaryReport.sendAt = sendAt
+        this.batchSummaryReport.creationTime = currentTime //sendAt
+        //console.log("Current Time " + currentTime)
+        //console.log("sendAt: " + sendAt)
+        //var sendIn = (sendAt - currentTime) / 60000
+        //console.log("Send in " + sendIn + " mins")
+        var scheduledCampaign = {
+          sendAt: sendAt,
+          creationTime: currentTime,
+          requestBody: requestBody
+        }
+        var thisUser = this
+        this.addBatchDataToDB((err, result) => {
+          console.log("add scheduled campaign to DB.")
+          // send response after saving the scheduled campaign to db
+          thisUser.eventEngine.setScheduledCampaign(scheduledCampaign, (err, result) => {
+            if (!err)
+              res.send({
+                status: 'scheduled',
+                message: `Campaign scheduled`
+              })
+            else
+              res.send({
+                status: 'error',
+                message: 'Cannot schedule campaign. Please try again.'
+              })
+          })
+        })
+      }else{
+        this.sendBatchMessage(res, requestBody)
+      }
     },
     validateRicipientNumber: function(number){
       number = number.replace(/[+()\-\s]/g, '')
@@ -1019,13 +1002,25 @@ var engine = User.prototype = {
       }
       return number
     },
-    sendBatchMessage: async function(res, requestBody, voteInfo){
+    sendBatchMessage: async function(res, requestBody){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
+        if (this.batchSummaryReport.type == 'group'){
+          this.userActivities.campaign_broadcast.count++
+          this.userActivities.campaign_broadcast.total_messages += this.batchSummaryReport.totalCount
+          this.userActivities.campaign_broadcast.ts = new Date().getTime()
+        }else if( this.batchSummaryReport.type == 'customized'){
+          this.userActivities.campaign_personalized.count++
+          this.userActivities.campaign_personalized.total_messages += this.batchSummaryReport.totalCount
+          this.userActivities.campaign_personalized.ts = new Date().getTime()
+        }
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
         var endpoint = "/restapi/v1.0/account/~/a2p-sms/batches"
         try {
           var resp = await p.post(endpoint, requestBody)
           var jsonObj = await resp.json()
+          //var obj = resp.headers
+          logger.writeLog(this.extensionId, `------------\r\nCampaign sent to ${jsonObj.batchSize} recipients at ${new Date().toISOString()}\r\nBatch id: ${jsonObj.id}`)
 
           var batchResult = {
             id: jsonObj.id,
@@ -1041,20 +1036,14 @@ var engine = User.prototype = {
 
           if (jsonObj.rejected.length){
             this.batchSummaryReport.rejectedCount = jsonObj.rejected.length
+            this.userActivities.campaigns_logs.total_rejected += jsonObj.rejected.length
             this.batchSummaryReport.totalCount -= jsonObj.rejected.length
-            if (voteInfo)
-              voteInfo.voteCounts.Total -= jsonObj.rejected.length
-            // add rejected numbers to a temp db
-            this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
+            database.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id, this.extensionId)
           }
+
           this.processingBatches.push(jsonObj.id)
           this.batchSummaryReport.batchId = jsonObj.id
 
-          if (voteInfo){
-            voteInfo.batchId = jsonObj.id
-            this.eventEngine.setVoteInfo(voteInfo)
-            //this._getVoteReport(jsonObj.id, "")
-          }
           this.addBatchDataToDB((err, result) => {
             res.send({
                 status:"ok",
@@ -1062,15 +1051,17 @@ var engine = User.prototype = {
             })
           })
         } catch (e) {
-          console.log("Endpoint POST: " + endpoint)
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("sendBatchMessage()")
+          var obj = e.response.headers
+          logger.writeLog(this.extensionId, `------------\r\nCampaign => POST endpoint ${endpoint} at ${new Date().toISOString()}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           res.send({
               status:"error",
               message: e.message
           })
         }
       }else{
+        console.log("sendBatchMessage() - You have been logged out. Please login again.")
         res.send({
           status: "failed",
           message: "You have been logged out. Please login again."
@@ -1078,38 +1069,50 @@ var engine = User.prototype = {
       }
     },
     processBatchEventNotication: function(eventObj){
-      console.log("Batch completed")
-      //console.log(eventObj)
-      this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
-        if (batch){
-          console.log("found batch")
-          if (eventObj.body.status == "Completed"){
-            var index = this.processingBatches.findIndex(o => o == eventObj.body.id)
-            if (index >= 0)
-              this.processingBatches.splice(index, 1)
-            batch.queuedCount = 0
-            batch.deliveredCount = 0
-            batch.sentCount = 0
-            batch.unreachableCount = 0
-            batch.totalCost = 0.0
-            this._postBatchReport(batch, 1, 0, "")
-          }
-          // check status to deal with the future when deletion is supported
+      //console.log("Batch completed: userHandler")
+      var thisUser = this
+      if (eventObj.body.status == "Completed"){
+        if (this.eventEngine.processingBatches.length){
+          console.log("before copy")
+          console.log(this.eventEngine.processingBatches)
+          console.log(this.processingBatches)
+          this.processingBatches = this.processingBatches.concat(this.eventEngine.processingBatches)
+          this.eventEngine.processingBatches = []
+          console.log("after copy from event engine")
+          console.log(this.processingBatches)
         }
-      })
+        var index = thisUser.processingBatches.findIndex(o => o == eventObj.body.id)
+        if (index >= 0){
+          this.processingBatches.splice(index, 1)
+          this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
+            if (batch){
+              console.log("found batch")
+              console.log(eventObj.body.id)
+              //console.log(batch)
+              logger.writeLog(thisUser.extensionId, `------------\r\nCampaign status: ${eventObj.body.status} notified at ${new Date().toISOString()}\r\nBatch id: ${batch.batchId}`)
+
+              batch.queuedCount = 0
+              batch.deliveredCount = 0
+              batch.sentCount = 0
+              batch.unreachableCount = 0
+              batch.totalCost = 0.0
+              thisUser._readBatchReport(batch, 1, 0, "")
+            }else{
+              logger.writeLog(thisUser.extensionId, `------------\r\nBatch not found from db! Notified at ${new Date().toISOString()}\r\nEvent body: ${JSON.stringify(eventObj.body)}`)
+            }
+          })
+        }
+      }
     },
-    _postBatchReport: async function(batch, page, spamMsgCount, pageToken){
-      console.log("_postBatchReport")
+    _readBatchReport: async function(batch, page, spamMsgCount, pageToken){
+      console.log(`_readBatchReport: ${batch.batchId} / ${page} / ${pageToken}`)
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
       var params = {
-        batchId: batch.batchId
+        batchId: batch.batchId,
+        perPage: 1000
       }
       if (pageToken != "")
         params['pageToken'] = pageToken
-
-      var vote = undefined
-      if (batch.type == "vote")
-       vote = this.eventEngine.getCampaignByBatchId(batch.batchId)
 
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
@@ -1123,35 +1126,16 @@ var engine = User.prototype = {
                 break;
               case "Delivered":
                 batch.deliveredCount++
-                if (vote){
-                  var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
-                  if (voter && voter.isSent == false){
-                    vote.voteCounts.Delivered++
-                    voter.id = message.id
-                    voter.isSent = true
-                  }
-                }
                 break
               case "Sent":
                 batch.sentCount++
-                if (vote){
-                  var voter = vote.voterList.find(o => o.phoneNumber == message.to[0])
-                  if (voter && voter.isSent == false){
-                    vote.voteCounts.Delivered++
-                    voter.id = message.id
-                    voter.isSent = true
-                  }
-                }
                 break;
               case "DeliveryFailed":
               case "SendingFailed":
                 // detect spam to block user
-                if ( message.errorCode == 'SMS-UP-430' || message.errorCode == 'SMS-UP-431' ||
-                     message.errorCode == 'SMS-CAR-430' || message.errorCode == 'SMS-CAR-431')
+                if ( message.errorCode == 'SMS-UP-430' || message.errorCode == 'SMS-CAR-430')
                      spamMsgCount++
                 batch.unreachableCount++
-                if (vote)
-                  vote.voteCounts.Unreachable++
                 break;
               default:
                 break
@@ -1168,58 +1152,78 @@ var engine = User.prototype = {
           //console.log(postData)
           this.eventEngine.postResults(postData)
 
-          var thisUser = this
           if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("has nextPageToken, get it after 1.2 secs")
+            //console.log("has nextPageToken, get it after 1.2 secs")
             page++
+            var thisUser = this
             setTimeout(function(){
-              thisUser._postBatchReport(batch, page, spamMsgCount, jsonObj.paging.nextPageToken)
+              thisUser._readBatchReport(batch, page, spamMsgCount, jsonObj.paging.nextPageToken)
             }, 1200)
           }else{
-            if (vote)
-              thisUser.eventEngine.setCampainByBatchId(batch.batchId, vote)
             // update local db
-            console.log("from notification")
-            console.log(batch)
-            // for test simulation
-            //spamMsgCount = 400
-            thisUser.reputationScore -= spamMsgCount
-            console.log(`User reputation score: ${thisUser.reputationScore}`)
-            // alert monitor if user reputation is low
-            if (thisUser.reputationScore <= 100){
-              post_alert_to_group(thisUser)
+            console.log(`From notification. Page# = ${page} `)
+
+            // Keep track of this to see if this is enough to block spammers
+            var numberObj = this.numberReputation.find(o => o.number == batch.serviceNumber)
+            console.log(numberObj)
+            console.log(this.numberReputation)
+            console.log("batch Id", batch.batchId)
+            if (numberObj){
+              const prevScore = numberObj.score
+              numberObj.score -= spamMsgCount
+              console.log(prevScore, " == ", numberObj.score)
+              if (prevScore > 0 && numberObj.score <= 0){
+                post_alert_to_group(this)
+              }
             }
-            /*
-            var spamRate = (spamMsgCount / batch.deliveredCount) * 100
-            if (spamRate > 1.5)
-              console.log("Report spam and block this user")
-            */
-            thisUser._updateCampaignDB(batch, (err, result) => {
-              console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
+
+            console.log(numberObj)
+            console.log(this.numberReputation)
+
+            this._updateCampaignDB(batch, (err, result) => {
+              //console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
               var postData = {
                 dataType: "Campaign_Summary",
                 report: result
               }
               //console.log(postData)
               // post batch data to webhook address
-              thisUser.eventEngine.postResults(postData)
+              this.eventEngine.postResults(postData)
+              if (this.processingBatches.length == 0){
+                if (this.autoDelele == true){
+                  logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nSelf removed`)
+                  this.userActivities.currentPresence = 'offline'
+                  this.logout(function(err, remove){
+                    router.removeMe(this.extensionId, remove)
+                  })
+                }
+              }
             })
+
+            this.userActivities.campaigns_logs.total_delivered += batch.deliveredCount
+            this.userActivities.campaigns_logs.total_failed += batch.unreachableCount
+            this.userActivities.campaigns_logs.ts = new Date().getTime()
+            database.updateUserMonitorActivities(this.extensionId, this.userActivities)
           }
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("_readBatchReport()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `------------\r\n_readBatchReport => GET ${endpoint} at ${new Date().toISOString()}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
         }
       }else{
-        console.log("platform issue")
+        console.log("_readBatchReport() - platform issue")
       }
     },
-    readCampaignSummary: async function(res, batchId, timeStamp){
+    readCampaignSummary: async function(res, reqQuery){
       console.log("readCampaignSummary - sendCount > 0")
       var endpoint = `/restapi/v1.0/account/~/a2p-sms/statuses`
+      //.batchId, req.query.ts
       var params = {
-        batchId: batchId
+        batchId: reqQuery.batchId
       }
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
@@ -1229,7 +1233,6 @@ var engine = User.prototype = {
           //console.log(jsonObj)
           var unreachableCount = jsonObj.deliveryFailed.count
           unreachableCount += jsonObj.sendingFailed.count
-
           var totalCost = 0.0
           if (jsonObj.delivered.hasOwnProperty('cost'))
             totalCost += jsonObj.delivered.cost
@@ -1241,160 +1244,75 @@ var engine = User.prototype = {
             totalCost += jsonObj.sendingFailed.cost
 
           var batchReport = {
-            batchId: batchId,
+            batchId: reqQuery.batchId,
             queuedCount: jsonObj.queued.count,
             deliveredCount: jsonObj.delivered.count,
             sentCount: jsonObj.sent.count,
             unreachableCount: unreachableCount,
             totalCost: totalCost
           }
-          // quick fix for old batches which still have sent message status
-/*
+
+          var timeStamp = parseInt(reqQuery.ts)
           var now = new Date().getTime()
           if ((now - timeStamp) > 86400000){
-            if (batchReport.sentCount > 0){
-              batchReport.unreachableCount += batchReport.sentCount
-              batchReport.sentCount = 0
-              console.log("Fixed old batches which still have sent message status")
+            var spamMsgCount = 0
+            var deliveryFailed = jsonObj.deliveryFailed
+            if (deliveryFailed.count > 0){
+              if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-CAR-430'))
+                spamMsgCount += deliveryFailed.errorCodeCounts['SMS-CAR-430']
+              if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-UP-430'))
+                spamMsgCount += deliveryFailed.errorCodeCounts['SMS-UP-430']
             }
+
+            var numberObj = this.numberReputation.find(o => o.number == reqQuery.number)
+            console.log("batch Id", reqQuery.batchId)
+            console.log(numberObj)
+            console.log(this.numberReputation)
+            if (numberObj){
+              const prevScore = numberObj.score
+              numberObj.score -= spamMsgCount
+              if (prevScore > 0 && numberObj.score <= 0){
+                post_alert_to_group(this)
+              }
+            }
+            console.log(numberObj)
+            console.log(this.numberReputation)
+
+            this._updateCampaignDB(batchReport, (err, result) => {
+              console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
+            })
+            this.userActivities.campaigns_logs.total_delivered += batchReport.deliveredCount
+            this.userActivities.campaigns_logs.total_failed += batchReport.unreachableCount
+            this.userActivities.campaigns_logs.ts = new Date().getTime()
+            database.updateUserMonitorActivities(this.extensionId, this.userActivities)
+          }else{
+            console.log("DONT UPDATE CAMPAIGN DB!")
           }
-*/
           res.send({
             status: "ok",
             batchReport: batchReport
           })
-
-          var spamMsgCount = 0
-          var deliveryFailed = jsonObj.deliveryFailed
-          if (deliveryFailed.count > 0){
-            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-CAR-430'))
-              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-CAR-430']
-            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-CAR-431'))
-              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-CAR-431']
-            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-UP-430'))
-              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-UP-430']
-            if (deliveryFailed.errorCodeCounts.hasOwnProperty('SMS-UP-431'))
-              spamMsgCount += deliveryFailed.errorCodeCounts['SMS-UP-431']
-          }
-          /*
-          var spamRate = (spamMsgCount / batchReport.deliveredCount) * 100
-          if (spamRate > 1.5)
-            console.log("Report spam and block this user")
-          */
-
-          var now = new Date().getTime()
-          if ((now - timeStamp) > 86400000){
-            this.reputationScore -= spamMsgCount
-            console.log(`User reputation score: ${this.reputationScore}`)
-            // alert monitor if user reputation is low
-            if (this.reputationScore <= 100){
-              post_alert_to_group(this)
-            }
-            this._updateCampaignDB(batchReport, (err, result) => {
-              console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
-              console.log("Batch id: " + batchReport.batchId)
-            })
-          }else{
-            console.log("DONT UPDATE CAMPAIGN DB!")
-          }
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("readCampaignSummary()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nreadCampaignSummary => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           res.send({
-            status: "failed",
+            status: "error",
             message: e.message
           })
         }
       }else{
-        console.log("platform issue")
+        console.log("readCampaignSummary() - You have been logged out. Please login again.")
         res.send({
-          status: "error",
-          message: "Platform error."
-        })
-      }
-
-    },
-    // retire this method after get statuses bug is fixed
-    /*
-    _readCampaignSummary: async function(res, batchId, timeStamp, batchReport, pageToken){
-      console.log("_readCampaignSummary")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: batchId
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
-
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          for (var message of jsonObj.records){
-            switch (message.messageStatus) {
-              case "Queued":
-                batchReport.queuedCount++
-                break;
-              case "Delivered":
-                batchReport.deliveredCount++
-                break
-              case "Sent":
-                batchReport.sentCount++
-                break;
-              case "DeliveryFailed":
-              case "SendingFailed":
-                batchReport.unreachableCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? parseFloat(message.cost) : 0.0
-            batchReport.totalCost += cost
-          }
-          //console.log(batchReport.totalCost)
-          var thisUser = this
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("has nextPageToken")
-            setTimeout(function(){
-              thisUser._readCampaignSummary(res, batchId, timeStamp, batchReport, jsonObj.paging.nextPageToken)
-            }, 1200)
-          }else{
-            // don't update db. Taken care by notification path
-            console.log("from polling")
-            res.send({
-              status: "ok",
-              batchReport: batchReport
-            })
-            var now = new Date().getTime()
-            if ((now - timeStamp) > 86400000){
-              this._updateCampaignDB(batchReport, (err, result) => {
-                console.log("DONE READ BATCH REPORT. UPDATE FROM POLLING")
-              })
-            }else{
-              console.log("DONT UPDATE CAMPAIGN DB!")
-            }
-          }
-        } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
-          res.send({
-            status: "failed",
-            message: e.message
-          })
-        }
-      }else{
-        console.log("platform issue")
-        res.send({
-          status: "error",
-          message: "Platform error."
+          status: "failed",
+          message: "You have been logged out. Please login again."
         })
       }
     },
-    */
     readCampaignDetails: async function(res, batchId, pageToken){
       // Read single page only
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1404,6 +1322,11 @@ var engine = User.prototype = {
       }
       if (pageToken != "")
         params['pageToken'] = pageToken
+      else{
+        this.userActivities.campaigns_logs.view_count++
+        this.userActivities.campaigns_logs.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
+      }
 
       console.log('Params: ' + JSON.stringify(params))
       var p = await this.rc_platform.getPlatform(this.extensionId)
@@ -1428,19 +1351,23 @@ var engine = User.prototype = {
             fullReport: jsonObj.records
           })
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("readCampaignDetails()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nreadCampaignDetails => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           res.send({
             status: "error",
             message: e.message
           })
         }
       }else{
+        console.log("readCampaignDetails() - You have been logged out. Please login again.")
         res.send({
           status: "failed",
-          message: "Platform error."
+          message: "You have been logged out. Please login again."
         })
       }
     },
@@ -1478,10 +1405,13 @@ var engine = User.prototype = {
               result: optedOutNumbers,
           })
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("readOptedOutNumber()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nreadOptedOutNumber => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           res.send({
               status: "error",
               message: e.message
@@ -1490,9 +1420,12 @@ var engine = User.prototype = {
       }else{
         res.send({
           status: "failed",
-          message: "Platform error."
+          message: "You have been logged out. Please login again."
         })
       }
+      this.userActivities.settings.opt_out++
+      this.userActivities.settings.ts = new Date().getTime()
+      database.updateUserMonitorActivities(this.extensionId, this.userActivities)
     },
     readMessageList: function (req, res){
       console.log("readMessageList")
@@ -1559,10 +1492,13 @@ var engine = User.prototype = {
             //thisUser.batchFullReport = []
           }
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(readParams))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("_readMessageList()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\n_readMessageList => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(readParams)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           res.send({
               status: "error",
               message: e.message
@@ -1571,7 +1507,7 @@ var engine = User.prototype = {
       }else{
         res.send({
           status: "failed",
-          message: "Platform error."
+          message: "You have been logged out. Please login again."
         })
       }
     },
@@ -1581,7 +1517,6 @@ var engine = User.prototype = {
       res.send({
           status: "ok",
           result: this.analytics.analyticsData
-          //failureAnalysis: this.analytics.analyticsData.failureAnalysis
       })
     },
     downloadAnalytics: function(req, res){
@@ -1762,10 +1697,15 @@ var engine = User.prototype = {
         // delete in 20 secs
         var deleteFile = `./${fullNamePath}`
         setTimeout(function(){
-          fs.unlinkSync(deleteFile)
+          if (fs.existsSync(deleteFile))
+            fs.unlinkSync(deleteFile)
         }, 20000, deleteFile)
+
+        this.userActivities.analytics.download_count++
+        this.userActivities.analytics.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
       }catch (e){
-        console.log("cannot create report file")
+        console.log("downloadAnalytics() - cannot create report file")
         res.send({
           status:"error",
           message:"Cannot create a report file! Please try gain"
@@ -1790,6 +1730,10 @@ var engine = User.prototype = {
           result: this.analytics.analyticsData
       })
 
+      this.userActivities.analytics.view_count++
+      this.userActivities.analytics.ts = new Date().getTime()
+      database.updateUserMonitorActivities(this.extensionId, this.userActivities)
+
       if (req.body.mode == 'date'){
         var timeOffset = 0 //parseInt(req.body.timeOffset)
         var ts = new Date(req.body.dateFrom).getTime()
@@ -1808,15 +1752,15 @@ var engine = User.prototype = {
 
         if (req.body.pageToken)
             readParams['pageToken'] = ""
-        //this._readTestMessageStore(timeOffset)
+
         this._readMessageStoreForAnalytics(readParams, timeOffset)
       }else{
-        //this._readTestMessageStore(timeOffset)
         var campaignIds = JSON.parse(req.body.campaignIds)
         console.log(campaignIds)
         this._readMessageStoreByCampaign(campaignIds, "", 0)
       }
     },
+    // currently, not supported
     _readMessageStoreByCampaign: async function(campaignIds, pageToken, index){
       console.log("_readMessageStoreByCampaign")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -1879,10 +1823,13 @@ var engine = User.prototype = {
             }
           }
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log('ERR ' + e.message);
-          console.log(e.response.headers)
+          console.log("_readMessageStoreByCampaign()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\n_readMessageStoreByCampaign => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           this.analytics.analyticsData.task = "Interrupted"
         }
       }else{
@@ -1939,55 +1886,19 @@ var engine = User.prototype = {
             this.analytics.analyticsData.task = "Completed"
           }
         } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(readParams))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          console.log("_readMessageStoreForAnalytics()")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\n_readMessageStoreForAnalytics => GET ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(readParams)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           this.analytics.analyticsData.task = "Interrupted"
         }
       }else{
         this.analytics.analyticsData.task = "Interrupted"
-        console.log("Platform error")
+        console.log("_readMessageStoreForAnalytics() - Platform error")
       }
-    },
-    _readTestMessageStore: function (timeOffset){
-      console.log("_readTestMessageStore")
-      var resp = fs.readFileSync('./tempFile/testData_3.json', 'utf8');
-      var jsonObj = JSON.parse(resp)
-      var count = 0
-      for (var message of jsonObj){
-        this.analytics.analyzeMessage(message)
-        count++
-        if (count > 1000){
-          count = 0
-          this.analytics.analyticsData.task = "Processing"
-          console.log("UPDATE PROCESSING")
-        }
-      }
-
-      this.analytics.analyticsData.phoneNumbers.sort(sortbByNumber)
-      console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
-      var check = true
-
-      while (check){
-        var index = this.analytics.analyticsData.failureAnalysis.contents.findIndex(o => o.ignore == true)
-        if (index >= 0){
-          this.analytics.analyticsData.failureAnalysis.contents.splice(index, 1)
-          //console.log("REMOVED")
-        }else{
-          check = false
-        }
-      }
-
-      console.log("AFTER CLEAN UP")
-      console.log(this.analytics.analyticsData.failureAnalysis.contents.length)
-      for (var item of this.analytics.analyticsData.failureAnalysis.contents){
-        console.log(item.message)
-        console.log(item.spamMsgCount)
-        //console.log(item.nonspams)
-      }
-      //console.log(this.analytics.analyticsData.failureAnalysis.contents)
-      this.analytics.analyticsData.task = "Completed"
     },
     // analytics end
     downloadHVMessageStore: function(req, res){
@@ -2024,112 +1935,40 @@ var engine = User.prototype = {
       try{
         fs.writeFileSync('./'+ fullNamePath, fileContent)
         var link = "/downloads?filename=" + fullNamePath
+        console.log("link: " + link)
+        this.userActivities.message_store_downloads.count++
+        this.userActivities.message_store_downloads.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
         res.send({
           status:"ok",
           message:link
         })
+
+        // delete in 20 secs
+        var deleteFile = `./${fullNamePath}`
+        setTimeout(function(){
+          if (fs.existsSync(deleteFile))
+            fs.unlinkSync(deleteFile)
+        }, 20000, deleteFile)
+
       }catch (e){
-        console.log("cannot create report file")
+        console.log("downloadHVMessageStore() - cannot create report file")
         res.send({
           status:"error",
           message:"Cannot create a report file! Please try gain"
         })
       }
     },
-    deleteSurveyResult: function(req, res){
+    cancelScheduledCampaign: function(req, res){
+      console.log("cancelScheduledCampaign")
       if (this.eventEngine){
-        this.eventEngine.deleteCampaignByBatchId(req.query.batchId, (err, result) => {
+        this.eventEngine.cancelScheduledCampaign(req.query.creationTime, (err, result) => {
+          console.log(result)
           if (err)
             res.send({status:"error",message:"Cannot deleted"})
-          else{
-            res.send({status:"ok",message:"deleted"})
-          }
+          else
+            res.send({status:"ok",message:"cancelled"})
         })
-      }
-    },
-    downloadSurveyResult: function(req, res){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var fullNamePath = './' + dir
-      if (this.eventEngine){
-        var campaign = this.eventEngine.getCampaignByBatchId(req.query.batchId)
-        if (campaign){
-          var timeOffset = parseInt(req.query.timeOffset)
-          var name = campaign.campaignName.replace(/#/g, "")
-          fullNamePath += `${name.replace(/\s/g, "-")}-survey-result.csv`
-          let dateOptions = { weekday: 'short' }
-          var index = 0
-          var appendFile = false
-          var fileContent = "Campaign,From,To,Creation Time,Status,Sent Message,Response Option,Response Message,Response Time,Replied,Delivered,Auto-Reply Message"
-          try{
-            async.forEachLimit(campaign.voterList, 1, function(voter, readNextVoter){
-              async.waterfall([
-                function readNextVoter(done) {
-                  fileContent += `\n${campaign.campaignName}`
-                  fileContent += `,${formatPhoneNumber(campaign.serviceNumber)}`
-                  fileContent += `,${formatPhoneNumber(voter.phoneNumber)}`
-                  var date = new Date(campaign.startDateTime - timeOffset)
-                  var dateStr = date.toISOString()
-                  fileContent += `,${dateStr}`
-                  fileContent += `,${campaign.status}`
-                  fileContent += `,"${voter.sentMessage}"`
-                  var commands = campaign.voteCommands.join("|")
-                  fileContent += `,${commands}`
-                  fileContent += `,"${voter.repliedMessage}"`
-                  if (voter.repliedTime > 0){
-                    date = new Date(voter.repliedTime - timeOffset)
-                    dateStr = date.toISOString()
-                  }else{
-                    dateStr = "--"
-                  }
-                  fileContent += `,"${dateStr}"`
-                  fileContent += `,${voter.isReplied}`
-                  fileContent += `,${voter.isSent}`
-                  var autoReplyMessage = (campaign.autoReplyMessages[`${voter.repliedMessage}`]) ? campaign.autoReplyMessages[`${voter.repliedMessage}`] : ""
-                  fileContent += `,"${autoReplyMessage}"`
-                  index++
-                  if (index > 500){
-                    index = 0
-                    if (appendFile == false){
-                      appendFile = true
-                      fs.writeFile(fullNamePath, fileContent, function (err) {
-                        fileContent = ""
-                        done()
-                      });
-                    }else{
-                      fs.appendFile(fullNamePath, fileContent, function (err) {
-                        fileContent = ""
-                        done()
-                      });
-                    }
-                  }else{
-                    done()
-                  }
-                }
-              ], function (error, success) {
-                readNextVoter()
-              });
-            }, function(err){
-              if (index > 0)
-                fs.writeFileSync(fullNamePath, fileContent)
-              console.log("Done write file")
-              var link = "/downloads?filename=" + fullNamePath
-              res.send({
-                status:"ok",
-                message:link
-              })
-            });
-          }catch (e){
-            console.log("cannot create report file")
-            res.send({status:"error",message:"Cannot create a report file! Please try again"})
-          }
-        }else{
-          res.send({status:"error",message:"This servey has been deleted."})
-        }
-      }else{
-        res.send({status:"error",message:"Unknown error!"})
       }
     },
     downloadInvalidNumbers: function(req, res){
@@ -2138,7 +1977,7 @@ var engine = User.prototype = {
         fs.mkdirSync(dir)
       }
       var name = decodeURIComponent(req.query.campaign_name).replace(/#/g, "")
-      var fullNamePath = dir + name.replace(/\s/g, "-")
+      var fullNamePath = dir + name.replace(/[\/\s]/g, "-")
       var fileContent = ""
       fullNamePath += '-invalid-numbers.csv'
       fileContent = "Index,Number,Error Code,Description"
@@ -2159,13 +1998,22 @@ var engine = User.prototype = {
               status:"ok",
               message:link
             })
+
+            // delete in 20 secs
+            var deleteFile = `./${fullNamePath}`
+            setTimeout(function(){
+              if (fs.existsSync(deleteFile))
+                fs.unlinkSync(deleteFile)
+            }, 20000, deleteFile)
+
           }catch (e){
-            console.log("cannot create download file")
+            console.log("downloadInvalidNumbers() - cannot create download file")
             res.send({
               status:"error",
               message:"Cannot create download file! Please try gain"})
           }
         }else{ // no history
+          console.log("downloadInvalidNumbers() - not found")
           res.send({
             status: "error",
             message: "Not found!",
@@ -2173,99 +2021,6 @@ var engine = User.prototype = {
         }
       })
     },
-    /*
-    _createReportFile: async function(query, pageToken, callback){
-      console.log("_createReportFile")
-      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-      var params = {
-        batchId: query.batchId,
-        perPage: 1000
-      }
-      if (pageToken != "")
-        params['pageToken'] = pageToken
-
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.get(endpoint, params)
-          var jsonObj = await resp.json()
-          var appendFile = (pageToken == "") ? false : true
-          var link = this.writeToFile(query, jsonObj.records, appendFile)
-
-          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-            console.log("Read next page")
-            var thisUser = this
-            setTimeout(function(){
-              thisUser._createReportFile(query, jsonObj.paging.nextPageToken, callback)
-            }, 1200)
-          }else{
-            downloadLink = link
-            callback(null, link)
-          }
-        } catch (e) {
-          console.log('Endpoint: GET ' + endpoint)
-          console.log('Params: ' + JSON.stringify(params))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
-          callback('error', "error")
-        }
-      }else{
-        callback("failed", "failed")
-      }
-    },
-    writeToFile: function(query, records, appendFile){
-      var dir = "reports/"
-      if(!fs.existsSync(dir)){
-        fs.mkdirSync(dir)
-      }
-      var name = decodeURIComponent(query.campaignName).replace(/#/g, "")
-      var fullNamePath = dir + name.replace(/\s/g, "-")
-      var fileContent = ""
-      fullNamePath += '-campaign-report.csv'
-      if (appendFile == false)
-        fileContent = "Id,From,To,Creation Time,Last Updated Time,Message Status,Error Code,Error Description,Cost,Segment"
-      var timeOffset = parseInt(query.timeOffset)
-      let dateOptions = { weekday: 'short' }
-      for (var item of records){
-        //console.log(item)
-        var from = formatPhoneNumber(item.from)
-        var to = formatPhoneNumber(item.to[0])
-        var date = new Date(item.creationTime)
-        var timestamp = date.getTime() - timeOffset
-        var createdDate = new Date (timestamp)
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        createdDateStr += " " + createdDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        date = new Date(item.lastModifiedTime)
-        var timestamp = date.getTime() - timeOffset
-        var updatedDate = new Date (timestamp)
-        var updatedDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        updatedDateStr += " " + createdDate.toLocaleDateString("en-US")
-        updatedDateStr += " " + updatedDate.toLocaleTimeString("en-US", {timeZone: 'UTC'})
-        var errorCode = ""
-        var errorDes = ""
-        if (item.hasOwnProperty('errorCode')){
-          errorCode = item.errorCode
-          errorDes = getErrorDescription(errorCode)
-        }
-        var cost = (item.cost) ? item.cost : 0.00
-        var segmentCount = (item.segmentCount) ? item.segmentCount : 0
-        fileContent += `\n${item.id},${from},${to},${createdDateStr},${updatedDateStr}`
-        fileContent +=  `,${item.messageStatus},${errorCode},"${errorDes}",${cost},${segmentCount}`
-      }
-      try{
-        if (appendFile == false){
-          fs.writeFileSync('./'+ fullNamePath, fileContent)
-        }else{
-          fs.appendFileSync('./'+ fullNamePath, fileContent)
-        }
-      }catch(e){
-          console.log("cannot create report file")
-      }
-      //downloadLink = `/downloads?filename=${fullNamePath}`
-      return "/downloads?filename=" + fullNamePath
-    },
-    */
     _createReportFile: async function(query, pageToken){
       console.log("_createReportFile")
       var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
@@ -2314,7 +2069,9 @@ var engine = User.prototype = {
         fs.mkdirSync(dir)
       }
       var name = decodeURIComponent(query.campaignName).replace(/#/g, "")
-      var fullNamePath = dir + name.replace(/\s/g, "-")
+      name = name.replace(/[\/\s]/g, "-")
+      var fullNamePath = dir + name
+      console.log(`fullNamePath ${fullNamePath}`)
       var fileContent = ""
       fullNamePath += '-campaign-report.csv'
       if (appendFile == false)
@@ -2357,7 +2114,6 @@ var engine = User.prototype = {
       }catch(e){
           console.log("cannot create report file")
       }
-      //downloadLink = `/downloads?filename=${fullNamePath}`
       return "/downloads?filename=" + fullNamePath
     },
     downloadBatchReport: function(req, res){
@@ -2372,6 +2128,18 @@ var engine = User.prototype = {
           response.message = this.downloadLink
           this.createReportStatus = 'idle'
           this.downloadBatchId = ''
+          // delete in 20 secs
+          var fullNamePath = this.downloadLink.split("=")[1]
+          console.log(fullNamePath)
+          var deleteFile = `./${fullNamePath}`
+          setTimeout(function(){
+            if (fs.existsSync(deleteFile))
+              fs.unlinkSync(deleteFile)
+          }, 20000, deleteFile)
+
+          this.userActivities.campaigns_logs.download_count++
+          this.userActivities.campaigns_logs.ts = new Date().getTime()
+          database.updateUserMonitorActivities(this.extensionId, this.userActivities)
         }else if (this.createReportStatus == 'error'){
           response.status = 'error'
           response.message = 'Failed to read campaign report. Please retry!'
@@ -2405,26 +2173,6 @@ var engine = User.prototype = {
           }
           res.send(response)
         }
-
-          /*
-          , (err, link) => {
-            if (!err){
-              console.log("file is ready for download")
-              res.send({"status":"ok","message": link})
-            }else{
-              if (err == "error")
-                res.send({
-                  status: "error",
-                  message: "Failed to read campaign report. Please retry!"
-                })
-              else
-                res.send({
-                  status: "failed",
-                  message: "You have been logged out. Please login again."
-                })
-            }
-          })
-          */
       }
     },
     deleteCampaignResult: function(req, res){
@@ -2451,6 +2199,9 @@ var engine = User.prototype = {
               campaigns: batches,
             })
           })
+          thisUser.userActivities.campaigns_logs.delete_count++
+          thisUser.userActivities.campaigns_logs.ts = new Date().getTime()
+          database.updateUserMonitorActivities(thisUser.extensionId, thisUser.userActivities)
         }else{ // no history
           res.send({
             status: "ok",
@@ -2473,7 +2224,8 @@ var engine = User.prototype = {
         fullNamePath += '.csv'
         fileContent = "id,uri,creationTime,fromNumber,status,smsSendingAttemptsCount,toNumber"
         for (var item of this.detailedReport){
-          fileContent += `\n${item.id},${item.uri},${item.creationTime},${item.from},${item.status},${item.smsSendingAttemptsCount},${item.to}`
+          fileContent += "\n"
+          fileContent += item.id + "," + item.uri + "," + item.creationTime + "," + item.from + "," + item.status + "," + item.smsSendingAttemptsCount + "," + item.to
         }
       }else{
         fullNamePath += '_BatchReport.json'
@@ -2482,31 +2234,63 @@ var engine = User.prototype = {
       try{
         fs.writeFileSync('./'+ fullNamePath, fileContent)
         var link = "/downloads?filename=" + fullNamePath
-        res.send({"status":"ok","message":link})
+        res.send({
+          status:"ok",
+          message:link
+        })
+        var deleteFile = `./${fullNamePath}`
+        setTimeout(function(){
+          if(fs.existsSync(deleteFile))
+            fs.unlinkSync(deleteFile)
+        }, 20000, deleteFile)
+
+        this.userActivities.standard_sms.download_count++
+        this.userActivities.standard_sms.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
       }catch (e){
         console.log("cannot create report file")
-        res.send({"status":"failed","message":"Cannot create a report file! Please try gain"})
+        res.send({
+          status: "error",
+          message: "Cannot create a report file! Please try gain"
+        })
       }
     },
     logout: async function(callback){
       console.log("LOGOUT FUNC")
-      if ((this.eventEngine && this.eventEngine.voteCampaignArr.length > 0) || this.processingBatches.length > 0){
-        callback(null, 1)
-      }else{
-        await this.deleteSubscription()
-        var p = await this.rc_platform.getPlatform(this.extensionId)
-        if (p)
-        await p.logout()
-        else
-        console.log("No platform?")
-        // may need to clear tokens and destroy eventEngine etc.
-        var activeUsers = router.getActiveUsers()
-        var index = activeUsers.findIndex(o => o.extensionId.toString() === this.extensionId.toString())
-        activeUsers.splice(index, 1)
-        //this.subscriptionId = ""
-        this.resetSubscriptionAndAccessTokens((err, res) => {
+      logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nLogout`)
+      if (this.eventEngine.scheduledSendAtArr.length > 0){
+        logger.writeLog(this.extensionId, `There is ${this.eventEngine.scheduledSendAtArr.length} scheduled campaign`)
+        this.eventEngine.changeOwner("autoStart")
+        if (this.processingBatches.length > 0){
+          logger.writeLog(this.extensionId, `There is ${this.processingBatches.length} pending campaign`)
+          this.autoDelele = true
           callback(null, 0)
-        })
+        }else
+          callback(null, 1)
+      }else{
+        if (this.processingBatches.length == 0){
+          // delete subscription
+          await this.deleteSubscription()
+          var p = await this.rc_platform.getPlatform(this.extensionId)
+          if (p)
+            await p.logout()
+          else
+            console.log("No platform?")
+          // may need to clear tokens and destroy eventEngine etc.
+          this.userActivities.currentPresence = 'offline'
+          this.subscriptionId = ""
+          this.updateActiveUserSubscription()
+          this.rc_platform.updateUserAccessTokens("")
+          var activeUsers = router.getActiveUsers()
+          var index = activeUsers.findIndex(o => o.extensionId.toString() === this.extensionId.toString())
+          console.log("Remove active user")
+          activeUsers.splice(index, 1)
+          callback(null, 1)
+        }else{
+          logger.writeLog(this.extensionId, `There is ${this.processingBatches.length} pending campaign`)
+          this.autoDelele = true
+          callback(null, 0)
+        }
       }
     },
     readBatchReportFromDB: function(batchId, callback){
@@ -2516,7 +2300,7 @@ var engine = User.prototype = {
           var batch = undefined
           if (result.rows[0].batches.length){
             batches = JSON.parse(result.rows[0].batches)
-            batch = batches.find(o => o.batchId === batchId)
+            batch = batches.find(o => o.batchId == batchId)
           }
           callback(null, batch)
         }else{ // no history
@@ -2526,74 +2310,64 @@ var engine = User.prototype = {
     },
     readCampaignsLogFromDB: function(res){
       var thisUser = this
-      var voteReports = (this.eventEngine) ? thisUser.eventEngine.getCopyVoteCampaignsInfo() : []
+      var batches = []
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (!err && result.rows.length > 0){
-          var batches = []
           if (result.rows[0].batches.length){
             batches = JSON.parse(result.rows[0].batches)
             batches.sort(sortBatchCreatedDate)
           }
           thisUser.batchSummaryReport = batches[0]
-          res.send({
+        }
+        res.send({
             status: "ok",
             campaigns: batches,
-            recentBatch: thisUser.batchSummaryReport,
-            voteReports: voteReports //thisUser.eventEngine.getCopyVoteCampaignsInfo()
+            recentBatch: thisUser.batchSummaryReport
           })
-        }else{ // no history
-          res.send({
-            status: "ok",
-            campaigns: [],
-            recentBatch: thisUser.batchSummaryReport,
-            voteReports: voteReports //thisUser.eventEngine.getCopyVoteCampaignsInfo()
-          })
-        }
-      })
-    },
-    readVoteReports: function(res){
-      var voteReports = (this.eventEngine) ? this.eventEngine.getCopyVoteCampaignsInfo() : []
-      res.send({
-          status: "ok",
-          voteReports: voteReports //this.eventEngine.getCopyVoteCampaignsInfo()
       })
     },
     // Notifications
-    subscribeForNotification: async function(callback){
+    subscribeForNotification: async function(eventFilters, callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
         var endpoint = '/restapi/v1.0/subscription'
+        /*
         var eventFilters = []
         var filter = ""
         for (var item of this.phoneHVNumbers){
           filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
+          filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
           eventFilters.push(filter)
         }
+        */
         try {
           var resp = await p.post('/restapi/v1.0/subscription', {
             eventFilters: eventFilters,
             deliveryMode: {
               transportType: 'WebHook',
-              address: process.env.DELIVERY_MODE_ADDRESS
+              address: process.env.WEBHOOK_DELIVERY_ADDRESS
             },
             expiresIn: process.env.WEBHOOK_EXPIRES_IN
           })
           var jsonObj = await resp.json()
-          console.log("Ready to receive HV SMS notification via WebHook.")
+          console.log("Ready to receive telephonyStatus notification via WebHook.")
           this.subscriptionId = jsonObj.id
           //thisUser.eventEngine.subscriptionId = thisUser.subscriptionId
           console.log("Subscription created")
           console.log(this.subscriptionId)
+          if (this.eventEngine)
+            this.eventEngine.subscriptionId = this.subscriptionId
           this.updateActiveUserSubscription()
           callback(null, jsonObj.id)
         } catch (e) {
-          console.log('Endpoint: POST ' + endpoint)
-          console.log('EventFilters: ' + JSON.stringify(eventFilters))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nsubscribeForNotification => POST ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `EventFilters: ${JSON.stringify(eventFilters)}`)
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
           callback(e.message, "")
         }
       }else{
@@ -2623,53 +2397,26 @@ var engine = User.prototype = {
             callback(null, jsonObj.id)
           }
         } catch (e) {
-          console.log('Endpoint: POST ' + endpoint)
-          console.log(e.response.headers)
-          console.log('ERR: ' + e.message)
-          this.subscribeForNotification((err, res) => {
-            callback(err, res)
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nrenewNotification => POST ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
+          var eventFilters = []
+          var filter = ""
+          for (var item of this.phoneHVNumbers){
+            filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
+            eventFilters.push(filter)
+            filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+            eventFilters.push(filter)
+          }
+          this.subscribeForNotification(eventFilters, (err, res) => {
+            if (!err)
+              callback(null, res)
           })
         }
       }else{
         console.log("err: renewNotification");
-        callback("err", "failed")
-      }
-    },
-    updateBatchNotification: async function( batchId, callback){
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        var eventFilters = []
-        var filter = ""
-        for (var item of this.phoneHVNumbers){
-          filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
-          eventFilters.push(filter)
-          filter = `/restapi/v1.0/account/~/a2p-sms/batch/${batchId}`
-          eventFilters.push(filter)
-        }
-
-        var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
-        try {
-          var resp = await p.put(endpoint, {
-            eventFilters: eventFilters,
-            deliveryMode: {
-              transportType: 'WebHook',
-              address: process.env.DELIVERY_MODE_ADDRESS
-            },
-            expiresIn: process.env.WEBHOOK_EXPIRES_IN
-          })
-          var jsonObj = await resp.json()
-          this.subscriptionId = jsonObj.id
-          console.log("Subscription updated")
-          callback(null, jsonObj.id)
-        } catch (e) {
-          console.log('Endpoint: PUT ' + endpoint)
-          console.log('EventFilters: ' + JSON.stringify(eventFilters))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
-          callback(e.message, "failed")
-        }
-      }else{
-        console.log("err: updateNotification");
         callback("err", "failed")
       }
     },
@@ -2680,14 +2427,26 @@ var engine = User.prototype = {
         for (var item of this.phoneHVNumbers){
           var filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound&to=${item.number}`
           eventFilters.push(filter)
-
+          filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+          eventFilters.push(filter)
           if (outbound){
             filter = `/restapi/v1.0/account/~/a2p-sms/messages?direction=Outbound&from=${item.number}`
             eventFilters.push(filter)
-          }else{
-            filter = `/restapi/v1.0/account/~/a2p-sms/batch?from=${item.number}`
+            /*
+            // keep subscribe for batch if there is/are pending campaigns
+            if (this.processingBatches.length){
+              console.log('keep batch notification')
+              filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
+              eventFilters.push(filter)
+            }
+            */
+          }
+          /*
+          else{
+            filter = `/restapi/v1.0/account/~/a2p-sms/batches?from=${item.number}`
             eventFilters.push(filter)
           }
+          */
         }
 
         var endpoint = `/restapi/v1.0/subscription/${this.subscriptionId}`
@@ -2696,25 +2455,27 @@ var engine = User.prototype = {
             eventFilters: eventFilters,
             deliveryMode: {
               transportType: 'WebHook',
-              address: process.env.DELIVERY_MODE_ADDRESS
+              address: process.env.WEBHOOK_DELIVERY_ADDRESS
             },
             expiresIn: process.env.WEBHOOK_EXPIRES_IN
           })
           var jsonObj = await resp.json()
           this.subscriptionId = jsonObj.id
-          console.log("Subscription updated")
-          console.log(this.subscriptionId)
+          logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nupdateNotification successfully`)
+          logger.writeLog(this.extensionId, `EventFilters: ${JSON.stringify(eventFilters)}`)
           callback(null, jsonObj.id)
         } catch (e) {
-          console.log('Endpoint: PUT ' + endpoint)
-          console.log('EventFilters: ' + JSON.stringify(eventFilters))
-          console.log(e.response.headers)
-          console.log('ERR ' + e.message);
-          callback(e.message, "failed")
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `----- time: ${new Date().toISOString()} -----\r\nupdateNotification => POST ${endpoint}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `EventFilters: ${JSON.stringify(eventFilters)}`)
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
+          callback(e.message, eventFilters)
         }
       }else{
         console.log("err: updateNotification");
-        callback("err", "failed")
+        callback("err", null)
       }
     },
     deleteSubscription: async function() {
@@ -2779,6 +2540,11 @@ var engine = User.prototype = {
           if (number != "")
             this.recipientArr.unshift(number)
         }
+
+        this.userActivities.standard_sms.count++
+        this.userActivities.standard_sms.total_messages += this.recipientArr.length
+        this.userActivities.standard_sms.ts = new Date().getTime()
+        database.updateUserMonitorActivities(this.extensionId, this.userActivities)
 
         this.fromNumber = req.body.fromNumber
         this.sendMessage = req.body.message
@@ -2927,17 +2693,23 @@ var engine = User.prototype = {
       if (this.intervalTimer != null){
         console.log("pauseMessageSending")
         clearInterval(this.intervalTimer);
-        res.send({"status":"ok", "message":"pause sending"})
+        res.send({
+          status: "ok",
+          message: "pause sending"
+        })
       }else
-        res.send({"status":"failed", "message":"cannot pause sending"})
+        res.send({
+          status:"error",
+          message:"cannot pause sending"
+        })
     },
     resumeMessageSending: function(req, res){
       if (this.intervalTimer != null){
         console.log("resumeMessageSending")
         this.sendMessages()
-        res.send({"status":"ok", "message":"resume sending"})
+        res.send({status: "ok", message: "resume sending"})
       }else
-        res.send({"status":"failed", "message":"cannot resume sending"})
+        res.send({status: "failed", message: "cannot resume sending"})
     },
     cancelMessageSending: function(req, res){
       if (this.intervalTimer != null){
@@ -2945,7 +2717,7 @@ var engine = User.prototype = {
         clearInterval(this.intervalTimer);
         this.intervalTimer = null
       }
-      res.send({"status":"ok", "message":"cancel timer"})
+      res.send({status:"ok", message:"cancel timer"})
     },
     getStandardSMSResult: function(req, res){
       if (this.recipientArr.length == 0){
@@ -2962,6 +2734,16 @@ var engine = User.prototype = {
     postFeedbackToGlip: function(req){
       post_message_to_group(req.body, this.mainCompanyNumber, this.accountId, this.userEmail)
     },
+    /*setReputation: function(req, res){
+      console.log("setReputation")
+      var query = `UPDATE a2p_sms_users SET reputation_score=${parseInt(req.body.score)} WHERE user_id='${req.body.user_id}'`
+      pgdb.update(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+        }
+        res.send({status:"ok", result: "Completed!"})
+      })
+    },*/
     addBatchDataToDB: function(callback){
       var thisUser = this
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
@@ -2989,9 +2771,9 @@ var engine = User.prototype = {
           var batches = [thisUser.batchSummaryReport]
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
-          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING"
-          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","","","","","[]",1000]
+          var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates)"
+          query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING"
+          var values = [thisUser.extensionId, thisUser.accountId, batchesStr,"[]","[]","","","","[]"]
           pgdb.insert(query, values, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -3010,13 +2792,57 @@ var engine = User.prototype = {
           console.error(err.message);
         }
         if (!err && result.rows.length > 0){
-          thisUser.reputationScore = parseInt(result.rows[0].reputation_score)
-          console.log(`User reputation score: ${thisUser.reputationScore}`)
+          //thisUser.reputationScore = parseInt(result.rows[0].reputation_score)
+          var check = result.rows[0].reputation_score
+          if (isNaN(check)){
+            thisUser.numberReputation = JSON.parse(result.rows[0].reputation_score)
+            if (thisUser.numberReputation.length == 0){
+              console.log("Grant max score" )
+              for (var number of thisUser.phoneHVNumbers){
+                var item = {
+                  number: number.number,
+                  score: 1000
+                }
+                thisUser.numberReputation.push(item)
+              }
+              console.log(thisUser.phoneHVNumbers)
+              console.log(thisUser.numberReputation)
+              var query = `UPDATE a2p_sms_users SET reputation_score='${JSON.stringify(thisUser.numberReputation)}' WHERE user_id='${thisUser.extensionId}'`
+              pgdb.update(query, (err, result) =>  {
+                if (err){
+                  console.error(err.message);
+                }
+                console.log("granted max score and updated new score syntax")
+              })
+            }
+          }else{
+            console.log("Conversion...")
+            var score = parseInt(result.rows[0].reputation_score)
+            for (var number of thisUser.phoneHVNumbers){
+              var item = {
+                number: number.number,
+                score: score
+              }
+              thisUser.numberReputation.push(item)
+            }
+            console.log(thisUser.numberReputation)
+            // update new score syntax
+            var query = `UPDATE a2p_sms_users SET reputation_score='${JSON.stringify(thisUser.numberReputation)}' WHERE user_id='${thisUser.extensionId}'`
+            //console.log(query)
+            pgdb.update(query, (err, result) =>  {
+              if (err){
+                console.error(err.message);
+              }
+              console.log("updated new score syntax")
+            })
+          }
+          console.log(`User reputation score: ${result.rows[0].reputation_score}`)
         }
         callback(null, "ok")
       })
     },
     _updateCampaignDB: function(batchReport, callback){
+      console.log("_updateCampaignDB")
       var thisUser = this
       var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
@@ -3039,13 +2865,10 @@ var engine = User.prototype = {
             batch.unreachableCount = batchReport.unreachableCount
             batch.totalCost = batchReport.totalCost
             //batch.live = false
-            var query = 'UPDATE a2p_sms_users SET '
-            query += `batches='${JSON.stringify(batches)}'`
-            query += ` WHERE user_id='${thisUser.extensionId}'`
             var batchesStr = JSON.stringify(batches)
             batchesStr = batchesStr.replace(/'/g, "''")
-            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}', reputation_score=${thisUser.reputationScore} WHERE user_id='${thisUser.extensionId}'`
-
+            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}', reputation_score='${JSON.stringify(thisUser.numberReputation)}' WHERE user_id='${thisUser.extensionId}'`
+            //console.log(query)
             pgdb.update(query, (err, result) =>  {
               if (err){
                 console.error(err.message);
@@ -3080,10 +2903,10 @@ var engine = User.prototype = {
           }
           rejectNumbers.push(rejectObj)
         }
-        var query = "INSERT INTO a2p_sms_users_tempdata (user_id, active_survey, rejected_numbers)"
+        var query = "INSERT INTO a2p_sms_users_tempdata (user_id, rejected_numbers, scheduled_campaigns)"
         query += " VALUES ($1,$2,$3)"
         //var tokenStr = this.rc_platform.getTokens()
-        var values = [this.extensionId, '[]', JSON.stringify(rejectNumbers)]
+        var values = [this.extensionId, JSON.stringify(rejectNumbers), '[]']
         query += ` ON CONFLICT (user_id) DO UPDATE SET rejected_numbers='${JSON.stringify(rejectNumbers)}'`
         pgdb.insert(query, values, (err, result) =>  {
           if (err){
@@ -3093,18 +2916,6 @@ var engine = User.prototype = {
             console.log("addRejectedNumberToDB DONE");
           }
         })
-      })
-    },
-    resetSubscriptionAndAccessTokens: function(callback) {
-      console.log("resetSubscriptionAndAccessTokens")
-      var query = `UPDATE a2p_sms_users SET subscription_id='', access_tokens='' WHERE user_id='${this.extensionId}'`
-      console.log(query)
-      pgdb.update(query, (err, result) =>  {
-        if (err){
-          console.error("UPDATE ERR? " + err.message);
-        }
-        console.log("Subscription and access token reset")
-        callback(null, "ok")
       })
     },
     updateActiveUserSubscription: function() {
@@ -3157,7 +2968,7 @@ var engine = User.prototype = {
           batches.push(newBatch)
           var batchesStr = JSON.stringify(batches)
           batchesStr = batchesStr.replace(/'/g, "''")
-          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+          var query = `UPDATE a2p_sms_users SET batches='  ${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
           pgdb.update(query, (err, result) =>  {
             if (err){
               console.error(err.message);
@@ -3179,6 +2990,33 @@ var engine = User.prototype = {
           })
         }
       })
+    },
+    sendInviteToSupportTeam: async function(req, res){
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var userInvite = [ req.body.userInvite || '' ];
+          var userList = [userInvite]
+          //userList.push();
+          var resp = await p.post('/restapi/v1.0/glip/groups/' + process.env.SUPPORT_TEAM_ID + '/bulk-assign',{
+                        "addedPersonEmails": userInvite
+          })
+          var jsonObj = await resp.json()
+          console.log('The response is :', jsonObj);
+          console.log('The total number of users invited to the group is :'+ userList.length);
+          console.log('The total number of users registered in the group is :'+jsonObj.members.length);
+          console.log("The type of data is :" + typeof userList.length);
+          res.send(userList.length.toString());
+        }
+        catch(e) {
+          console.log('INVITE USER DID NOT WORK');
+          console.log(e);
+          res.send({status: "error", message: "Cannot join group"});
+        }
+      }else{
+        console.log("need login")
+        res.send({status: "failed", message: "Not login"});
+      }
     }
 }
 module.exports = User;
@@ -3221,7 +3059,7 @@ function detectAndHandleCommas(row){
   var endPos = 0
   while (startPos >= 0){
     startPos = row.indexOf('"', endPos)
-    if (startPos > 0){
+    if (startPos >= 0){
       endPos = row.indexOf('"', startPos+1)
       if (endPos >= 0){
         var colText = row.substring(startPos, endPos+1)
@@ -3233,6 +3071,8 @@ function detectAndHandleCommas(row){
       endPos = endPos+2
       if (endPos >= row.length)
         startPos = -1
+    }else{
+      return row
     }
   }
   return row
@@ -3278,6 +3118,7 @@ function formatSendingTime(processingTime){
   secs = (secs < 10) ? "0"+secs : secs
   return `${hour}:${mins}:${secs}`
 }
+
 function formatEstimatedTimeLeft(timeInSeconds){
   var duration = ""
   if (timeInSeconds > 3600){
@@ -3319,7 +3160,7 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   var body = {
     "icon": "http://www.qcalendar.com/icons/" + params.emotion + ".png",
     "activity": params.user_name,
-    "title": "High Volume SMS app user feedback - " + params.type,
+    "title": "SMS Toll-Free app user feedback - " + params.type,
     "body": message
   }
   var post_options = {
@@ -3344,14 +3185,12 @@ function post_message_to_group(params, mainCompanyNumber, accountId, userEmail){
   post_req.end();
 }
 
-//https://hooks.ringcentral.com/webhook/
 function post_alert_to_group(thisUser){
   var https = require('https');
   var message = `User main company number: ${thisUser.mainCompanyNumber}`
-  message += `\nHV SMS number(s): `
-  for (var hvSMSNum of thisUser.phoneHVNumbers)
-    message += `\n  ${hvSMSNum.format}`
-  message += `\nReputation score: ${thisUser.reputationScore}`
+  for (var numberObj of thisUser.numberReputation){
+    message += `\nHV SMS number: ${formatPhoneNumber(numberObj.number)} - Reputation score: ${numberObj.score}`
+  }
   message += `\nAccount Id: ${thisUser.accountId} - Extension Id: ${thisUser.extensionId}`
   message += `\nUser contact email: ${thisUser.userEmail}`
   message += `\nSalesforce lookup: https://rc.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?str=${thisUser.accountId}`
@@ -3385,137 +3224,6 @@ function post_alert_to_group(thisUser){
   post_req.end();
 }
 
-function detectPhoneNumber(message){
-  var wordArr = message.split(" ")
-  var contactNumber = ""
-  for (var w of wordArr){
-    var number = w.replace(/[+()\-\s]/g, '')
-    if (!isNaN(number)){
-      if (number.length >= 10 && number.length <= 11){
-        contactNumber = w.trim()
-        console.log(w)
-        break
-      }
-    }
-  }
-  return contactNumber
-}
-
-const spamContentCodes = ["SMS-UP-430","SMS-CAR-430","SMS-CAR-431","SMS-CAR-432","SMS-CAR-433"]
-const invalidNumberCodes = ["SMS-UP-420","SMS-CAR-411","SMS-CAR-412","SMS-UP-410"]
-const optoutNumberCodes = ["SMS-CAR-413"]
-const blockedNumberCodes = ["SMS-UP-431"]
-function failureAnalysis(message){
-  var code = (message.errorCode != undefined) ? message.errorCode : "Others"
-  var toNumber = message.to[0]
-  if (spamContentCodes.findIndex(c => c === code) >= 0){
-    this.analyticsData.outboundFailureTypes.content.count++
-    if (this.analyticsData.outboundFailureTypes.content.numbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.content.numbers.push(toNumber)
-    var url = detectShortenUrl(message.text)
-    if (url != ""){
-      console.log("URL: " + url)
-      if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(link => link === url) < 0)
-        this.analyticsData.outboundFailureTypes.content.messages.push(url)
-    }else{
-      var contactNumber = detectPhoneNumber(message.text)
-      if (contactNumber != ""){
-        if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(number => number === contactNumber) < 0)
-          this.analyticsData.outboundFailureTypes.content.messages.push(contactNumber)
-      }else
-        this.analyticsData.outboundFailureTypes.content.messages.push(message.text)
-    }
-  }else if (invalidNumberCodes.findIndex(c => c === code) >= 0){
-    // recipient number problem
-    if (this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.push(toNumber)
-  }else if (optoutNumberCodes[0] == code){
-    // opted out
-    if (this.analyticsData.outboundFailureTypes.optoutNumbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.optoutNumbers.push(toNumber)
-  }else if (blockedNumberCodes[0] == code){
-    if (this.analyticsData.outboundFailureTypes.blockedSenderNumbers.findIndex(number => number === message.from) < 0)
-      this.analyticsData.outboundFailureTypes.blockedSenderNumbers.push(message.from)
-  }else{
-    this.analyticsData.outboundFailureTypes.others.count++
-    if (this.analyticsData.outboundFailureTypes.others.numbers.findIndex(number => number === toNumber) < 0)
-      this.analyticsData.outboundFailureTypes.others.numbers.push(toNumber)
-    this.analyticsData.outboundFailureTypes.others.messages.push(message.text)
-  }
-}
-
-function detectUrl(message){
-  var unsafeLink = ""
-  var tempMsg = message.toLowerCase()
-  var shortenLinks = [
-    "https://",
-    "http://"
-  ]
-
-  for (var link of shortenLinks){
-    var index = tempMsg.indexOf(link)
-    if (index >= 0){
-      var temp = tempMsg.substring(index, tempMsg.length-1)
-      var endIndex = temp.indexOf(" ")
-      endIndex = (endIndex > 0) ? endIndex : temp.length+1
-      unsafeLink = msg.substr(index, endIndex)
-      console.log(message)
-      break
-    }
-  }
-  return unsafeLink
-}
-
-function detectShortenUrl(message){
-  var unsafeLink = ""
-  var tempMsg = message.toLowerCase()
-  var shortenLinks = [
-    "https://bit.ly/",
-    "https://ow.ly",
-    "https://goo.gl/",
-    "https://tinyurl.com/",
-    "https://tiny.cc/",
-    "https://bc.vc/",
-    "https://budurl.com/",
-    "https://clicky.me/",
-    "https://is.gd/",
-    "https://lc.chat/",
-    "https://soo.gd/",
-    "https://s2r.co/",
-    "http://bit.ly/",
-    "http://ow.ly",
-    "http://goo.gl/",
-    "http://tinyurl.com/",
-    "http://tiny.cc/",
-    "http://bc.vc/",
-    "http://budurl.com/",
-    "http://clicky.me/",
-    "http://is.gd/",
-    "http://lc.chat/",
-    "http://soo.gd/",
-    "http://s2r.co/",
-    "https://",
-    "http://"
-  ]
-
-  for (var link of shortenLinks){
-    var index = tempMsg.indexOf(link)
-    if (index >= 0){
-      var temp = tempMsg.substring(index, tempMsg.length-1)
-      var endIndex = temp.indexOf(" ")
-      endIndex = (endIndex > 0) ? endIndex : temp.length+1
-      unsafeLink = message.substr(index, endIndex)
-      break
-    }
-  }
-  return unsafeLink
-}
-
-function detectSegment(message){
-  var segmented = (message.length > 160) ? 1 : 0
-  return segmented
-}
-
 function makeId() {
   var text = "";
   var possible = "-~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -3526,10 +3234,7 @@ function makeId() {
 }
 
 function sortBatchCreatedDate(a,b) {
-  //var aTime = new Date(a.creationTime).getTime()
-  //var bTime = new Date(b.creationTime).getTime()
   return b.creationTime - a.creationTime;
-  //return bTime - aTime;
 }
 
 function sortRoundTheClock(a,b) {
@@ -3542,520 +3247,4 @@ function sortSegmentCount(a,b) {
 
 function sortbByNumber(a,b) {
   return a.number - b.number;
-}
-
-//// TBD
-async function _readMessageStore(readParams, timeOffset){
-  console.log("_readMessageStore")
-  var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
-  var p = await this.rc_platform.getPlatform(this.extensionId)
-  if (p){
-    try {
-      var resp = await p.get(endpoint, readParams)
-      var jsonObj = await resp.json()
-      for (var message of jsonObj.records){
-        var localDate = message.creationTime.substring(0, 7)
-        var found = false
-        for (var i=0; i<this.analyticsData.months.length; i++){
-          var month = this.analyticsData.months[i]
-          if (month.month == localDate){
-            if (message.direction == "Outbound"){
-              this.analyticsData.months[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.months[i].deliveredCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].deliveredMsgCost += cost
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.months[i].deliveryFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].failedMsgCost += cost
-                  break
-                case "SendingFailed":
-                  this.analyticsData.months[i].sendingFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.months[i].failedMsgCost += cost
-                  break;
-                default:
-                  break
-              }
-            }else{ // received messages
-              this.analyticsData.months[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.months[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            month: localDate,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            deliveredMsgCost: 0.0,
-            failedMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.deliveredMsgCost += cost
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break;
-              default:
-                break
-            }
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.months.push(item)
-          //console.log(this.analyticsData.months)
-        }
-        // by phoneNumbers
-        found = false
-        var fromNumber = (message.direction == "Outbound") ? message.from : message.to[0]
-        for (var i=0; i<this.analyticsData.phoneNumbers.length; i++){
-          var number = this.analyticsData.phoneNumbers[i]
-          if (number.number == fromNumber){
-            if (message.direction == "Outbound"){
-              this.analyticsData.phoneNumbers[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.phoneNumbers[i].deliveredCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].deliveredMsgCost += cost
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.phoneNumbers[i].deliveryFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].failedMsgCost += cost
-                  break
-                case "SendingFailed":
-                  this.analyticsData.phoneNumbers[i].sendingFailedCount++
-                  var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                  this.analyticsData.phoneNumbers[i].failedMsgCost += cost
-                  break;
-                default:
-                  break
-              }
-            }else{ // received messages
-              this.analyticsData.phoneNumbers[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.phoneNumbers[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            number: fromNumber,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            deliveredMsgCost: 0.0,
-            failedMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.deliveredMsgCost += cost
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-                item.failedMsgCost += cost
-                break;
-              default:
-                break
-            }
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.phoneNumbers.push(item)
-          //console.log(this.analyticsData.phoneNumbers)
-        }
-        /*
-        // by weekDays
-        found = false
-        // "creationTime":"2021-05-24T13:49:41.441964Z",
-        var createdDate = new Date(message.creationTime)
-        let dateOptions = { weekday: 'short' }
-        var createdDateStr = createdDate.toLocaleDateString("en-US", dateOptions)
-        //  createdDateStr += " " + createdDate.toLocaleDateString("en-US")
-        var wd = createdDateStr.substring(0, 3)
-        for (var i=0; i<this.analyticsData.weekDays.length; i++){
-          var week = this.analyticsData.weekDays[i]
-          if (week.wd == wd){
-            if (message.direction == "Outbound"){
-              this.analyticsData.weekDays[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.weekDays[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.weekDays[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.weekDays[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.weekDays[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.weekDays[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.weekDays[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            wd: wd,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.weekDays.push(item)
-          //console.log(this.analyticsData.weekDays)
-        }
-        // by roundTheClock
-        found = false
-        // "creationTime":"2021-05-24T13:49:41.441964Z",
-        var hr = message.creationTime.substring(11, 13)
-        var hour = parseInt(hr)
-        for (var i=0; i<this.analyticsData.roundTheClock.length; i++){
-          var timeSlide = this.analyticsData.roundTheClock[i]
-          if (timeSlide.hour == hour){
-            if (message.direction == "Outbound"){
-              this.analyticsData.roundTheClock[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.roundTheClock[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.roundTheClock[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.roundTheClock[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.roundTheClock[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.roundTheClock[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.roundTheClock[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            hour: hour,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.roundTheClock.push(item)
-          //console.log(this.analyticsData.roundTheClock)
-        }
-        // by segmentCount
-        found = false
-        var segment = (message.segmentCount != undefined) ? parseInt(message.segmentCount) : 0
-        for (var i=0; i<this.analyticsData.segmentCounts.length; i++){
-          var seg = this.analyticsData.segmentCounts[i]
-          if (seg.count == segment){
-            if (message.direction == "Outbound"){
-              this.analyticsData.segmentCounts[i].outboundCount++
-              switch (message.messageStatus) {
-                case "Delivered":
-                case "Sent":
-                  this.analyticsData.segmentCounts[i].deliveredCount++
-                  break
-                case "DeliveryFailed":
-                  this.analyticsData.segmentCounts[i].deliveryFailedCount++
-                  break
-                case "SendingFailed":
-                  this.analyticsData.segmentCounts[i].sendingFailedCount++
-                  break;
-                default:
-                  break
-              }
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.segmentCounts[i].sentMsgCost += cost
-            }else{ // received messages
-              this.analyticsData.segmentCounts[i].inboundCount++
-              var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-              this.analyticsData.segmentCounts[i].receivedMsgCost += cost
-            }
-            found = true
-            break
-          }
-        }
-        if (!found){
-          var item = {
-            count: segment,
-            outboundCount: 0,
-            inboundCount: 0,
-            deliveredCount: 0,
-            sendingFailedCount: 0,
-            deliveryFailedCount: 0,
-            sentMsgCost: 0.0,
-            receivedMsgCost: 0.0,
-          }
-          if (message.direction == "Outbound"){
-            item.outboundCount++
-            switch (message.messageStatus) {
-              case "Delivered":
-              case "Sent":
-                item.deliveredCount++
-                break
-              case "DeliveryFailed":
-                item.deliveryFailedCount++
-                break
-              case "SendingFailed":
-                item.sendingFailedCount++
-                break;
-              default:
-                break
-            }
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.sentMsgCost += cost
-          }else{ // received messages
-            item.inboundCount++
-            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-            item.receivedMsgCost += cost
-          }
-          this.analyticsData.segmentCounts.push(item)
-          //console.log(this.analyticsData.segmentCounts)
-        }
-        */
-        // breakout ends
-
-        if (message.direction == "Outbound"){
-          this.analytics.extractKeywords(message)
-          this.analyticsData.outboundCount++
-          switch (message.messageStatus) {
-            case "Delivered":
-              this.analyticsData.deliveredCount++
-              break
-            case "Sent":
-              this.analyticsData.deliveredCount++
-              break
-            case "DeliveryFailed":
-              this.analyticsData.deliveryFailedCount++
-              var code = (message.errorCode != undefined) ? message.errorCode : "Others"
-              var toNumber = message.to[0]
-              if (code == "SMS-UP-430" || code == "SMS-CAR-430" || code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){ // content problem
-                //console.log(code)
-                //this.analytics.extractKeywords(message.text)
-                this.analyticsData.outboundFailureTypes.content.count++
-                if (this.analyticsData.outboundFailureTypes.content.numbers.findIndex(number => number === toNumber) < 0)
-                  this.analyticsData.outboundFailureTypes.content.numbers.push(toNumber)
-                var url = detectShortenUrl(message.text)
-                if (url != ""){
-                  console.log("URL: " + url)
-                  if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(link => link === url) < 0)
-                    this.analyticsData.outboundFailureTypes.content.messages.push(url)
-                }else{
-                  var contactNumber = detectPhoneNumber(message.text)
-                  if (contactNumber != ""){
-                    if (this.analyticsData.outboundFailureTypes.content.messages.findIndex(number => number === contactNumber) < 0)
-                      this.analyticsData.outboundFailureTypes.content.messages.push(contactNumber)
-                  }else
-                    this.analyticsData.outboundFailureTypes.content.messages.push(message.text)
-                }
-              }else if (code == "SMS-UP-410" || code == "SMS-CAR-411" || code == "SMS-CAR-412"){
-                // recipient number problem
-                if (this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.findIndex(number => number === toNumber) < 0)
-                  this.analyticsData.outboundFailureTypes.invalidRecipientNumbers.push(toNumber)
-              }else if (code == "SMS-CAR-413 "){
-                // opted out
-                if (this.analyticsData.outboundFailureTypes.optoutNumbers.findIndex(number => number === toNumber) < 0)
-                  this.analyticsData.outboundFailureTypes.optoutNumbers.push(toNumber)
-              }else if (code == "SMS-UP-431"){
-                if (this.analyticsData.outboundFailureTypes.blockedSenderNumbers.findIndex(number => number === message.from) < 0)
-                  this.analyticsData.outboundFailureTypes.blockedSenderNumbers.push(message.from)
-              }else{
-                this.analyticsData.outboundFailureTypes.others.count++
-                if (this.analyticsData.outboundFailureTypes.others.numbers.findIndex(number => number === toNumber) < 0)
-                  this.analyticsData.outboundFailureTypes.others.numbers.push(toNumber)
-                //if (this.analyticsData.outboundFailureTypes.others.messages.findIndex(msg => msg === message.text) < 0)
-                  this.analyticsData.outboundFailureTypes.others.messages.push(message.text)
-              }
-              break
-            case "SendingFailed":
-              this.analyticsData.sendingFailedCount++
-              var code = (message.errorCode != undefined) ? message.errorCode : "Unknown"
-              var found = false
-              for (var i=0; i<this.analyticsData.sendingFailures.length; i++){
-                var item = this.analyticsData.sendingFailures[i]
-                if (code == item.code){
-                  this.analyticsData.sendingFailures[i].count++
-                  found = true
-                  break
-                }
-              }
-              if (!found){
-                var item = {
-                  code: code,
-                  count: 1
-                }
-                this.analyticsData.sendingFailures.push(item)
-              }
-              break;
-            default:
-              break
-          }
-          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-          this.analyticsData.sentMsgCost += cost
-        }else{ // received messages
-          this.analyticsData.inboundCount++
-          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-          this.analyticsData.receivedMsgCost += cost
-        }
-
-      }
-      //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
-      //this.analyticsData.segmentCounts.sort(sortSegmentCount)
-      this.analyticsData.phoneNumbers.sort(sortbByNumber)
-      if (jsonObj.paging.hasOwnProperty("nextPageToken")){
-        this.analyticsData.task = "Processing"
-        var thisUser = this
-        setTimeout(function(){
-            readParams['pageToken'] = jsonObj.paging.nextPageToken
-            thisUser._readMessageStore(readParams, timeOffset)
-        }, 1200)
-      }else{
-        console.log(this.analyticsData.outboundFailureTypes.content.messages)
-        console.log(this.analyticsData.outboundFailureTypes.content.numbers)
-        console.log(this.analyticsData)
-        console.log(this.analytics.analyticsData.failureAnalysis)
-        //this.analyticsData.roundTheClock.sort(sortRoundTheClock)
-        //this.analyticsData.segmentCounts.sort(sortSegmentCount)
-        this.analyticsData.task = "Completed"
-        /*
-        res.send({
-            status: "ok",
-            result: this.analyticsData
-          })
-        */
-      }
-    } catch (e) {
-      console.log('Endpoint: GET ' + endpoint)
-      console.log('Params: ' + JSON.stringify(readParams))
-      console.log(e.response.headers)
-      console.log('ERR ' + e.message);
-      this.analyticsData.task = "Interrupted"
-      /*
-      res.send({
-          status: "error",
-          message: e.message
-        })
-      */
-    }
-  }else{
-    this.analyticsData.task = "Interrupted"
-    console.log("Platform error")
-  }
 }

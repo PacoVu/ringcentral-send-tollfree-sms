@@ -1,17 +1,24 @@
 const pgdb = require('./db')
+const logger = require('./write-log')
+const database = require('./write-database')
 
-function ActiveUser(extensionId, subscriptionId){
+const ONE_DAY_TIMER_INTERVAL = 86400000
+const ONE_HOUR_TIMER_INTERVAL = 3600000
+const ONE_MINUTE_TIMER_INTERVAL = 60000
+
+function ActiveUser(extensionId, subscriptionId, owner){
+  this.owner = owner
   this.extensionId = extensionId
   this.subscriptionId = subscriptionId
   this.webhooks = undefined
-  this.voteCampaignArr = []
-  this.logNewMessage = false
-  this.newMessageArr = []
   this.rc_platform = undefined
-  this.autoDeleteTimer = undefined
-  this.updateStatusTimer = undefined
-  this.deleteInterval = 3600000 // 1hr
-  this.updateInterval = 60000 // 1 min
+  // scheduler
+  this.schedulerTimer = undefined
+  this.scheduledSendAtArr = []
+  this.processingBatches = []
+  // auto refresh
+  this.autoRefreshTimer = undefined
+  this.role = "Owner"
 }
 
 var engine = ActiveUser.prototype = {
@@ -19,155 +26,128 @@ var engine = ActiveUser.prototype = {
       console.log("setup ActiveUser Engine")
       this.rc_platform = platform
       var thisUser = this
-      this.loadVoteDataFromDB(async (err, result) => {
+      this.readScheduledCampaignsFromDB(async (err, result) => {
         if (!err){
-          if (result > 0){
-            this.autoDeleteTimer = setInterval(function(){
-              thisUser.autoDeleteVoteCampaign()
-            }, this.deleteInterval)
-            this.updateStatusTimer = setInterval(function(){
-              thisUser.detectExpiredVoteCampaign()
-            }, this.updateInterval)
-            console.log("result: " + result)
-            thisUser.readWebhookInfoFromDB( async (err, res) => {
-              await thisUser.deleteExtraSubscriptions(false)
-              callback(null, result)
-            })
-          }else{
-            // delete all subscriptions
-            await thisUser.deleteExtraSubscriptions(false)
-            callback(null, result)
+          var scheduledCampaigns = JSON.parse(result)
+          for (var sch of scheduledCampaigns){
+            thisUser.scheduledSendAtArr.push(sch.sendAt)
           }
+          if (thisUser.scheduledSendAtArr.length > 0){
+              if (!thisUser.schedulerTimer){
+                thisUser.schedulerTimer = setInterval(function(){
+                  thisUser.checkScheduledCampaign()
+                }, ONE_MINUTE_TIMER_INTERVAL)
+              }
+          }
+
+          if (!thisUser.autoRefreshTimer){
+              thisUser.autoRefreshTimer = setInterval(function(){
+                thisUser.autoRefresh()
+              }, ONE_DAY_TIMER_INTERVAL)
+          }
+
+          thisUser.readWebhookInfoFromDB( async (err, res) => {
+              await thisUser.deleteExtraSubscriptions(false)
+              callback(null, thisUser.scheduledSendAtArr.length)
+          })
         }else{
           callback(err, result)
         }
       })
-      //thisUser.readWebhookInfoFromDB( async (err, res) => {})
+
     },
     autoSetup: function(platform, callback){
-      console.log("setup ActiveUser Engine")
+      console.log("autoSetup ActiveUser Engine")
       this.rc_platform = platform
       var thisUser = this
-      this.loadVoteDataFromDB(async (err, result) => {
+      this.readScheduledCampaignsFromDB((err, result) => {
         if (!err){
-          if (result > 0){
-            this.autoDeleteTimer = setInterval(function(){
-              thisUser.autoDeleteVoteCampaign()
-            }, this.deleteInterval)
-            this.updateStatusTimer = setInterval(function(){
-              thisUser.detectExpiredVoteCampaign()
-            }, this.updateInterval)
-            console.log("result: " + result)
-            thisUser.readWebhookInfoFromDB( async (err, res) => {
-              await thisUser.deleteExtraSubscriptions(false)
-              callback(null, result)
-            })
-          }else{
-            // delete all subscriptions
-            await thisUser.deleteExtraSubscriptions(true)
-            callback(null, result)
+          var scheduledCampaigns = JSON.parse(result)
+          for (var sch of scheduledCampaigns){
+            thisUser.scheduledSendAtArr.push(sch.sendAt)
           }
+
+          if (thisUser.scheduledSendAtArr.length > 0){
+            if (!thisUser.schedulerTimer){
+                console.log("set timer interval: autoSetup")
+                thisUser.schedulerTimer = setInterval(function(){
+                  thisUser.checkScheduledCampaign()
+                }, ONE_MINUTE_TIMER_INTERVAL)
+            }
+          }
+
+          if (!thisUser.autoRefreshTimer){
+              thisUser.autoRefreshTimer = setInterval(function(){
+                thisUser.autoRefresh()
+              }, ONE_DAY_TIMER_INTERVAL)
+          }
+
+          thisUser.readWebhookInfoFromDB( async (err, res) => {
+            await thisUser.deleteExtraSubscriptions(false)
+            callback(null, thisUser.scheduledSendAtArr.length)
+          })
         }else{
           callback(err, result)
         }
       })
-      //thisUser.readWebhookInfoFromDB( async (err, res) => {})
     },
-    setVoteInfo: function (voteInfo){
-      this.voteCampaignArr.push(voteInfo)
+    // shared number implementation ends
+    autoRefresh: function(){
+      console.log("AUTO REFRESH")
+      this.rc_platform.getPlatform(this.extensionId)
+    },
+    cancelScheduledCampaign: function(creationTime, callback){
       var thisUser = this
-      if (!this.autoDeleteTimer)
-        this.autoDeleteTimer = setInterval(function(){
-          thisUser.autoDeleteVoteCampaign()
-        }, this.deleteInterval)
-
-      if (!this.updateStatusTimer)
-        this.updateStatusTimer = setInterval(function(){
-          thisUser.detectExpiredVoteCampaign()
-        }, this.updateInterval)
-
-      this.updateVoteDataInDB((err, res) => {
-        console.log(res)
-      })
-      if (!this.webhooks){
-        this.readWebhookInfoFromDB((err, res) => {
-          console.log("readWebhookInfoFromDB")
-          console.log(res)
-        })
-      }
-      //console.log(JSON.stringify(this.voteCampaignArr))
-    },
-    getCopyVoteCampaignsInfo: function(){
-      var voteInfoList = []
-      for (var campaign of this.voteCampaignArr){
-        var voteInfo = {
-            campaignName: campaign.campaignName,
-            serviceNumber: campaign.serviceNumber,
-            startDateTime: campaign.startDateTime,
-            endDateTime: campaign.endDateTime,
-            status: campaign.status,
-            batchId: campaign.batchId,
-            message: campaign.message,
-            voteResults: campaign.voteResults,
-            voteCounts: campaign.voteCounts
+      var query = `SELECT scheduled_campaigns FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
+      //console.log(query)
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          callback(err, "failed")
         }
-        voteInfoList.push(voteInfo)
-      }
-      return voteInfoList
-    },
-    getCampaignByBatchId: function(batchId){
-      for (var campaign of this.voteCampaignArr){
-        if (campaign.batchId == batchId)
-          return campaign
-      }
-      return null
-    },
-    setCampainByBatchId: function(batchId, campaign){
-      for (var item of this.voteCampaignArr){
-        if (item.batchId == batchId){
-          item = campaign
-        }
-      }
-      this.updateVoteDataInDB((err, res) => {
-          if (err){
-            console.log("cannot update db " + err)
-          }else{
-            console.log("add new vote to tempdata")
-            console.log(res)
-          }
-      })
-    },
-    deleteCampaignByBatchId: function(batchId, callback){
-      for (var i = this.voteCampaignArr.length; i--;) {
-        var campaign = this.voteCampaignArr[i]
-        if (campaign.batchId == batchId){
-          console.log("User click delete")
-          var status = (campaign.status == "Active") ? "Cancelled" : campaign.status
-          var voteReport = {
-            batchId: campaign.batchId,
-            voteReport: {
-              status: status,
-              voteResults: campaign.voteResults,
-              voteCounts: campaign.voteCounts
-            }
-          }
-          this.updateCampaignDataInDB([voteReport], (err, result) => {
-            this.voteCampaignArr.splice(i, 1);
-            this.updateVoteDataInDB((err, res) => {
-              if (err){
-                console.log("cannot update db " + err)
-                callback(err, res)
-              }else{
-                callback(null, res)
+        //console.log(result.rows)
+        if (!err && result.rows.length > 0){
+          if (result.rows[0].scheduled_campaigns){
+            var campaigns = JSON.parse(result.rows[0].scheduled_campaigns)
+            for (var campaign of campaigns){
+              //console.log(campaign)
+              //console.log(creationTime, campaign.creationTime)
+              if (creationTime == campaign.creationTime){
+                thisUser.scheduledSendAtArr.splice(thisUser.scheduledSendAtArr.indexOf(campaign.sendAt), 1)
+
+                // remove this scheduled campaign from tempdata db
+                campaigns.splice(campaigns.indexOf(campaign), 1)
+                thisUser.saveScheduledCampaignsToDB(campaigns, (err, ret) => {
+                  var message = ''
+                  if (!err)
+                    message = "Scheduled campaign cancelled successfully."
+                  else
+                    message = "Scheduled campaign cancellation failed."
+                  //console.log(message)
+                  thisUser._removeScheduledCampaignDB(creationTime, (err, ret) => {
+                    console.log(ret)
+                  })
+                  callback(null, message)
+                })
+                return
               }
+            }
+            console.log("Call this?")
+            thisUser._removeScheduledCampaignDB(creationTime, (err, ret) => {
+              console.log("RET", ret)
+              callback(null, null)
             })
+          }
+        }else{ // no connector
+          /*
+          console.log("Call this?")
+          thisUser._removeScheduledCampaignDB(creationTime, (err, ret) => {
+            console.log("RET", ret)
           })
-          return
-        }else{
-          return callback("err", "")
+          */
+          callback('err', null)
         }
-      }
-      callback("err", "")
+      })
     },
     setPlatform: function(p){
       if (this.rc_platform){
@@ -175,242 +155,162 @@ var engine = ActiveUser.prototype = {
       }
       this.rc_platform = p
     },
-    processNotification: function(jsonObj){
-      //console.log(jsonObj)
-      var body = jsonObj.body
-      // seach for the "from" number within those campaigns
-      for (var campaign of this.voteCampaignArr){
-        if (campaign.serviceNumber != body.to[0]){
-          continue
-        }else{
-          if (campaign.status == "Closed") continue;
-
-          var voter = campaign.voterList.find(o => o.phoneNumber == body.from)
-          //console.log(voter)
-          if (voter != undefined){
-            if (campaign.status == "Completed" /*&& !campaign.allowCorrection*/){
-              continue
-            }else{
-              // process this vote campaign
-              console.log("Processing response")
-              if (this.processThisCampaign(campaign, voter, body)){
-                console.log("Processed")
-                break
-              }else{
-                console.log("process next campaign if any")
-              }
-            }
-          }else continue;
-        }
-      }
-      //
-      if (this.logNewMessage)
-        this.newMessageArr.push(body)
-    },
-    processThisCampaign: function(campaign, voter, body){
-        var cost = (body.hasOwnProperty('cost')) ? body.cost : 0.0
-        campaign.voteCounts.Cost += cost
-        var now = new Date().getTime()
-        if (now > campaign.endDateTime){
-          console.log("vote has been closed")
-          if (campaign.status == "Active"){
-            // close now
-            campaign.status = "Closed"
-            var postData = {
-              dataType: "Survey_Result",
-              result: campaign
-            }
-            this.postResults(postData)
-            this.updateVoteDataInDB((err, res) => {
-              console.log(res)
-            })
-          }
-          return true
-        }
-        var needUpdateDd = false
-        var processed = false
-        if (!voter.isReplied){
-          for (var command of campaign.voteCommands){
-            if (body.text.trim().toLowerCase() == command.toLowerCase()){
-              processed = true
-              campaign.voteCounts.Replied++
-              voter.isReplied = true
-              voter.repliedTime = new Date().getTime()
-              voter.repliedMessage = command
-              campaign.voteResults[command]++
-              //console.log("Client reply message: " + body.text)
-              //console.log(campaign.autoReply)
-              if (campaign.autoReply == true){
-                var repliedMsg = campaign.autoReplyMessages[command]
-                if (repliedMsg != undefined){
-                  var requestBody = {
-                      from: body.to[0],
-                      text: repliedMsg,
-                      messages: [{to:[body.from]}]
-                  }
-                  campaign.voteCounts.Cost += 0.007
-                  this.sendMessage(requestBody)
-                }
-              }
-              needUpdateDd = true
-              break
-            }
-          }
-          if (voter.repliedMessage == ""){
-            console.log("Client reply message not match: " + body.text)
-            var repliedWords = body.text.trim().split(" ")
-            if (repliedWords.length == 1) { // possibly typo mistake
-              // => resend reminder
-              var requestBody = {
-                  from: body.to[0],
-                  text: "Please reply with a correct response!",
-                  messages: [{to:[body.from]}]
-              }
-              campaign.voteCounts.Cost += 0.007
-              this.sendMessage(requestBody)
-            }else{
-              voter.repliedMessage = body.text
-              needUpdateDd = true
-            }
-          }
-        }else if(campaign.allowCorrection){
-          for (var command of campaign.voteCommands){
-            if (body.text.trim().toLowerCase() == command.toLowerCase()){
-              processed = true
-              campaign.voteResults[voter.repliedMessage]--
-              voter.repliedMessage = command
-              campaign.voteResults[command]++
-              console.log("Client correction message: " + body.text)
-              if (campaign.autoReply){
-                var repliedMsg = campaign.autoReplyMessages[command]
-                var requestBody = {
-                    from: body.to[0],
-                    text: repliedMsg,
-                    messages: [{to:[body.from]}]
-                }
-                campaign.voteCounts.Cost += 0.007
-                this.sendMessage(requestBody)
-              }
-              needUpdateDd = true
-              break
-            }
-          }
-          console.log(campaign.voterList)
-          console.log(campaign)
-          console.log("======")
-        }
-        if (campaign.voteCounts.Delivered > 0){
-          if (campaign.voteCounts.Delivered == campaign.voteCounts.Replied){
-            campaign.status = "Completed"
-            needUpdateDd = true
-            var postData = {
-              dataType: "Survey_Result",
-              result: campaign
-            }
-            this.postResults(postData)
-          }
-        }
-        if (needUpdateDd)
-          this.updateVoteDataInDB((err, res) => {
-            console.log(res)
-          })
-        return processed
-    },
-    sendMessage: async function(requestBody){
-      if (this.rc_platform == undefined)
-        return
-      var p = await this.rc_platform.getPlatform(this.extensionId)
-      if (p){
-        try {
-          var resp = await p.post("/restapi/v1.0/account/~/a2p-sms/batch", requestBody)
-          console.log("Auto-reply succeeded")
-        }catch(e) {
-          console.log("Auto-reply error")
+    changeOwner: function(newOwner){
+      this.owner = newOwner
+      if (newOwner == 'autoStart'){
+        if (!this.autoRefreshTimer){
+          var thisUser = this
+          this.autoRefreshTimer = setInterval(function(){
+            thisUser.autoRefresh()
+          }, ONE_DAY_TIMER_INTERVAL)
         }
       }
     },
-    loadVoteDataFromDB: function(callback){
+    /*
+    readScheduledCampaignsFromDB: function(callback){
+      console.log("readScheduledCampaignsFromDB")
       var thisUser = this
-      var query = `SELECT active_survey FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
+      var query = `SELECT scheduled_campaigns FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
       pgdb.read(query, (err, result) => {
         if (err){
           console.error(err.message);
           return callback(err, err.message)
         }
         if (!err && result.rows.length > 0){
-          thisUser.voteCampaignArr = JSON.parse(result.rows[0].active_survey)
-          //console.log(thisUser.voteCampaignArr)
-          callback(null, thisUser.voteCampaignArr.length)
+          var scheduledCampaigns = JSON.parse(result.rows[0].scheduled_campaigns)
+          for (var sch of scheduledCampaigns){
+            thisUser.scheduledSendAtArr.push(sch.sendAt)
+          }
+          callback(null, thisUser.scheduledSendAtArr.length)
         }else{
           callback(null, 0)
         }
       })
     },
-    autoDeleteVoteCampaign: function(){ // call via timer every hr
-      console.log("autoDeleteVoteCampaign")
-      var now = new Date().getTime()
-      var deleting = false
-      var archiveVoteList = []
-      for (var i = this.voteCampaignArr.length; i--;){
-        var campaign = this.voteCampaignArr[i]
-        var twentyFourHrs = (now - campaign.endDateTime) / 1000
-        console.log(twentyFourHrs)
-        if (twentyFourHrs > 86400){ //86400
-          console.log("create voteInfo for achiving")
-          var voteReport = {
-            batchId: campaign.batchId,
-            voteReport: {
-              status: campaign.status,
-              voteResults: campaign.voteResults,
-              voteCounts: campaign.voteCounts
-            }
-          }
-          archiveVoteList.push(voteReport)
-          console.log("Delete after closed/completed for 24 hours")
-          this.voteCampaignArr.splice(i, 1);
-          if (this.voteCampaignArr.length == 0){
-            clearInterval(this.autoDeleteTimer)
-          }
-          deleting = true
-        }
-      }
+    */
+    // scheduler implementation
+    setScheduledCampaign: function (campaignData, callback){
+      // read scheduled_campaigns from db
       var thisUser = this
-      if (deleting) {
-        thisUser.updateCampaignDataInDB(archiveVoteList, (err, result) => {
-          this.updateVoteDataInDB((err, res) => {
-            console.log(res)
+      this.readScheduledCampaignsFromDB((err, result) => {
+        if (err){
+          callback(err, "failed")
+        }else{
+          var campaigns = JSON.parse(result)
+          campaigns.push(campaignData)
+          thisUser.scheduledSendAtArr.push(campaignData.sendAt)
+          if (!thisUser.schedulerTimer){
+            thisUser.schedulerTimer = setInterval(function(){
+              thisUser.checkScheduledCampaign()
+            }, ONE_MINUTE_TIMER_INTERVAL)
+          }
+          if (!thisUser.autoRefreshTimer){
+            thisUser.autoRefreshTimer = setInterval(function(){
+              thisUser.autoRefresh()
+            }, ONE_DAY_TIMER_INTERVAL)
+          }
+          thisUser.saveScheduledCampaignsToDB(campaigns, (err, result) => {
+            if (!err){
+              callback(null, "ok")
+            }else{
+              callback(err, "failed")
+            }
           })
-        })
+        }
+      })
+    },
+    readScheduledCampaignsFromDB: function(callback){
+      var query = `SELECT scheduled_campaigns FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          callback(err, "failed")
+        }
+        if (!err && result.rows.length > 0){
+          if (result.rows[0].scheduled_campaigns){
+            callback(null, result.rows[0].scheduled_campaigns)
+          }
+        }else{ // no
+          callback(null, '[]')
+        }
+      })
+    },
+    saveScheduledCampaignsToDB: function(campaigns, callback){
+      var query = "INSERT INTO a2p_sms_users_tempdata (user_id, rejected_numbers, scheduled_campaigns)"
+      query += " VALUES ($1,$2,$3)"
+      var scheduledCampaigns = JSON.stringify(campaigns)
+      scheduledCampaigns = scheduledCampaigns.replace(/'/g, "''")
+      var values = [this.extensionId, '[]', scheduledCampaigns]
+      query += ` ON CONFLICT (user_id) DO UPDATE SET scheduled_campaigns='${scheduledCampaigns}'`
+      pgdb.insert(query, values, (err, result) =>  {
+        if (err){
+          console.error(err.message);
+          console.log("QUERY: " + query)
+          callback(err, "Cannot update scheduled campaigns")
+        }else{
+          console.log("saveScheduledCampaignsToDB DONE");
+          callback(null, "ok")
+        }
+      })
+    },
+    checkScheduledCampaign: function(){
+      console.log("checkScheduledCampaign", this.scheduledSendAtArr)
+      var currentTime = new Date().getTime()
+      for (var sendAt of this.scheduledSendAtArr){
+        if (currentTime >= sendAt){
+          this.scheduledSendAtArr.splice(this.scheduledSendAtArr.indexOf(sendAt), 1)
+          if (this.scheduledSendAtArr.length <= 0){
+            clearInterval(this.schedulerTimer)
+            this.schedulerTimer = undefined
+          }
+          var thisUser = this
+          thisUser.loadScheduledCampaignsFromDB(sendAt, (err, scheduledCampaign) => {
+            if (!err){
+              if (scheduledCampaign){
+                thisUser.sendScheduledCampaign(scheduledCampaign)
+              }else{
+                console.log("not found scheduled campaign")
+              }
+            }else{
+              console.log("no scheduled campaign")
+            }
+          })
+          break
+        }
       }
     },
-    detectExpiredVoteCampaign: function(){ // call via timer every minute
-      var now = new Date().getTime()
-      var changed = false
-      var hasActive = false
-      for (var i = this.voteCampaignArr.length; i--;){
-        var campaign = this.voteCampaignArr[i]
-        if (campaign.status == "Active"){
-          hasActive = true
-          console.log(now + " == " + campaign.endDateTime)
-          if (now > campaign.endDateTime){
-            campaign.status = "Closed"
-            changed = true
-            var postData = {
-              dataType: "Survey_Result",
-              result: campaign
-            }
-            this.postResults(postData)
-          }
+    loadScheduledCampaignsFromDB: function(sendAt, callback){
+      console.log("loadScheduledCampaignsFromDB")
+      var thisUser = this
+      var query = `SELECT scheduled_campaigns FROM a2p_sms_users_tempdata WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          callback(err, "failed")
         }
-      }
-      if (!hasActive){
-        clearInterval(this.updateStatusTimer)
-      }
-      console.log("detectExpiredVoteCampaign")
-      if (changed)
-        this.updateVoteDataInDB((err, res) => {
-          console.log(res)
-        })
+        if (!err && result.rows.length > 0){
+          if (result.rows[0].scheduled_campaigns){
+            var campaigns = JSON.parse(result.rows[0].scheduled_campaigns)
+            for (var campaign of campaigns){
+              if (sendAt == campaign.sendAt){
+                callback(null, campaign)
+                // remove this scheduled campaign from tempdata db
+                campaigns.splice(campaigns.indexOf(campaign), 1)
+                thisUser.saveScheduledCampaignsToDB(campaigns, (err, ret) => {
+                  if (!err)
+                    console.log("remove scheduled campaign successfully.")
+                  else
+                  console.log("remove scheduled campaign failed.")
+                })
+                return
+              }
+            }
+            callback(null, null)
+          }
+        }else{ // no connector
+          callback(null, null)
+        }
+      })
     },
     readWebhookInfoFromDB: function(callback){
       var thisUser = this
@@ -422,7 +322,6 @@ var engine = ActiveUser.prototype = {
         if (!err && result.rows.length > 0){
           if (result.rows[0].webhooks){
             thisUser.webhooks = JSON.parse(result.rows[0].webhooks)
-            console.log(thisUser.webhooks.url)
           }
         }else{ // no connector
           thisUser.webhooks = undefined
@@ -430,61 +329,10 @@ var engine = ActiveUser.prototype = {
         callback(null, "ok")
       })
     },
-    updateVoteDataInDB: function(callback){
-      var query = "INSERT INTO a2p_sms_users_tempdata (user_id, active_survey, rejected_numbers)"
-      query += " VALUES ($1,$2,$3)"
-      var activeServeys = JSON.stringify(this.voteCampaignArr)
-      activeServeys = activeServeys.replace(/'/g, "''")
-      var values = [this.extensionId, activeServeys, '[]']
-      query += ` ON CONFLICT (user_id) DO UPDATE SET active_survey='${activeServeys}'`
-      pgdb.insert(query, values, (err, result) =>  {
-        if (err){
-          console.error(err.message);
-          console.log("QUERY: " + query)
-          callback(err, "Cannot update survey data")
-        }else{
-          console.log("updateVoteDataInDB DONE");
-          callback(null, "ok")
-        }
-      })
-    },
-    updateCampaignDataInDB: function(archiveVoteList, callback){
-      var thisUser = this
-      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
-      pgdb.read(query, (err, result) => {
-        if (err){
-          console.error(err.message);
-        }
-        if (!err && result.rows.length > 0){
-          var allCampaigns = JSON.parse(result.rows[0].batches)
-          for (var campaign of allCampaigns){
-            for (var vote of archiveVoteList){
-              if (campaign.batchId == vote.batchId){
-                campaign['voteReport'] = vote.voteReport
-                break
-              }
-            }
-          }
-          // write back to database
-          var batchesStr = JSON.stringify(allCampaigns)
-          batchesStr = batchesStr.replace(/'/g, "''")
-          var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
-          //console.log(query)
-          pgdb.update(query, (err, result) => {
-            if (err){
-              console.log("Error?")
-            }
-            console.log("Archive vote done")
-            callback(null, "done")
-          })
-        }else{
-          callback(err, "")
-        }
-      })
-    },
     postResults: function (data){
       if (this.webhooks == undefined || this.webhooks.url == "")
         return
+      console.log("Posting report ...")
       var https = undefined;
       var url = ""
       if (this.webhooks.url.indexOf("https://") >= 0){
@@ -578,11 +426,29 @@ var engine = ActiveUser.prototype = {
         console.log("Cannot get platform => Delete all subscriptions error")
       }
     },
+    deleteSubscription: async function() {
+      if (this.rc_platform == undefined)
+        return
+
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try{
+          var r =  await p.delete(`/restapi/v1.0/subscription/${this.subscriptionId}`)
+          console.log(`Deleted current subscription: ${this.subscriptionId}`)
+        }catch(e){
+          console.log(e.message)
+        }
+        var query = `UPDATE a2p_sms_users SET subscription_id='' WHERE user_id='${this.extensionId}'`
+        pgdb.update(query, (err, result) =>  {
+          console.log("Empty subscription_id")
+        })
+      }else{
+        console.log("Cannot get platform => Delete all subscriptions error")
+      }
+    },
     updateNotification: async function(eventFilters, callback){
       var p = await this.rc_platform.getPlatform(this.extensionId)
       if (p){
-        //var eventFilters = [`/restapi/v1.0/account/~/a2p-sms/messages?direction=Inbound`]
-        console.log(eventFilters)
         try {
           var resp = await p.put(`/restapi/v1.0/subscription/${this.subscriptionId}`, {
             eventFilters: eventFilters,
@@ -614,6 +480,258 @@ var engine = ActiveUser.prototype = {
           console.error(err.message);
         }
         console.log("updated TF batch data")
+      })
+    },
+    // scheduler
+    sendScheduledCampaign: async function(scheduledCampaign){
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        var endpoint = "/restapi/v1.0/account/~/a2p-sms/batches"
+        try {
+          var resp = await p.post(endpoint, scheduledCampaign.requestBody)
+          var jsonObj = await resp.json()
+          //var obj = resp.headers
+          logger.writeLog(this.extensionId, `------------\r\nCampaign sent to ${jsonObj.batchSize} recipients at ${new Date().toISOString()}\r\nBatch id: ${jsonObj.id}`)
+          this.processingBatches.push(jsonObj.id)
+          var batchSummaryReport = {
+            sendAt: scheduledCampaign.sendAt,
+            batchId: jsonObj.id,
+            rejectedCount: jsonObj.rejected.length,
+          }
+          console.log("Ext id: " + this.extensionId)
+          if (jsonObj.rejected.length){
+            //this.userActivities.campaigns_logs.total_rejected += jsonObj.rejected.length
+            // add rejected numbers to a temp db
+            //this.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id)
+            database.addRejectedNumberToDB(jsonObj.rejected, jsonObj.id, this.extensionId)
+          }
+
+          this._updateCampaignDB(false, batchSummaryReport, (err, result) => {
+            console.log("_updateCampaignDB: scheduled campaign")
+          })
+        } catch (e) {
+          var obj = e.response.headers
+          logger.writeLog(this.extensionId, `------------\r\nCampaign => POST endpoint ${endpoint} at ${new Date().toISOString()}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
+        }
+      }else{
+        console.log("No tokens => what to do?")
+      }
+    },
+    processBatchEventNotication: function(eventObj){
+      console.log("Batch completed: eventEngine")
+      var thisUser = this
+      this.readBatchReportFromDB(eventObj.body.id, (err, batch) => {
+        if (batch){
+          console.log("found batch")
+          logger.writeLog(thisUser.extensionId, `------------\r\nCampaign status: ${eventObj.body.status} notified at ${new Date().toISOString()}\r\nBatch id: ${batch.batchId}`)
+          if (eventObj.body.status == "Completed"){
+            var index = thisUser.processingBatches.findIndex(o => o == eventObj.body.id)
+            if (index >= 0)
+              thisUser.processingBatches.splice(index, 1)
+            batch.queuedCount = 0
+            batch.deliveredCount = 0
+            batch.sentCount = 0
+            batch.unreachableCount = 0
+            batch.totalCost = 0.0
+            thisUser._readBatchReport(batch, 1, 0, "")
+          }
+          // check status to deal with the future when deletion is supported
+        }else{
+          logger.writeLog(thisUser.extensionId, `------------\r\nBatch not found from db! Notified at ${new Date().toISOString()}\r\nEvent body: ${JSON.stringify(eventObj.body)}`)
+        }
+      })
+    },
+    _readBatchReport: async function(batch, page, spamMsgCount, pageToken){
+      console.log("_readBatchReport: eventEngine")
+      var endpoint = "/restapi/v1.0/account/~/a2p-sms/messages"
+      var params = {
+        batchId: batch.batchId,
+        perPage: 1000
+      }
+      if (pageToken != "")
+        params['pageToken'] = pageToken
+
+      var p = await this.rc_platform.getPlatform(this.extensionId)
+      if (p){
+        try {
+          var resp = await p.get(endpoint, params)
+          var jsonObj = await resp.json()
+          for (var message of jsonObj.records){
+            switch (message.messageStatus) {
+              case "Queued":
+                batch.queuedCount++
+                break;
+              case "Delivered":
+                batch.deliveredCount++
+                break
+              case "Sent":
+                batch.sentCount++
+                break;
+              case "DeliveryFailed":
+              case "SendingFailed":
+                // detect spam to block user
+                if ( message.errorCode == 'SMS-UP-430' || message.errorCode == 'SMS-UP-431' ||
+                     message.errorCode == 'SMS-CAR-430' || message.errorCode == 'SMS-CAR-431')
+                     spamMsgCount++
+                batch.unreachableCount++
+                break;
+              default:
+                break
+            }
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            batch.totalCost += cost
+          }
+          var postData = {
+            dataType: "Campaign_Details",
+            campaignName: batch.campaignName,
+            pageNumber: page,
+            records: jsonObj.records
+          }
+          //console.log(postData)
+          this.postResults(postData)
+
+          var thisUser = this
+          if (jsonObj.paging.hasOwnProperty("nextPageToken")){
+            //console.log("has nextPageToken, get it after 1.2 secs")
+            page++
+            setTimeout(function(){
+              thisUser._readBatchReport(batch, page, spamMsgCount, jsonObj.paging.nextPageToken)
+            }, 1200)
+          }else{
+            thisUser._updateCampaignDB(true, batch, (err, result) => {
+              //console.log("Call post result only once when batch result is completed. Post only if webhook uri is provided.")
+              var postData = {
+                dataType: "Campaign_Summary",
+                report: result
+              }
+              // post batch data to webhook address
+              thisUser.postResults(postData)
+            })
+            /*
+            thisUser.userActivities.campaigns_logs.total_delivered += batch.deliveredCount
+            thisUser.userActivities.campaigns_logs.total_failed += batch.unreachableCount
+            thisUser.userActivities.campaigns_logs.ts = new Date().getTime()
+            thisUser.updateUserMonitorActivities()
+            */
+            database.readMonitorDB(this.extensionId, function(err, userActivities){
+              userActivities.campaigns_logs.total_delivered += batch.deliveredCount
+              userActivities.campaigns_logs.total_failed += batch.unreachableCount
+              userActivities.campaigns_logs.ts = new Date().getTime()
+              database.updateUserMonitorActivities(thisUser.extensionId, userActivities)
+            })
+          }
+        } catch (e) {
+          if (e.response){
+            var obj = e.response.headers
+            logger.writeLog(this.extensionId, `------------\r\n_readBatchReport => GET ${endpoint} at ${new Date().toISOString()}\r\nRequest id: ${obj.get('rcrequestid')}`)
+          }
+          logger.writeLog(this.extensionId, `Params ${JSON.stringify(params)}`);
+          logger.writeLog(this.extensionId, `Error message: ${e.message}`);
+        }
+      }else{
+        console.log("platform issue")
+      }
+    },
+    readBatchReportFromDB: function(batchId, callback){
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (!err && result.rows.length > 0){
+          var batch = undefined
+          if (result.rows[0].batches.length){
+            batches = JSON.parse(result.rows[0].batches)
+            batch = batches.find(o => o.batchId === batchId)
+          }
+          callback(null, batch)
+        }else{ // no history
+          callback(null, undefined)
+        }
+      })
+    },
+    _updateCampaignDB: function(batchId, batchReport, callback){
+      var thisUser = this
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          return callback(err.message, "Cannot read batches")
+        }
+        if (!err && result.rows.length > 0){
+          // attach to array then update db
+          var batches = []
+          if (result.rows[0].batches.length)
+            batches = JSON.parse(result.rows[0].batches)
+
+          var batch = undefined
+          if (batchId){
+            batch = batches.find(o => o.batchId == batchReport.batchId)
+            if (batch){
+              batch.batchId = batchReport.batchId
+              batch.queuedCount = batchReport.queuedCount
+              batch.deliveredCount = batchReport.deliveredCount
+              batch.sentCount = batchReport.sentCount
+              batch.unreachableCount = batchReport.unreachableCount
+              batch.totalCost = batchReport.totalCost
+            }
+          }else{
+            batch = batches.find(o => o.sendAt == batchReport.sendAt)
+            if (batch){
+              batch.batchId = batchReport.batchId
+              batch.creationTime = batchReport.sendAt
+              batch.rejectedCount = batchReport.rejectedCount
+            }
+          }
+          if (batch){
+            var query = 'UPDATE a2p_sms_users SET '
+            query += `batches='${JSON.stringify(batches)}'`
+            query += ` WHERE user_id='${thisUser.extensionId}'`
+            var batchesStr = JSON.stringify(batches)
+            batchesStr = batchesStr.replace(/'/g, "''")
+            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+            pgdb.update(query, (err, result) =>  {
+              if (err){
+                console.error(err.message);
+              }
+              console.log("updated batch data")
+              callback(null, batch)
+            })
+          }
+        }
+      })
+    },
+    _removeScheduledCampaignDB: function(creationTime, callback){
+      var thisUser = this
+      var query = `SELECT batches FROM a2p_sms_users WHERE user_id='${this.extensionId}'`
+      pgdb.read(query, (err, result) => {
+        if (err){
+          console.error(err.message);
+          return callback(err.message, "Cannot read batches")
+        }
+        if (!err && result.rows.length > 0){
+          // attach to array then update db
+          var batches = []
+          if (result.rows[0].batches.length)
+            batches = JSON.parse(result.rows[0].batches)
+
+          var index = batches.findIndex(o => o.creationTime == creationTime)
+          if (index > 0){
+            batches.splice(index, 1)
+            var query = 'UPDATE a2p_sms_users SET '
+            query += `batches='${JSON.stringify(batches)}'`
+            query += ` WHERE user_id='${thisUser.extensionId}'`
+            var batchesStr = JSON.stringify(batches)
+            batchesStr = batchesStr.replace(/'/g, "''")
+            var query = `UPDATE a2p_sms_users SET batches='${batchesStr}' WHERE user_id='${thisUser.extensionId}'`
+            pgdb.update(query, (err, result) =>  {
+              if (err){
+                console.error(err.message);
+              }
+              console.log("updated batch data")
+              callback(null, "ok")
+            })
+          }else
+            callback(null, "not found")
+        }
       })
     }
 };

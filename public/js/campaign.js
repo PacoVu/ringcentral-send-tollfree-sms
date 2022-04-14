@@ -1,32 +1,6 @@
-/*
-var errorCodes = {}
-errorCodes["SMS-UP-410"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
-errorCodes["SMS-UP-430"] = "Spam content detected by SMS gateway."
-errorCodes["SMS-UP-431"] = "Number blacklisted due to spam."
-errorCodes["SMS-UP-500"] = "General SMS gateway error. Upstream is malfunctioning."
-errorCodes["SMS-CAR-104"] = "Carrier has not reported delivery status."
-errorCodes["SMS-CAR-199"] = "Carrier reports unknown message status."
-errorCodes["SMS-CAR-400"] = "Carrier does not support this kind of messaging."
-errorCodes["SMS-CAR-411"] = "Destination number invalid, unallocated, or does not support this kind of messaging."
-errorCodes["SMS-CAR-412"] = "Destination subscriber unavailable."
-errorCodes["SMS-CAR-413"] = "Destination subscriber opted out."
-errorCodes["SMS-CAR-430"] = "Spam content detected by mobile carrier."
-errorCodes["SMS-CAR-431"] = "Message rejected by carrier with no specific reason."
-errorCodes["SMS-CAR-432"] = "Message is too long."
-errorCodes["SMS-CAR-433"] = "Message is malformed for the carrier."
-errorCodes["SMS-CAR-450"] = "P2P messaging volume violation."
-errorCodes["SMS-CAR-460"] = "Destination rejected short code messaging."
-errorCodes["SMS-CAR-500"] = "Carrier reported general service failure."
-errorCodes["SMS-RC-410"] = "Destination number unsupported"
-errorCodes["SMS-RC-413"] = "Destination subscriber opted out"
-errorCodes["SMS-RC-500"] = "General/Unknown internal RingCentral error."
-errorCodes["SMS-RC-501"] = "RingCentral is sending a bad upstream API call."
-errorCodes["SMS-RC-503"] = "RingCentral provisioning error. Phone number is incorrectly provisioned by RingCentral in upstream."
-errorCodes["SMS-NO-ERROR"] = "Sent successfullly."
-*/
-
 var loaded = 0
 var campaignList = []
+var timeOffset = new Date().getTimezoneOffset()*60000;
 function init(){
   google.charts.load('current', {'packages':['corechart'], callback: onloaded});
 
@@ -93,16 +67,19 @@ function readCampaigns(){
 
 //<div class="campaign-item" onclick="readCampaign(this, '<%- item.batchId %>')"><%= item.campaignName %></div>
 function listAllCampaigns(){
-  var timeOffset = new Date().getTimezoneOffset()*60000;
+  //var timeOffset = new Date().getTimezoneOffset()*60000;
   var html = ""
+  var batchId = ''
   for (var item of campaignList) {
     if (item.type == "tollfree") continue
+    if (item.batchId == "") continue
+    if (batchId == '')
+      batchId = item.batchId
     html += `<div id="${item.batchId}" class="campaign-item" onclick="readCampaign('${item.batchId}', '')">${item.campaignName}</div>`
   }
   $("#campaign-list").html(html)
-  //console.log(campaignList[0])
-  var batchId = campaignList[0].batchId
-  //readCampaign($(`#${batchId}`), batchId, "")
+
+  //var batchId = campaignList[0].batchId
   readCampaign(batchId, "")
 }
 
@@ -115,12 +92,12 @@ function readCampaign(batchId, pageToken){
   }
   $(elm).addClass("active");
   currentSelectedItem = elm
-  var timeOffset = new Date().getTimezoneOffset()*60000;
+  //var timeOffset = new Date().getTimezoneOffset()*60000;
   var timestamp = campaign.creationTime - timeOffset
   var createdDate = new Date (timestamp)
   var createdDateStr = createdDate.toISOString()
   createdDateStr = createdDateStr.replace("T", " ").substring(0, 19)
-  //var url = `read-campaign-details?batchId=${batchId}`
+
   var url = `read-campaign-details`
   var params = {
     batchId: batchId,
@@ -148,12 +125,12 @@ function readCampaign(batchId, pageToken){
       }
       if (html != ""){
         html += '</div>'
-        //console.log(html)
+        console.log(html)
         $("#pages").show()
         $("#pages").html(html)
       }
 
-      var timeOffset = new Date().getTimezoneOffset()*60000;
+      //var timeOffset = new Date().getTimezoneOffset()*60000;
       var timestamp = campaign.creationTime - timeOffset
       var createdDate = new Date (timestamp)
       var createdDateStr = createdDate.toISOString()
@@ -208,7 +185,7 @@ function readCampaign(batchId, pageToken){
 
 function createFullReport(fullReports){
   var html = ""
-  var timeOffset = new Date().getTimezoneOffset()*60000;
+  //var timeOffset = new Date().getTimezoneOffset()*60000;
   var i = 0;
   for (var item of fullReports){
     var date = new Date(item.lastModifiedTime)
@@ -254,7 +231,7 @@ function createFullReport(fullReports){
 
 function downloadBatchReport(batchId, name){
   $("#download-indicator").show()
-  var timeOffset = new Date().getTimezoneOffset()*60000;
+  //var timeOffset = new Date().getTimezoneOffset()*60000;
   var url = `download-batch-report`
   var params = {
     batchId: batchId,
@@ -300,8 +277,8 @@ function deleteCampaignResult(batchId){
     if (res.status == "ok"){
       _alert("Campaign result is deleted.", "Information")
       campaignList = res.campaigns
-      if (campaignList.length == 0)
-        ;//createNewCampaign()
+      //if (campaignList.length == 0)
+      //  createNewCampaign()
       listAllCampaigns()
     }else if (res.status == "error"){
       _alert(res.message)

@@ -28,7 +28,7 @@
     <!-- test emoji -->
     <link rel="stylesheet" type="text/css" href="./assets/css/reset.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/style.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/emojiarea.css">
+    <!--link rel="stylesheet" type="text/css" href="./assets/css/emojiarea.css"-->
     <script src="./assets/js/jquery.emojiarea.js"></script>
     <!-- test emoji end -->
 
@@ -128,11 +128,10 @@
               <div id="block_2" class="input_page" style="display: none">
                 <div id="csv-template-columns" class="block_space" style="display: none">
                   <label class="">.CSV Columns</label><br>
-                  <select id="template-columns" class="form-control" onchange="addToMessage(this)" title="Select a column"></select>
+                  <select id="template-columns" class="form-control" onchange="addToMessage(this)" title="Select a template column"></select>
                 </div>
 
                 <div class="block_space">
-                  <!--label class="label-input" for="message">Message</label-->
                   <div class="right" style="padding-top: 0px;">
                     <span onclick="savedTemplates()" class="emoji-button" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="Save message as a template.">
                       <img class="medium-icon" src="/img/save.png"></img>
@@ -157,8 +156,8 @@
                     <input type="checkbox" id="opt-out-instruction" name="opt_out_instruction" onchange="addOptoutInstruction(this)"></input>
                   </span>
                 </div>
+                <!--
                 <div class="block_space">
-                  <!--label class="label-input">Recipient response</label-->
                   <span>Request response <input type="checkbox" id="expect-response" name="expect_response" onchange="enableExpectingResponse(this)"></input></span>
                 </div>
                 <div id="recipient-response-block" style="display: none">
@@ -184,6 +183,15 @@
                       <input type="number" id="expire" name="expire" min="1" max="144" class="form-control" value="2"></input><span class="tail-word"> hours</span>
                     </span>
                   </div>
+                </div>
+                -->
+                <div class="block_space">
+                  <span>Schedule (Beta) <input type="checkbox" id="scheduled" name="scheduled" onchange="enableScheduler(this)"></input></span>
+                </div>
+                <div id="scheduler-block" style="display: none">
+                  <span>Send at:</span>
+                  <input type="datetime-local" id="scheduled_datepicker"></input>
+                  <input id="send_at" hidden name="send_at"></input>
                 </div>
               </div>
               <div class="block_space">
@@ -225,11 +233,7 @@
                 <div class="block-space" style="width: 300px!important;">
                   <label class="warning">Estimated cost:</label>
                   <span class="cost warning" id="estimated_cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="#" onclick="showEstimateCostClaimer(0);return false;">&#9432;</a><br>
-                  <span id="survey-cost" style="display: none">
-                    <label class="warning">Estimated survey cost:</label>
-                    <span class="cost warning" id="estimated-survey-cost"> $0.00 USD *</span>&nbsp;&nbsp;<a href="#" onclick="showEstimateCostClaimer(1);return false;">&#9432;</a>
-                  <span>
-                  <!--p class="claimed">* Estimates are for educational purposes only and may not include all message fees, such as fees for international SMS. The actual cost for sending these messages may be higher or lower.</p-->
+                  <p class="highlight" id="ucs2_cost" style="display: none"></p>
                 </div>
                 <div>
                   <button id="cancel" class="form-control rc-oval-btn" onclick="showBlock('history')">Cancel new campaign</button>
@@ -243,15 +247,8 @@
           <div class="col-lg-12 history">
             <div class="row col-lg-6">
               <button class="rc-oval-btn" onclick="createNewCampaign()" style="margin-top: 10px;margin-bottom: 10px">Create new campaign</button>
-              <!--h3>Campaigns</h3-->
-              <!--p>Create a new campaign to send a text messages to multiple contacts right now.</p-->
-            </div>
-            <div class="col-lg-6">
-              <!--button class="rc-oval-btn" onclick="createNewCampaign()" style="margin-top: 10px;margin-bottom: 10px; float:right">Create new campaign</button-->
-              <!--button class="rc-oval-btn" onclick="createNewCampaign()" style="margin-top: 30px">Create new campaign</button-->
             </div>
           </div>
-          <!--hr class="history" style="margin: 2px !important;border: 1px solid grey"></hr-->
           <div id="campaign-title" class="col-lg-12 history" style="margin-top:3px">Recent campaign</div>
           <div class="col-lg-12 history">
             <div class="col-lg-5 campaign-info-section">
@@ -277,11 +274,10 @@
           <div class="col-lg-12 history"><b>Campaign history</b></div>
           <div id="history-header" class="col-lg-12 history">
             <div class="row col-lg-12 history-item header">
-              <div class="row col-lg-3">Campaign name</div>
+              <div class="row col-lg-5">Campaign name</div>
               <div class="col-lg-2">Date & Time</div>
               <div class="col-lg-1">Total</div>
               <div class="col-lg-1">Type</div>
-              <div class="col-lg-2">Survey Status</div>
               <div class="col-lg-2" data-toggle="popover" data-trigger="hover" data-placement="top" data-content="The total cost of a suyvey includes the cost of customer's response and auto-reply messages">Total cost *</div>
               <div class="col-lg-1">Progress</div>
             </div>

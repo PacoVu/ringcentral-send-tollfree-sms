@@ -21,7 +21,7 @@
   <%- include('_feedback_form') %>
   <nav id="menu_header" class="navbar navbar-default no-border">
     <span class="left-middle-align">
-      <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral-labs-logo.png" height="40"></a></span>&nbsp;&nbsp;
+      <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral-labs.png" height="40"></a></span>&nbsp;&nbsp;
       <span class="title">High Volume SMS</span>
     </span>
     <ul class="nav navbar-nav navbar-right middle-align">
@@ -37,15 +37,18 @@
       <% if (lowVolume == false && highVolume == false) { %>
         <div class="col-sm-12 main-options">
           <div>
-          <p style="color: red;">Your account doesn't have a phone number enabled for High Volume SMS. Follow the instructions below to enable a number:</p>
-        </div><br>
+          <p style="color: red;">Your account doesn't have a phone number enabled for High Volume SMS. Follow the instructions below to enable a number.</p>
+          <p style="color: blue;">Note: If you have a High Volume SMS number and still see this message, it is likely the number is not assigned to your extension. Contact your account IT admin for help!</p>
+          </div><br>
+          <div>To provision a High Volume SMS number, follow the steps below:</div>
           <ol>
-            <li>Login <a href='https://service.ringcentral.com'>your account</a> and choose a number or or purchase a new one. Select "Local" or "Toll-Free" number.</li>
-            <li>Submit your number to be enabled via the <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Enrollment Form</a>.</li>
+            <li>Login <a href='https://service.ringcentral.com'>your RingCentral account</a> and choose a number or or purchase a new one. Select "Local" or "Toll-Free" number.</li>
+            <li>Fill the <a target='_blank' href='https://gamechanging.dev/sms/'>enrollment form</a> and submit your request.</li>
+            <!--li>Submit your number to be enabled via the <a target='_blank' href='https://docs.google.com/forms/d/e/1FAIpQLSfAFq6eJWohYqb-4yr6n3FeJGx0DXySel-WxE29Tc_rblZ4zA/viewform'>Enrollment Form</a>.</li-->
           </ol>
-          <div style="margin-left: 20px;">Note: Be sure to copy "Use RingCentral Labs app" and paste into the Client ID(s) field on the form!</div>
-          <br>
-          <p>If you have a High Volume SMS number and still see this message, it is likely the number is not assigned to your extension. Contact your Account Admin for help!</p>
+          <!--div style="margin-left: 20px;">Note: Be sure to copy "Use RingCentral Labs app" and paste into the Client ID(s) field on the form!</div-->
+          <!--div style="margin-left: 20px;">Note: Be sure to copy "Use RingCentral Labs app" and paste into the Client ID(s) field on the form!</div-->
+          <!--a href="/support-team" >Join Support Team</a-->
         </div>
       <% } else { %>
         <div class="col-sm-12 main-options">

@@ -58,6 +58,7 @@ function readWebhookAddress(view){
   var url = "/read-webhook"
   var getting = $.get( url );
   getting.done(function( res ) {
+    console.log(res)
     if (res.status == "ok"){
       $("#webhook-address").val(res.message.url)
       $("#header-name").val(res.message.headerName)
@@ -83,12 +84,11 @@ function readWebhookAddress(view){
     }else{
       if (res.message)
         _alert(res.message)
-      else{
+      else
         _alert("You have been logged out. Please login again.")
-        window.setTimeout(function(){
+      window.setTimeout(function(){
           window.location.href = "/relogin"
         },8000)
-      }
     }
   });
   getting.fail(function(response){
@@ -115,12 +115,11 @@ function deleteWebhookAddress(){
     }else{
       if (res.message)
         _alert(res.message)
-      else{
+      else
         _alert("You have been logged out. Please login again.")
-        window.setTimeout(function(){
+      window.setTimeout(function(){
           window.location.href = "/relogin"
         },8000)
-      }
     }
   });
   getting.fail(function(response){
@@ -137,7 +136,7 @@ function loadContactsFile(elm){
     reader.onload = function(e) {
       var contactsFromFile = e.target.result.trim().split("\r\n")
       if (!isValidCSVContent(contactsFromFile)){
-        _alert("Invalid .CSV format file!")
+
         $(elm).val("")
         return
       }
@@ -152,15 +151,21 @@ function loadContactsFile(elm){
 
 function isValidCSVContent(rows){
   if (rows.length < 2){
+    _alert("Invalid .CSV format file! No contacts.")
     return false
   }else{
     var header = rows[0]
     var headerCols = header.trim().split(",")
-    var firstRow = rows[1]
-    var row = detectAndHandleCommas(firstRow)
-    var firstRowCols = row.trim().split(",")
-    if (headerCols.length != firstRowCols.length){
-      return false
+    var i = 0
+    for (var row of rows){
+      //var firstRow = rows[1]
+      i++
+      var r = detectAndHandleCommas(row)
+      var rowCols = r.split(",")
+      if (headerCols.length != rowCols.length){
+        _alert(`Invalid .CSV format file! At line ${i}.`)
+        return false
+      }
     }
   }
   return true
@@ -171,7 +176,7 @@ function detectAndHandleCommas(row){
   var endPos = 0
   while (startPos >= 0){
     startPos = row.indexOf('"', endPos)
-    if (startPos > 0){
+    if (startPos >= 0){
       endPos = row.indexOf('"', startPos+1)
       if (endPos >= 0){
         var colText = row.substring(startPos, endPos+1)
@@ -185,7 +190,8 @@ function detectAndHandleCommas(row){
         startPos = -1
     }
   }
-  return row
+  console.log("row:", row)
+  return row.trim()
 }
 
 function resetContactForm(){
@@ -229,9 +235,7 @@ function updateContactList(){
   $("#contact-groups").html(groups)
   $("#new-contact-groups").html(groups)
   $('#new-contact-groups').selectpicker('refresh');
-  //if (selectedContactGroup == ""){
-  //  selectedContactGroup = contactList[0].groupName
-  //}
+
   displayContacts()
 }
 
@@ -314,7 +318,10 @@ function uploadContactsFile(e){
           }else if (res.status == "error"){
             _alert(res.message)
           }else{
-            _alert("You have been logged out. Please login again.")
+            if (res.message)
+              _alert(res.message)
+            else
+              _alert("You have been logged out. Please login again.")
             window.setTimeout(function(){
               window.location.href = "/relogin"
             },8000)
@@ -339,7 +346,10 @@ function readContacts(){
     }else if (res.status == "error"){
       _alert(res.message)
     }else{
-      _alert("You have been logged out. Please login again.")
+      if (res.message)
+        _alert(res.message)
+      else
+        _alert("You have been logged out. Please login again.")
       window.setTimeout(function(){
         window.location.href = "/relogin"
       },8000)
@@ -401,6 +411,9 @@ function deleteContacts(removeGroup){
       if (contactList.length > 0){
         $("#my-contacts-pane").show()
         updateContactList()
+      }else{
+        $("#contact-list").html('')
+        $("#my-contacts-pane").hide()
       }
     }else if (res.status == "error"){
       _alert(res.message)
@@ -409,7 +422,7 @@ function deleteContacts(removeGroup){
         _alert(res.message)
       else{
         _alert("You have been logged out. Please login again.")
-        window.setTimeout(function(){
+      window.setTimeout(function(){
           window.location.href = "/relogin"
         },8000)
       }
@@ -451,12 +464,11 @@ function setWebhookAddress(){
     }else{
       if (res.message)
         _alert(res.message)
-      else{
+      else
         _alert("You have been logged out. Please login again.")
-        window.setTimeout(function(){
+      window.setTimeout(function(){
           window.location.href = "/relogin"
         },8000)
-      }
     }
   });
   posting.fail(function(response){

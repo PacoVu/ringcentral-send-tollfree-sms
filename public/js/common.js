@@ -60,10 +60,10 @@ var errorCodes = {
   "SMS-CAR-450": "P2P messaging volume violation.",
   "SMS-CAR-460": "Destination rejected short code messaging.",
   "SMS-CAR-500": "Carrier reported general service failure.",
-  "SMS-RC-410": "Destination number unsupported",
-  "SMS-RC-413": "Destination subscriber opted out",
+  "SMS-RC-410": "Destination number unsupported. Or missing a country code.",
+  "SMS-RC-413": "Destination subscriber opted out.",
   "SMS-RC-500": "Please report this error to us.",
-  "SMS-RC-501": "Please report this error to us",
+  "SMS-RC-501": "Please report this error to us.",
   "SMS-RC-503": "Please report this error to us.",
   "SMS-NO-ERROR": "Sent successfullly."
 }
@@ -120,7 +120,7 @@ function submitFeedback(params){
   var url = "sendfeedback"
   var posting = $.post( url, params );
   posting.done(function( res ) {
-    _alert(res.message)
+    alert(res.message)
   });
   return true
 }

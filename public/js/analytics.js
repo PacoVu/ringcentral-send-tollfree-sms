@@ -207,7 +207,7 @@ function pollAnalyticsResult(){
         if (res.result.task == "Completed")
           $("#downloads").show()
         $("#processing").hide()
-        console.log(JSON.stringify(analyticsData))
+        //console.log(JSON.stringify(analyticsData))
         displayAnalytics()
       }
     }else{
@@ -676,8 +676,8 @@ function displayMessageCostTable(breakout){
   var cTotal = "<tr><td class='table-label'>Total Cost</td>"
 
   var byCostEfficiency = "<table class='analytics-table'>"
-  var eOutboundDelivered = "<tr><td class='table-label'>Cost of succeeded outbound messages</td>"
-  var eOutboundFailed = "<tr><td class='table-label'>Cost of failed outbound messages</td>"
+  var eOutboundDelivered = "<tr><td class='table-label'>Cost of succeeded messages (USD)</td>"
+  var eOutboundFailed = "<tr><td class='table-label'>Cost of failed messages (USD)</td>"
   var eRate = "<tr><td class='table-label'>Efficiency rate</td>"
 
   if (breakout == "monthly"){
@@ -737,21 +737,7 @@ function displayMessageCostTable(breakout){
 }
 
 function displayFailureAnalyticsDetails(){
-  /*
-  for (var s of analyticsData.failureAnalysis.contents){
-    if (s.spamMsgCount > 0){
-      subMsg  += `<p class="spam-message">${s.message}</p>`
-      var rate = (s.spamMsgCount/(s.acceptedMsgCount+s.spamMsgCount)) * 100
-      var spamNumbers = s.spamMsgNumbers.join(';')
-      var ratio = s.spamMsgCount / s.spamMsgNumbers.length
-      subMsg += `<div>${s.spamMsgCount} / ${s.spamMsgNumbers.length}. Ratio:${ratio.toFixed(2)}</div>`
-      subMsg += `<div># Rejected/Passed: ${formatNumber(s.spamMsgCount)}/${formatNumber(s.acceptedMsgCount)} => Rejected rate: ${rate.toFixed(2)} % - <a href="#" onclick="copyNumbersToClipboard('${spamNumbers}')">Copy recipient phone numbers</a></div>`
-    }
-  }
-  Otherwise, the reputation score of your phone number will be decreased \
- and eventually, the number will be blacklisted by the carriers.</p>`
-  */
-
+  //console.log(JSON.stringify(analyticsData))
   var type = $("#failure-types").val()
   var message = ""
   if (type == "spam"){
@@ -939,7 +925,7 @@ function copyNumbersToClipboard (numbers) {
 }
 
 function displayFailedAnalytics(slice){
-  //console.log(analyticsData.failureAnalysis)
+  console.log(analyticsData.failureAnalysis)
   var spamMsgCount = 0
   var rejectedMsgCount = 0
   for (var s of analyticsData.failureAnalysis.contents){
@@ -1136,8 +1122,8 @@ function drawPieChart(params, graph, title, colors, slice){
 
   var options = {
     title: title,
-    width: 300,
-    height: 300,
+    width: 280,
+    height: 280,
     colors: colors,
     backgroundColor: 'transparent',
     chartArea:{left:0,top:20,bottom:0,width:'100%',height:'100%'},

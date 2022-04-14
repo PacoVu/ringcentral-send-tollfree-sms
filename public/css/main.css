@@ -74,6 +74,52 @@ button:focus {
   overflow: scroll;
 }
 
+/** Monitor **/
+#users-list{
+  height: 400px;
+  overflow: scroll;
+}
+.user_info {
+  display: none;
+  position: absolute;
+  font-size: 1.2em;
+  background-color: #D1F6FA;
+  border-color: #030033;
+  border: 2px solid gray;
+  padding: 20px;
+  overflow: scroll;
+  z-index: 100;
+}
+.corner {
+  position: relative;
+  top: 0;
+  right: 0;
+  float: right;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  margin-right: -15px;
+}
+.corner:hover{
+  cursor: pointer;
+}
+
+.modal-dlg {
+  width: 1500px;
+  margin: auto;
+}
+
+
+.modal-content {
+  width: 760px !important;
+}
+
+#message-snapshot-list {
+  height: 600px;
+  overflow: scroll;
+}
+/** Monitor end **/
+
 .contact-list{
   height: 400px;
   overflow: scroll;
@@ -188,6 +234,10 @@ button:focus {
   text-align: center;
 }
 
+.btn-left{
+  float: left;
+}
+
 .pos-bottom{
   position: absolute;
   bottom: 10px;
@@ -215,6 +265,9 @@ button:focus {
 }
 .warning{
   color: orange;
+}
+.highlight {
+  color: #BF6A0A;
 }
 .sample {
   background-color: yellow;
@@ -246,35 +299,7 @@ button:focus {
 .fixed{
   width: 200px;
 }
-/*
-.corner {
-  position: relative;
-  top: 0;
-  right: 0;
-  float: right;
-  width: 12px;
-  height: 12px;
-  margin-top: 2px;
-  margin-right: 2px;
-}
 
-.corner:hover{
-  cursor: pointer;
-  background-color: #ccc;
-}
-
-.group_block{
-  width: 100%;
-  padding-bottom: 5px;
-  border-top: 1px solid rgba(209, 223, 250, .6);
-  margin-top: 5px;
-}
-
-#groups_tab {
-  margin-left: 100px;
-  display: inline;
-}
-*/
 .rc-login-footer {
   font-size: 10px;
   padding: 10px 30px;
@@ -333,6 +358,7 @@ button:focus {
 .campaign-item:hover {
   background: #e5eafa;
   color: #2559e5;
+  cursor: grab;
 }
 
 .help-item {
@@ -463,6 +489,9 @@ button:focus {
   color: #ffffff;
   font-size: 0.8em;
   font-weight: bold;
+  min-width: 30px;
+  min-height: 30px;
+  text-align: center;
   padding: 5px;
   margin-top: -2px;
   margin-right: -8px;
@@ -472,6 +501,21 @@ button:focus {
   display: inline;
   float: right;
 }
+
+.total-message-count {
+  color: #ffffff;
+  font-size: 0.8em;
+  font-weight: bold;
+  min-width: 30px;
+  min-height: 30px;
+  text-align: center;
+  padding: 5px;
+  margin-top: -2px;
+  margin-right: -8px;
+  display: inline;
+  float: right;
+}
+
 .recipient-info {
   display: inline;
 }

@@ -2,6 +2,7 @@ var async = require("async");
 require('dotenv').load()
 
 const { Pool, Client } = require('pg')
+
 const pool = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,

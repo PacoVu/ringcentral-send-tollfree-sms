@@ -98,6 +98,7 @@
 
 .history-item:hover {
   background-color: #e5eafa;
+  cursor: grab;
 }
 
 .history-item.active {

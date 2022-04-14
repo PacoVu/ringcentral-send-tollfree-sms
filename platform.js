@@ -1,11 +1,10 @@
 const RingCentral = require('@ringcentral/sdk').SDK
 const pgdb = require('./db')
-require('dotenv').load()
 
 function RCPlatform(userId) {
   this.extensionId = ""
   var cachePrefix = `user_${userId}`
-  console.log(cachePrefix)
+
   this.rcsdk = new RingCentral({
       cachePrefix: cachePrefix,
       server: RingCentral.server.production,
@@ -17,19 +16,14 @@ function RCPlatform(userId) {
   this.platform = this.rcsdk.platform()
   this.platform.on(this.platform.events.loginSuccess, this.loginSuccess)
   this.platform.on(this.platform.events.logoutSuccess, this.logoutSuccess)
-  //this.platform.on(this.platform.events.refreshSuccess, this.refreshSuccess)
   this.platform.on(this.platform.events.refreshError, this.refreshError)
 
   var boundFunction = ( async function() {
-      console.log("WONDERFUL")
-      console.log(this.extensionId);
-      //var tokenObj = await this.platform.auth().data()
-      //console.log("REFRESHED TOKENS")
-      //this.updateUserAccessTokens(JSON.stringify(tokenObj))
-      this.updateUserAccessTokens()
+      console.log(`WONDERFUL ext id ${this.extensionId}`)
+      var tokenObj = await this.platform.auth().data()
+      this.updateUserAccessTokens(JSON.stringify(tokenObj))
   }).bind(this);
   this.platform.on(this.platform.events.refreshSuccess, boundFunction);
-
   return this
 }
 
@@ -42,9 +36,8 @@ RCPlatform.prototype = {
       })
       var tokenObj = await resp.json()
       this.extensionId = tokenObj.owner_id
-      //console.log("NEW LOGIN TOKENS")
-      //this.updateUserAccessTokens(JSON.stringify(tokenObj))
-      this.updateUserAccessTokens()
+      tokenObj = await this.platform.auth().data()
+      this.updateUserAccessTokens(JSON.stringify(tokenObj))
       return  tokenObj.owner_id
     }catch(e){
       console.log('PLATFORM LOGIN ERROR ' + e.message || 'Server cannot authorize user');
@@ -54,9 +47,8 @@ RCPlatform.prototype = {
   autoLogin: async function(data, callback){
     var tokenObj = JSON.parse(data)
     this.extensionId = tokenObj.owner_id
-    this.platform.auth().setData(tokenObj)
+    await this.platform.auth().setData(tokenObj)
     if (await this.platform.loggedIn()){
-      console.log("Auto login ok")
       callback(null, "Auto login ok")
     }else{
       console.log("Auto-login failed: BOTH TOKEN TOKENS EXPIRED => Relogin required.")
@@ -68,15 +60,13 @@ RCPlatform.prototype = {
     await this.platform.logout()
   },
   getPlatform: async function(extId){
-    if (extId  ==  this.extensionId)
-      console.log (`requester: ${extId}  ==  owner: ${this.extensionId}`)
-    else{
+    if (extId  !=  this.extensionId){
       console.log (`requester: ${extId}  !=  owner: ${this.extensionId}`)
       console.log("If this ever happens => SERIOUS PROBLEM. Need to check and fix!")
       return null
     }
     if (await this.platform.loggedIn()){
-        return this.platform
+      return this.platform
     }else{
         console.log("BOTH TOKEN TOKENS EXPIRED")
         console.log("CAN'T REFRESH")
@@ -90,39 +80,26 @@ RCPlatform.prototype = {
     var tokenObj = await this.platform.auth().data()
     return JSON.stringify(tokenObj)
   },
-  updateUserAccessTokens: async function() {
+  updateUserAccessTokens: function(tokenStr) {
     console.log("updateUserAccessTokens")
-    var tokenObj = await this.platform.auth().data()
-    var tokenStr = JSON.stringify(tokenObj)
     var query = "INSERT INTO a2p_sms_users (user_id, account_id, batches, contacts, subscription_id, webhooks, access_tokens, templates, reputation_score)"
     query += " VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)"
-    var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr, "[]", 1000]
-    query += " ON CONFLICT (user_id) DO UPDATE SET access_tokens='" + tokenStr + "'"
+    var values = [this.extensionId, "", "[]", "[]", "", "", tokenStr, "[]", "[]"]
+    query += ` ON CONFLICT (user_id) DO UPDATE SET access_tokens='${tokenStr}'`
     //console.log(query)
     pgdb.insert(query, values, (err, result) =>  {
       if (err){
         console.error(err.message);
-        console.log("QUERY: " + query)
       }else{
         console.log("updateUserAccessTokens DONE");
       }
     })
   },
-  // for testing
   loginSuccess: function(e){
     console.log("Login success")
-    //console.log(e)
-    //this.updateUserAccessTokens()
   },
   logoutSuccess: function(e){
     console.log("logout Success")
-  },
-  beforeRefresh: function(e){
-    console.log("before Refresh")
-  },
-  refreshSuccess: function(e){
-    console.log("refresh Success")
-    //this.updateUserAccessTokens()
   },
   refreshError: function(e){
     console.log("refresh Error")

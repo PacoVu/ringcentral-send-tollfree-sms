@@ -2,6 +2,9 @@ var path = require('path')
 var util = require('util')
 var multer  = require('multer')
 //var upload = multer({ dest: 'tempFile/' })
+//const Logs = require('./write-log.js')
+//Logs.writeLog("testing")
+require('dotenv').load();
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -13,15 +16,18 @@ var storage = multer.diskStorage({
 })
 var upload = multer({ storage: storage })
 
-if('production' !== process.env.LOCAL_ENV )
-  require('dotenv').load();
-
 var express = require('express');
 var session = require('express-session');
 
 var app = express();
-//app.use(session());
-app.use(session({ secret: process.env.SECRET_TOKEN, cookie: { maxAge: 24 * 60 * 60 * 1000 }}));
+
+app.use(session({
+  secret: process.env.SECRET_TOKEN,
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
+  //cookie: { maxAge: 5 * 60 * 1000 },
+  resave: true,
+  saveUninitialized: true
+}));
 var bodyParser = require('body-parser');
 var urlencoded = bodyParser.urlencoded({extended: false})
 
@@ -30,21 +36,21 @@ app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
 app.use(urlencoded);
 
-var port = process.env.PORT || 5000
+console.log("PORT " + process.env.PORT)
+var port = process.env.PORT || 3000
 
 var server = require('http').createServer(app);
 server.listen(port);
 console.log("listen to port " + port)
 var router = require('./router');
-//var aUsers = router.getActiveUsers()
 
 app.get('/', function (req, res) {
-  console.log('load index page /')
+  //console.log('load index page /')
   res.redirect('index')
 })
 
 app.get('/index', function (req, res) {
-  console.log('load index page /index')
+  //console.log('load index page /index')
   if (req.query.n != undefined && req.query.n == 1){
     router.logout(req, res)
   }else {
@@ -53,7 +59,7 @@ app.get('/index', function (req, res) {
 })
 
 app.get('/relogin', function (req, res) {
-  console.log('force to relogin')
+  //console.log('force to relogin')
   if (req.session.hasOwnProperty("userId"))
     req.session.userId = 0;
   if (req.session.hasOwnProperty("extensionId"))
@@ -63,7 +69,7 @@ app.get('/relogin', function (req, res) {
 })
 
 app.get('/login', function (req, res) {
-  req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
+  //req.session.cookie = { maxAge: 24 * 60 * 60 * 1000 }
   if (!req.session.hasOwnProperty("userId"))
     req.session.userId = 0;
   if (!req.session.hasOwnProperty("extensionId"))
@@ -93,8 +99,8 @@ app.get('/standard', function (req, res) {
   }
 })
 
-app.get ('/campaigns', function (req, res) {
-  console.log('loadCampaignPage')
+app.get ('/logs', function (req, res) {
+  console.log('loadCampaign Log Page')
   if (req.session.extensionId != 0)
     router.loadCampaignHistoryPage(req, res)
   else{
@@ -102,10 +108,26 @@ app.get ('/campaigns', function (req, res) {
   }
 })
 
-app.get ('/conversations', function (req, res) {
-  console.log('loadMessageStorePage')
+app.get('/campaigns', function (req, res) {
+  console.log('load campaigns')
   if (req.session.extensionId != 0)
-    router.loadMessageStorePage(req, res)
+    router.loadHVSMSPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get('/about', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.loadHelpPage(req, res)
+  else{
+    res.render('about')
+  }
+})
+
+app.get('/settings', function (req, res) {
+  if (req.session.extensionId != 0)
+    router.loadSettingsPage(req, res)
   else{
     res.render('index')
   }
@@ -115,6 +137,24 @@ app.get ('/analytics', function (req, res) {
   console.log('loadAnalyticsPage')
   if (req.session.extensionId != 0)
     router.loadAnalyticsPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get ('/share-number', function (req, res) {
+  console.log('loadShareNumberPage')
+  if (req.session.extensionId != 0)
+    router.loadShareNumberPage(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get ('/monitor', function (req, res) {
+  console.log('loadMonitorPage')
+  if (req.session.extensionId != 0)
+    router.loadMonitorPage(req, res)
   else{
     res.render('index')
   }
@@ -131,6 +171,32 @@ app.get("/poll-new-messages", function (req, res) {
 app.get("/poll-analytics-result", function (req, res) {
   if (req.session.extensionId != 0)
     router.pollAnalyticsResult(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.get("/poll-active-users", function (req, res) {
+  if (req.session.extensionId != 0)
+    router.pollActiveUsers(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/set_reputation', function (req, res) {
+  console.log('reset_reputation')
+  if (req.session.extensionId != 0)
+    router.setReputation(req, res)
+  else{
+    res.render('index')
+  }
+})
+
+app.post('/get_message_snapshots', function (req, res) {
+  console.log('get_message_snapshots')
+  if (req.session.extensionId != 0)
+    router.getMessageSnapshots(req, res)
   else{
     res.render('index')
   }
@@ -198,44 +264,6 @@ app.get('/read-campaigns', function (req, res) {
   }
 })
 
-app.get('/read-vote-reports', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.readVoteReports(req, res)
-  else{
-    res.render('index')
-  }
-})
-
-app.get('/highvolume-sms', function (req, res) {
-  console.log('load highvolume-sms')
-  if (req.session.extensionId != 0)
-    router.loadHVSMSPage(req, res)
-  else{
-    res.render('index')
-  }
-})
-/*
-app.get ('/conversation-sms', function (req, res) {
-  console.log('load conversation-sms')
-  if (req.session.extensionId != 0)
-    router.loadConvSMSPage(req, res)
-  else{
-    res.render('index')
-  }
-})
-*/
-app.get('/about', function (req, res) {
-  res.render('about')
-})
-
-app.get('/settings', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.loadSettingsPage(req, res)
-  else{
-    res.render('index')
-  }
-})
-
 app.get('/get-standard-sms-result', function (req, res) {
   if (req.session.extensionId != 0)
     router.getStandardSMSResult(req, res)
@@ -252,17 +280,9 @@ app.get('/get-batch-result', function (req, res) {
   }
 })
 
-app.get('/delete-survey-result', function (req, res) {
+app.get('/cancel-scheduled-campaign', function (req, res) {
   if (req.session.extensionId != 0)
-    router.deleteSurveyResult(req, res)
-  else{
-    res.render('index')
-  }
-})
-
-app.get('/download-survey-result', function (req, res) {
-  if (req.session.extensionId != 0)
-    router.downloadSurveyResult(req, res)
+    router.cancelScheduledCampaign(req, res)
   else{
     res.render('index')
   }
@@ -373,11 +393,6 @@ app.post('/sendbroadcastmessages', upload.any(), function (req, res, next) {
   router.sendBroadcastMessage(req, res)
 })
 
-app.post('/sendindividualmessage', upload.any(), function (req, res, next) {
-  console.log("post sendindividualmessage")
-  router.sendIndividualMessage(req, res)
-})
-
 app.post('/sendhvmessages', upload.any(), function (req, res, next) {
   console.log("post sendhvmessages")
   router.sendHighVolumeMessage(req, res)
@@ -445,31 +460,27 @@ app.post('/webhookcallback', function(req, res) {
         res.statusCode = 200;
         res.end();
     }else{
+      //console.log(res)
         var body = []
         req.on('data', function(chunk) {
             body.push(chunk);
         }).on('end', function() {
             body = Buffer.concat(body).toString();
             var jsonObj = JSON.parse(body)
-            //console.log(jsonObj)
-            if (jsonObj.event.indexOf("/a2p-sms/batch?") >= 0){
+            if (jsonObj.event.indexOf("/a2p-sms/batches?") >= 0){
               router.processBatchEventNotication(jsonObj)
-            }else{
-              var aUsers = router.getActiveUsers()
-              if (aUsers.length){
-                var eventEngine = aUsers.find(o => o.extensionId === jsonObj.ownerId)
-                if (eventEngine){
-                  eventEngine.processNotification(jsonObj)
-                }else{
-                  console.log("Not my notification!!!")
-                  console.log(jsonObj)
-                }
-              }else{
-                console.log("Not ready. Still loading users")
-              }
             }
             res.statusCode = 200;
             res.end();
         });
     }
+})
+
+// Test support Glip team
+app.get('/support-team', function(req, res){
+  res.render('join-support')
+})
+
+app.post('/invite-user', function (req, res) {
+  router.sendInviteToSupportTeam(req, res)
 })

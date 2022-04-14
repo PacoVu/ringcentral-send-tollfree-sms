@@ -22,7 +22,7 @@ var engine = Analytics.prototype = {
         phoneNumbers: [],
         failureAnalysis: {
           contents: [], // classified by similar content
-          optoutCount: 0, // SMS-CAR-413 
+          optoutCount: 0, // SMS-CAR-413, SMS-RC-413
           optoutNumbers: [],
           invalidNumberCount: 0, // SMS-UP-410, SMS-CAR-411, SMS-CAR-412
           invalidNumbers: [],
@@ -246,6 +246,7 @@ var engine = Analytics.prototype = {
               }
             }else if (code == "SMS-UP-430" || code == "SMS-CAR-430" || code == "SMS-CAR-431" || code == "SMS-CAR-432" || code == "SMS-CAR-433"){
               // group by content for analysis
+              //console.log(message)
               this.extractKeywords(message, code)
             }else{ // other errors
               this.analyticsData.failureAnalysis.otherErrorCount++
@@ -266,59 +267,59 @@ var engine = Analytics.prototype = {
             }
             break
           case "SendingFailed":
-          var toNumber = message.to[0]
-          /*
-          this.analyticsData.sendingFailedCount++
-          if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
-            this.analyticsData.sendingFailedNumbers.push(toNumber)
-          */
-          var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
-          this.analyticsData.sendingFailedCost += cost
-
-          // new code to handle sending failed error code
-          var code = (message.errorCode != undefined) ? message.errorCode : "Others"
-          if (code == "SMS-RC-410" || code == "SMS-RC-411" || code == "SMS-RC-412"){
-            // Destination number invalid, unallocated, or does not support this kind of messaging.
-            // Destination subscriber unavailable.
-            this.analyticsData.failureAnalysis.invalidNumberCount++
-            if (this.analyticsData.failureAnalysis.invalidNumbers.findIndex(n => n === toNumber) < 0)
-              this.analyticsData.failureAnalysis.invalidNumbers.push(toNumber)
-            if (this.analyticsData.failureAnalysis.invalidErrorCodes.findIndex(c => c === code) < 0)
-              this.analyticsData.failureAnalysis.invalidErrorCodes.push(code)
-          }else if (code == "SMS-RC-413"){  // opted out
-            this.analyticsData.failureAnalysis.optoutCount++
-            var sender = this.analyticsData.failureAnalysis.optoutNumbers.find(n => n.senderNumber === message.from)
-            if (sender){
-              sender.count++
-              if (sender.recipientNumbers.findIndex(n => n === toNumber) < 0)
-                sender.recipientNumbers.push(toNumber)
-            }else{
-              var item = {
-                count: 1,
-                senderNumber: message.from,
-                recipientNumbers: [toNumber]
-              }
-              this.analyticsData.failureAnalysis.optoutNumbers.push(item)
-            }
-          }else if (code == "SMS-UP-431"){ // Number blacklisted due to spam.
-            this.analyticsData.failureAnalysis.blacklistedCount++
-            var serviceNumber = this.analyticsData.failureAnalysis.blacklistedServiceNumbers.find(o => o.serviceNumber === message.from)
-            if (serviceNumber){
-              serviceNumber.recipientNumbers.push(message.to[0])
-            }else{
-              var item = {
-                  serviceNumber: message.from,
-                  recipientNumbers: [message.to[0]]
-                }
-                this.analyticsData.failureAnalysis.blacklistedServiceNumbers.push(item)
-            }
-          }else{
+            var toNumber = message.to[0]
+            /*
             this.analyticsData.sendingFailedCount++
             if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
               this.analyticsData.sendingFailedNumbers.push(toNumber)
-          }
-          // end
-          break;
+            */
+            var cost = (message.hasOwnProperty('cost')) ? message.cost : 0.0
+            this.analyticsData.sendingFailedCost += cost
+
+            // new code to handle sending failed error code
+            var code = (message.errorCode != undefined) ? message.errorCode : "Others"
+            if (code == "SMS-RC-410" || code == "SMS-RC-411" || code == "SMS-RC-412"){
+              // Destination number invalid, unallocated, or does not support this kind of messaging.
+              // Destination subscriber unavailable.
+              this.analyticsData.failureAnalysis.invalidNumberCount++
+              if (this.analyticsData.failureAnalysis.invalidNumbers.findIndex(n => n === toNumber) < 0)
+                this.analyticsData.failureAnalysis.invalidNumbers.push(toNumber)
+              if (this.analyticsData.failureAnalysis.invalidErrorCodes.findIndex(c => c === code) < 0)
+                this.analyticsData.failureAnalysis.invalidErrorCodes.push(code)
+            }else if (code == "SMS-RC-413"){  // opted out
+              this.analyticsData.failureAnalysis.optoutCount++
+              var sender = this.analyticsData.failureAnalysis.optoutNumbers.find(n => n.senderNumber === message.from)
+              if (sender){
+                sender.count++
+                if (sender.recipientNumbers.findIndex(n => n === toNumber) < 0)
+                  sender.recipientNumbers.push(toNumber)
+              }else{
+                var item = {
+                  count: 1,
+                  senderNumber: message.from,
+                  recipientNumbers: [toNumber]
+                }
+                this.analyticsData.failureAnalysis.optoutNumbers.push(item)
+              }
+            }else if (code == "SMS-UP-431"){ // Number blacklisted due to spam.
+              this.analyticsData.failureAnalysis.blacklistedCount++
+              var serviceNumber = this.analyticsData.failureAnalysis.blacklistedServiceNumbers.find(o => o.serviceNumber === message.from)
+              if (serviceNumber){
+                serviceNumber.recipientNumbers.push(message.to[0])
+              }else{
+                var item = {
+                    serviceNumber: message.from,
+                    recipientNumbers: [message.to[0]]
+                  }
+                  this.analyticsData.failureAnalysis.blacklistedServiceNumbers.push(item)
+              }
+            }else{
+              this.analyticsData.sendingFailedCount++
+              if (this.analyticsData.sendingFailedNumbers.findIndex(n => n === toNumber) < 0)
+                this.analyticsData.sendingFailedNumbers.push(toNumber)
+            }
+            // end
+            break;
           default:
             break
         }
@@ -333,7 +334,7 @@ var engine = Analytics.prototype = {
     extractKeywords: function(message, code){
       var keywords = keyword_extractor.extract(message.text, {
           language:"english",
-          remove_digits: true,
+          remove_digits: false,
           return_changed_case: false,
           remove_duplicates: true
       });
@@ -344,6 +345,8 @@ var engine = Analytics.prototype = {
           if (item.keywords.findIndex(o => o == kw) >= 0)
             matchedCount++
         }
+        //if ((matchedCount > 0) && (matchedCount >= (item.keywords.length-2))){
+        //var delta = Math.abs(keywords.length - matchedCount)
         if ((matchedCount > 0) && (matchedCount >= (keywords.length-2))){
           var toNumber = message.to[0]
           if (message.messageStatus == "Delivered" || message.messageStatus == "Sent"){

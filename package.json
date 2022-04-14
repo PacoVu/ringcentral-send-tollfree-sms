@@ -1,15 +1,16 @@
 {
-  "name": "ringcentral-send-tollfree-sms",
+  "name": "highvolume-sms",
   "version": "1.0.0",
-  "description": "Send toll-free SMS",
+  "description": "Send HV SMS",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": ""
   },
   "keywords": [
     "RingCentral"
   ],
-  "author": "Paco-Vu",
+  "author": "Phong-Vu",
   "license": "MIT",
   "dependencies": {
     "@ringcentral/sdk": "^4.0.0",
@@ -24,6 +25,6 @@
     "pg": "^8.5.0"
   },
   "engines": {
-    "node": "10.5.0"
+    "node": "12.20.2"
   }
 }

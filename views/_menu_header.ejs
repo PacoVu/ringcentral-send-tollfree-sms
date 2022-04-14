@@ -1,6 +1,6 @@
 <nav id="menu_header" class="navbar navbar-default no-border">
   <span class="left-middle-align">
-    <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral-labs-logo.png" height="40"></a></span>&nbsp;&nbsp;
+    <span class="rclogo"><a href="/"><img alt="Brand" src="img/ringcentral-labs.png" height="40"></a></span>&nbsp;&nbsp;
     <span class="title">High Volume SMS</span>
   </span>
 
@@ -8,25 +8,14 @@
     <% if (locals.lowVolume) { %>
     <li><a href="/standard">Standard Toll-Free SMS</a></li>
     <% } %>
-    <li class="dropdown">
-      <a class="dropdown-toggle" data-toggle="dropdown" href="#">Contact us <b class="caret"></b></a>
-      <ul class="dropdown-menu" role="menu">
-        <li><a role="menuitem" href="#" onclick="openWindow();return false;">Report Issues</a></li>
-        <li><a role="menuitem" href="#" onclick="openFeedbackForm();return false;">Feedback</a></li>
-      </ul>
-    </li>
+    <li><a href="#" onclick="openFeedbackForm();return false;">Feedback</a></li>
+    <!--li><a href="/support-team" >Join Support Team</a></li-->
   </ul>
 
   <ul class="nav navbar-nav navbar-right middle-align">
-    <li><span>Hi <b><%- userName %></b></span></li>&nbsp;&nbsp;
-    <!--
-    <li class="dropdown">
-      <a data-toggle="dropdown" class="dropdown-toggle" href="#">Contact us <b class="caret"></b></a>
-      <ul class="dropdown-menu" role="menu">
-        <li><a role="menuitem" tabindex="0"  href="javascript:openWindow()">Report Issues</a></li>
-        <li><a role="menuitem" tabindex="1" href="javascript:openFeedbackForm()">Feedback</a></li>
-      </ul>
-    </li>
-    -->
+    <% if (locals.monitor && locals.monitor == true) { %>
+    <li><span><a href="/monitor">Monitor</a>&nbsp; | </span></li>
+    <% } %>
+    <li><span>Hi <b><%- userName %></b></span></li>
   </ul>
 </nav>
